@@ -18,6 +18,11 @@ const router = createRouter({
           path: 'cartera',
           component: CarteraView,
         },
+        {
+          path: 'contribuyentes/:cm',
+          name: 'contribuyente-detail',
+          component: () => import('@/modules/contribuyentes/views/ContribuyenteDetailView.vue'),
+        },
       ],
     },
   ],

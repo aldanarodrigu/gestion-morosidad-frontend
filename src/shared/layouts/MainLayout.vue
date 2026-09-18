@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import NavBar from '../components/NavBar.vue'
+import SummaryCards from '../components/SummaryCards.vue'
 </script>
 
 <template>
   <div class="app-layout">
     <NavBar />
+
+    <SummaryCards />
 
     <main class="main-content">
       <RouterView />

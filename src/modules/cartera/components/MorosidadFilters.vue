@@ -14,7 +14,7 @@
       <!-- Segmento -->
       <div class="filter">
         <select v-model="filters.segmento">
-          <option value="">Segmento</option>
+          <option value="">Todos los segmento</option>
           <option value="temprana">Mora temprana</option>
           <option value="intermedia">Mora intermedia</option>
           <option value="tardia">Mora tardía</option>
@@ -24,7 +24,7 @@
       <!-- Tributo -->
       <div class="filter">
         <select v-model="filters.tributo">
-          <option value="">Tributo</option>
+          <option value="">Todos los tributos</option>
           <option value="inmobiliaria">Contribución inmobiliaria</option>
           <option value="patente">Patente</option>
           <option value="rural">Contribución rural</option>
@@ -138,7 +138,7 @@ const filters = reactive({
   grid-template-columns: 3fr repeat(5, 0.8fr);
   gap: var(--spacing-sm);
 
-  padding: var(--spacing-md) 0;
+  padding: var(--spacing-xs) 0;
 
   background-color: transparent;
   border: none;
@@ -207,9 +207,37 @@ select:focus {
 
 /* Botones de ordenamiento */
 
+/* Botones de ordenamiento */
+
 .sort-button {
   height: 36px;
+  padding: 0 var(--spacing-sm);
 
+  border: none;
+  background: transparent;
+
+  color: var(--color-text-secondary);
+
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+
+  cursor: pointer;
+}
+
+.sort-button:hover {
+  color: var(--color-primary);
+}
+
+.sort-button.active {
+  color: var(--color-primary);
+  background: transparent;
+}
+
+/* Exportar */
+
+.export-button {
+  height: 36px;
   padding: 0 var(--spacing-md);
 
   border: 1px solid var(--color-border);
@@ -225,20 +253,13 @@ select:focus {
   cursor: pointer;
 
   transition:
-    background-color 0.2s ease,
     border-color 0.2s ease,
     color 0.2s ease;
 }
 
-.sort-button:hover {
+.export-button:hover {
   border-color: var(--color-primary);
   color: var(--color-primary);
-}
-
-.sort-button.active {
-  background-color: var(--color-primary);
-  border-color: var(--color-primary);
-  color: white;
 }
 
 .checkbox-option {
@@ -266,14 +287,13 @@ select:focus {
 
 .export-button {
   height: 36px;
-
   padding: 0 var(--spacing-md);
 
-  border: none;
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
 
-  background-color: var(--color-primary);
-  color: white;
+  background-color: var(--color-surface);
+  color: var(--color-text-secondary);
 
   font-family: inherit;
   font-size: 13px;
@@ -281,10 +301,13 @@ select:focus {
 
   cursor: pointer;
 
-  transition: background-color 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    color 0.2s ease;
 }
 
 .export-button:hover {
-  background-color: var(--color-primary-dark);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
 }
 </style>

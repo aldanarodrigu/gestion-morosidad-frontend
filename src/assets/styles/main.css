@@ -19,14 +19,13 @@
   /* Bordes */
   --color-border: #e4e7ec;
 
-  /* Estados */
-  --color-success: #15803d;
-  --color-warning: #b45309;
-  --color-danger: #b42318;
-  --color-info: #175cd3;
+  /* Segmentos */
+  --color-temprana: #15803d;
+  --color-incial: #b45309;
+  --color-tardia: #b42318;
 
   /* Espaciado */
-  --spacing-xs: 4px;
+  --spacing-xs: 2px;
   --spacing-sm: 8px;
   --spacing-md: 16px;
   --spacing-lg: 24px;

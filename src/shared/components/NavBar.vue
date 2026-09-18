@@ -38,7 +38,7 @@ import { UserCircleIcon } from '@heroicons/vue/24/outline'
 
 <style scoped>
 .navbar {
-  height: 64px;
+  height: 70px;
   width: 100%;
 
   display: flex;
@@ -62,7 +62,7 @@ import { UserCircleIcon } from '@heroicons/vue/24/outline'
 }
 
 .navbar-brand img {
-  height: 50px;
+  height: 55px;
   width: auto;
   object-fit: contain;
 }
