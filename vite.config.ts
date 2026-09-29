@@ -12,12 +12,12 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+
+  // En desarrollo, /api se redirige al backend (en Docker lo hace nginx).
+  // API_PROXY_TARGET permite apuntar a la API del compose, ej.: http://localhost:9080
   server: {
     proxy: {
-      '/api': {
-        target: 'http://localhost:8080',
-        changeOrigin: true,
-      },
+      '/api': process.env.API_PROXY_TARGET ?? 'http://localhost:8080',
     },
   },
 })

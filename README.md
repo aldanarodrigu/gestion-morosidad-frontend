@@ -40,3 +40,15 @@ npm run dev
 ```sh
 npm run build
 ```
+
+## Docker
+
+La imagen compila la app y la sirve con nginx (sin root, puerto 8080), redirigiendo `/api` al backend.
+El sistema completo (Postgres + API + frontend) se levanta con el `docker-compose.yml` del repo
+`gestion-morosidad-api`; ver su README.
+
+Para `npm run dev` apuntando a la API del compose:
+
+```sh
+API_PROXY_TARGET=http://localhost:9080 npm run dev
+```
