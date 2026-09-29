@@ -1,5 +1,25 @@
 <script setup lang="ts">
-import { UserCircleIcon } from '@heroicons/vue/24/outline'
+import { computed } from 'vue'
+import { useRouter } from 'vue-router'
+import { UserCircleIcon, ArrowRightOnRectangleIcon } from '@heroicons/vue/24/outline'
+import { useAuthStore } from '@/modules/autenticacion/stores/auth.store'
+
+const auth = useAuthStore()
+const router = useRouter()
+
+const etiquetasRol: Record<string, string> = {
+  ADMIN: 'Administrador',
+}
+
+const rolLabel = computed(() => {
+  const rol = auth.user?.rol ?? ''
+  return etiquetasRol[rol] ?? rol
+})
+
+function cerrarSesion() {
+  auth.logout()
+  router.push({ name: 'login' })
+}
 </script>
 
 <template>
@@ -16,21 +36,28 @@ import { UserCircleIcon } from '@heroicons/vue/24/outline'
     <div class="navbar-right">
       <nav class="navbar-nav">
         <RouterLink to="/cartera" class="nav-link">Cartera</RouterLink>
-
         <RouterLink to="/convenios" class="nav-link">Convenios</RouterLink>
-
-        <RouterLink to="/configuracion" class="nav-link"> Configuración </RouterLink>
-
+        <RouterLink to="/configuracion" class="nav-link">Configuración</RouterLink>
         <RouterLink to="/reportes" class="nav-link">Reportes</RouterLink>
       </nav>
 
-      <div class="user-placeholder">
+      <div class="user-session">
         <UserCircleIcon class="user-icon" />
 
         <div class="user-info">
-          <span class="user-name">Usuario</span>
-          <span class="user-role">Administrador</span>
+          <span class="user-name">{{ auth.user?.username }}</span>
+          <span class="user-role">{{ rolLabel }}</span>
         </div>
+
+        <button
+          type="button"
+          class="logout-button"
+          title="Cerrar sesión"
+          aria-label="Cerrar sesión"
+          @click="cerrarSesion"
+        >
+          <ArrowRightOnRectangleIcon class="logout-icon" />
+        </button>
       </div>
     </div>
   </header>
@@ -137,7 +164,7 @@ import { UserCircleIcon } from '@heroicons/vue/24/outline'
   background-color: white;
 }
 
-.user-placeholder {
+.user-session {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -172,5 +199,29 @@ import { UserCircleIcon } from '@heroicons/vue/24/outline'
   font-weight: 400;
 
   opacity: 0.7;
+}
+
+.logout-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 6px;
+  margin-left: var(--spacing-sm);
+
+  color: rgba(255, 255, 255, 0.75);
+  background: transparent;
+  border: none;
+
+  transition: color 0.2s ease;
+}
+
+.logout-button:hover {
+  color: white;
+}
+
+.logout-icon {
+  width: 22px;
+  height: 22px;
 }
 </style>
