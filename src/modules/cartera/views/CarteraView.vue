@@ -1,4 +1,3 @@
-```vue
 <script setup lang="ts">
 import MorosidadFilters from '../components/MorosidadFilters.vue'
 import CarteraTable from '../components/CarteraTable.vue'
