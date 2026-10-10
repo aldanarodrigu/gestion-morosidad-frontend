@@ -144,12 +144,6 @@ function formatoImporte(importe: number) {
   white-space: nowrap;
 }
 
-.cartera-table thead {
-  border-top: 1px solid var(--color-border);
-}
-
-/* Estos selectores llevan .cartera-table para ganarle en especificidad a
-   `.cartera-table td/th`, así no hace falta !important */
 .cartera-table .cm {
   font-weight: 600;
   color: var(--color-primary);
