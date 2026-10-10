@@ -25,7 +25,7 @@ function cerrarSesion() {
 <template>
   <header class="navbar">
     <div class="navbar-brand">
-      <img src="../../assets/images/logo-intendencia.png" alt="Intendencia de San José" />
+      <img src="../../assets/images/logo-intendencia.png" alt="" />
 
       <div class="navbar-title">
         <span class="institution-name">Intendencia de San José</span>
@@ -34,7 +34,7 @@ function cerrarSesion() {
     </div>
 
     <div class="navbar-right">
-      <nav class="navbar-nav">
+      <nav class="navbar-nav" aria-label="Principal">
         <RouterLink to="/cartera" class="nav-link">Cartera</RouterLink>
         <RouterLink to="/convenios" class="nav-link">Convenios</RouterLink>
         <RouterLink to="/configuracion" class="nav-link">Configuración</RouterLink>
@@ -68,6 +68,10 @@ function cerrarSesion() {
   height: 70px;
   width: 100%;
 
+  position: sticky;
+  top: 0;
+  z-index: 10;
+
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -78,6 +82,8 @@ function cerrarSesion() {
   color: white;
 
   box-shadow: var(--shadow-sm);
+
+  border-bottom: 3px solid #ffd900;
 }
 
 .navbar-brand {
@@ -162,6 +168,12 @@ function cerrarSesion() {
   height: 2px;
 
   background-color: white;
+}
+
+.nav-link:focus-visible,
+.logout-button:focus-visible {
+  outline: 2px solid white;
+  outline-offset: 2px;
 }
 
 .user-session {

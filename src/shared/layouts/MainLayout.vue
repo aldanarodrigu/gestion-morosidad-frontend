@@ -1,13 +1,10 @@
 <script setup lang="ts">
 import NavBar from '../components/NavBar.vue'
-import SummaryCards from '../components/SummaryCards.vue'
 </script>
 
 <template>
   <div class="app-layout">
     <NavBar />
-
-    <SummaryCards />
 
     <main class="main-content">
       <RouterView />
@@ -17,14 +14,19 @@ import SummaryCards from '../components/SummaryCards.vue'
 
 <style scoped>
 .app-layout {
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .main-content {
   flex: 1;
-  padding: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
   background-color: var(--color-surface);
 }
 </style>

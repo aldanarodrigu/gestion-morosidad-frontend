@@ -1,87 +1,82 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
-const router = useRouter()
-
-function verContribuyente(cm: string) {
-  router.push(`/contribuyentes/${cm}`)
-}
-
-interface CarteraItem {
-  cm: string
-  contribuyente: string
-  tributo: string
-  deuda: number
-  diasVencido: number
-  segmento: string
-  convenio: boolean
-  contacto: string
-  accionSugerida: string
-  gestiones: number
-}
+import type { CarteraItem } from '../types/cartera'
 
 defineProps<{
   cartera: CarteraItem[]
 }>()
 
+const router = useRouter()
+
+// El click en la fila sigue funcionando para mouse; el link del CM cubre teclado y "abrir en pestaña nueva"
+function irAContribuyente(event: MouseEvent, cm: string) {
+  if ((event.target as HTMLElement).closest('a, button')) return
+  router.push(`/contribuyentes/${cm}`)
+}
+
 function getSegmentoClass(segmento: string) {
   switch (segmento.toLowerCase()) {
     case 'mora tardía':
       return 'tardia'
-
     case 'mora inicial':
       return 'inicial'
-
     case 'mora temprana':
       return 'temprana'
-
     default:
       return ''
   }
+}
+
+function formatoImporte(importe: number) {
+  return importe.toLocaleString('es-UY', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
 }
 </script>
 
 <template>
   <div class="table-container">
-    <table class="cartera-table">
+    <table class="cartera-table" aria-label="Cartera de morosidad">
       <thead>
         <tr>
-          <th>CM</th>
-          <th>Contribuyente</th>
-          <th>Tributo</th>
-          <th>Deuda</th>
-          <th>Días vencido</th>
-          <th>Segmento</th>
-          <th>Convenio</th>
-          <th>Contacto</th>
-          <th>Acción sugerida</th>
-          <th>Gestiones</th>
+          <th scope="col">CM</th>
+          <th scope="col">Contribuyente</th>
+          <th scope="col">Tributo</th>
+          <th scope="col" class="deuda">Deuda</th>
+          <th scope="col">Días vencido</th>
+          <th scope="col">Segmento</th>
+          <th scope="col">Convenio</th>
+          <th scope="col">Contacto</th>
+          <th scope="col">Acción sugerida</th>
+          <th scope="col">Gestiones</th>
         </tr>
       </thead>
 
       <tbody>
         <tr
           v-for="item in cartera"
-          :key="item.cm"
-          @click="verContribuyente(item.cm)"
+          :key="item.id"
           class="clickable-row"
+          @click="irAContribuyente($event, item.cm)"
         >
           <td class="cm">
-            {{ item.cm }}
+            <RouterLink
+              :to="`/contribuyentes/${item.cm}`"
+              class="cm-link"
+              :aria-label="`Ver contribuyente ${item.contribuyente} (CM ${item.cm})`"
+            >
+              {{ item.cm }}
+            </RouterLink>
           </td>
 
-          <td class="contribuyente">
-            {{ item.contribuyente }}
-          </td>
+          <td class="contribuyente">{{ item.contribuyente }}</td>
 
-          <td>
-            {{ item.tributo }}
-          </td>
+          <td>{{ item.tributo }}</td>
 
-          <td class="deuda">$ {{ item.deuda.toLocaleString('es-UY') }}</td>
+          <td class="deuda">$ {{ formatoImporte(item.deuda) }}</td>
 
-          <td>
-            {{ item.diasVencido }}
-          </td>
+          <td>{{ item.diasVencido }}</td>
 
           <td>
             <span class="segmento" :class="getSegmentoClass(item.segmento)">
@@ -96,18 +91,14 @@ function getSegmentoClass(segmento: string) {
           </td>
 
           <td>
-            <span class="contacto" :class="item.contacto === 'Sin datos' ? 'sin-datos' : ''">
+            <span class="contacto" :class="{ 'sin-datos': item.contacto === 'Sin datos' }">
               {{ item.contacto }}
             </span>
           </td>
 
-          <td>
-            {{ item.accionSugerida }}
-          </td>
+          <td>{{ item.accionSugerida }}</td>
 
-          <td class="gestiones">
-            {{ item.gestiones }}
-          </td>
+          <td class="gestiones">{{ item.gestiones ?? '—' }}</td>
         </tr>
 
         <tr v-if="cartera.length === 0">
@@ -117,10 +108,11 @@ function getSegmentoClass(segmento: string) {
     </table>
   </div>
 </template>
+
 <style scoped>
 .table-container {
   width: 100%;
-  overflow-x: auto;
+  overflow: auto;
   background: var(--color-surface-secondary);
 }
 
@@ -131,12 +123,18 @@ function getSegmentoClass(segmento: string) {
 }
 
 .cartera-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
   padding: 14px 12px;
   text-align: center;
   font-weight: 600;
   color: var(--color-text-secondary);
   background: var(--color-surface-secondary);
   white-space: nowrap;
+  box-shadow:
+    inset 0 1px 0 var(--color-border),
+    0 1px 0 var(--color-border);
 }
 
 .cartera-table td {
@@ -150,21 +148,53 @@ function getSegmentoClass(segmento: string) {
   border-top: 1px solid var(--color-border);
 }
 
-.cm {
+/* Estos selectores llevan .cartera-table para ganarle en especificidad a
+   `.cartera-table td/th`, así no hace falta !important */
+.cartera-table .cm {
   font-weight: 600;
-  color: var(--color-primary) !important;
+  color: var(--color-primary);
+}
+
+.cartera-table .deuda {
+  text-align: right;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.cartera-table .empty {
+  padding: 40px;
+  text-align: center;
+  color: var(--color-text-secondary);
+}
+
+.cm-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.cm-link:hover {
+  text-decoration: underline;
+}
+
+.cm-link:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 2px;
 }
 
 .contribuyente {
   font-weight: 500;
 }
 
-.deuda {
-  font-weight: 600;
-  text-align: right;
+.clickable-row {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
 }
 
-/* Segmentos */
+.clickable-row:hover,
+.clickable-row:focus-within {
+  background-color: var(--color-surface);
+}
 
 .segmento {
   display: inline-flex;
@@ -187,18 +217,19 @@ function getSegmentoClass(segmento: string) {
   color: #b42318;
 }
 
-.empty {
-  padding: 40px !important;
-  text-align: center;
-  color: var(--color-text-light) !important;
+.estado.si {
+  color: #15803d;
 }
 
-.clickable-row {
-  cursor: pointer;
-  transition: background-color 0.15s ease;
+.estado.no {
+  color: var(--color-text-secondary);
 }
 
-.clickable-row:hover {
-  background-color: #eef2f7;
+.contacto.sin-datos {
+  color: var(--color-text-secondary);
+}
+
+.gestiones {
+  font-weight: 500;
 }
 </style>

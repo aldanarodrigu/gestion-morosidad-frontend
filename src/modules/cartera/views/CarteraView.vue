@@ -1,69 +1,177 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import MorosidadFilters from '../components/MorosidadFilters.vue'
 import CarteraTable from '../components/CarteraTable.vue'
+import { useCartera } from '../composables/useCartera'
 
-const cartera = [
-  {
-    cm: 'CM-10254',
-    contribuyente: 'Juan Pérez',
-    tributo: 'CIR',
-    deuda: 125430,
-    diasVencido: 458,
-    segmento: 'Mora tardía',
-    convenio: false,
-    contacto: 'Disponible',
-    accionSugerida: 'Clearing de Informes',
-    gestiones: 2,
-  },
-  {
-    cm: 'CM-18421',
-    contribuyente: 'María Rodríguez',
-    tributo: 'COM',
-    deuda: 48200,
-    diasVencido: 98,
-    segmento: 'Mora Inicial',
-    convenio: true,
-    contacto: 'Disponible',
-    accionSugerida: 'Intimacion formal',
-    gestiones: 1,
-  },
-  {
-    cm: 'CM-14561',
-    contribuyente: 'Roberto Diaz',
-    tributo: 'SEM',
-    deuda: 70000,
-    diasVencido: 70,
-    segmento: 'Mora Temprana',
-    convenio: false,
-    contacto: 'Disponible',
-    accionSugerida: 'Recordatorios automáticos por wa',
-    gestiones: 3,
-  },
-  {
-    cm: 'CM-141271',
-    contribuyente: 'Agustin Rapetti',
-    tributo: 'COM',
-    deuda: 6700,
-    diasVencido: 83,
-    segmento: 'Mora Temprana',
-    convenio: false,
-    contacto: 'No Disponible',
-    accionSugerida: 'Recordatorios automáticos por wa',
-    gestiones: 0,
-  },
-]
+const {
+  cartera,
+  cargando,
+  error,
+  pagina,
+  totalElementos,
+  totalPaginas,
+  filtros,
+  cargar,
+  cambiarPagina,
+} = useCartera()
+
+// Temporal: se va cuando `contacto` se filtre en el backend
+const carteraVisible = computed(() => {
+  const c = filtros.value.contacto
+  if (!c) return cartera.value
+
+  return cartera.value.filter((item) => {
+    const sinContacto = item.contacto === '—' || item.contacto === 'Sin datos'
+    return c === 'con' ? !sinContacto : sinContacto
+  })
+})
+
+function exportarExcel() {
+  const encabezados = [
+    'CM',
+    'Contribuyente',
+    'Documento',
+    'Tributo',
+    'Deuda',
+    'Días vencido',
+    'Segmento',
+    'Convenio',
+  ]
+
+  const filas = carteraVisible.value.map((item) => [
+    item.cm,
+    item.contribuyente,
+    item.documento,
+    item.tributo,
+    item.deuda,
+    item.diasVencido,
+    item.segmento,
+    item.convenio ? 'Sí' : 'No',
+  ])
+
+  const escapar = (valor: string | number) => {
+    let texto = String(valor ?? '')
+    // Evita que Excel interprete el texto como fórmula (CSV injection)
+    if (typeof valor === 'string' && /^[=+\-@]/.test(texto)) {
+      texto = `'${texto}`
+    }
+    return `"${texto.replace(/"/g, '""')}"`
+  }
+
+  const contenido = [encabezados, ...filas].map((fila) => fila.map(escapar).join(';')).join('\r\n')
+
+  const archivo = new Blob(['\uFEFF', contenido], {
+    type: 'text/csv;charset=utf-8;',
+  })
+
+  const url = URL.createObjectURL(archivo)
+  const enlace = document.createElement('a')
+
+  enlace.href = url
+  enlace.download = 'cartera-morosidad.csv'
+  enlace.click()
+
+  URL.revokeObjectURL(url)
+}
 </script>
 
 <template>
   <section class="cartera-view">
-    <MorosidadFilters />
+    <MorosidadFilters v-model="filtros" @export="exportarExcel" />
 
-    <CarteraTable :cartera="cartera" />
+    <p v-if="cargando" class="mensaje">Cargando cartera...</p>
+
+    <div v-else-if="error" class="mensaje error">
+      <p>{{ error }}</p>
+      <button type="button" @click="cargar">Reintentar</button>
+    </div>
+
+    <template v-else>
+      <p class="resumen">{{ totalElementos }} resultados</p>
+
+      <CarteraTable class="tabla" :cartera="carteraVisible" />
+
+      <div v-if="totalPaginas > 1" class="paginacion">
+        <button
+          type="button"
+          :disabled="pagina === 0 || cargando"
+          @click="cambiarPagina(pagina - 1)"
+        >
+          Anterior
+        </button>
+
+        <span> Página {{ pagina + 1 }} de {{ totalPaginas }} </span>
+
+        <button
+          type="button"
+          :disabled="pagina + 1 >= totalPaginas || cargando"
+          @click="cambiarPagina(pagina + 1)"
+        >
+          Siguiente
+        </button>
+      </div>
+    </template>
   </section>
 </template>
 
 <style scoped>
 .cartera-view {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
   padding-top: var(--spacing-xs);
+}
+
+.tabla {
+  min-height: 0;
+}
+
+.mensaje,
+.resumen {
+  padding: 12px 21px;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.error {
+  color: var(--color-text);
+}
+
+.paginacion {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px;
+  font-size: 13px;
+}
+
+.paginacion button,
+.error button {
+  padding: 6px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: 500;
+  transition:
+    background-color 0.2s,
+    border-color 0.2s,
+    color 0.2s;
+}
+
+.paginacion button:hover:not(:disabled),
+.error button:hover {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-surface);
+}
+
+.paginacion button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 </style>
