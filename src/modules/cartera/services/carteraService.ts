@@ -24,7 +24,6 @@ export async function obtenerCartera(
   pagina = 0,
   tamanio = 20,
   filtros: FiltrosCarteraApi = {},
-  signal?: AbortSignal,
 ): Promise<PaginaResponse<CarteraItem>> {
   const { data } = await http.get<PaginaResponse<DeudaApi>>('/deudas', {
     params: {
@@ -35,7 +34,6 @@ export async function obtenerCartera(
       segmento: filtros.segmento ? idsSegmentos[filtros.segmento] : undefined,
       tributo: filtros.tributo || undefined,
     },
-    signal,
   })
 
   return {
@@ -52,7 +50,7 @@ export async function obtenerCartera(
       segmento: deuda.segmentoMora?.nombre ?? 'Sin segmento',
       convenio: deuda.convenio,
       contacto: '—',
-      accionSugerida: '—',
+      accionesSugeridas: deuda.accionesSugeridas?.map((accion) => accion.nombre) ?? [],
       gestiones: null,
     })),
   }

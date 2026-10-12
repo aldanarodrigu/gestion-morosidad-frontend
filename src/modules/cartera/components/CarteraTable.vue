@@ -8,7 +8,6 @@ defineProps<{
 
 const router = useRouter()
 
-// El click en la fila sigue funcionando para mouse; el link del CM cubre teclado y "abrir en pestaña nueva"
 function irAContribuyente(event: MouseEvent, cm: string) {
   if ((event.target as HTMLElement).closest('a, button')) return
   router.push(`/contribuyentes/${cm}`)
@@ -33,6 +32,10 @@ function formatoImporte(importe: number) {
     maximumFractionDigits: 2,
   })
 }
+
+function mostrarAcciones(acciones: string[]) {
+  window.alert(acciones.join('\n'))
+}
 </script>
 
 <template>
@@ -40,16 +43,16 @@ function formatoImporte(importe: number) {
     <table class="cartera-table" aria-label="Cartera de morosidad">
       <thead>
         <tr>
-          <th scope="col">CM</th>
-          <th scope="col">Contribuyente</th>
-          <th scope="col">Tributo</th>
-          <th scope="col" class="deuda">Deuda</th>
-          <th scope="col">Días vencido</th>
-          <th scope="col">Segmento</th>
-          <th scope="col">Convenio</th>
-          <th scope="col">Contacto</th>
-          <th scope="col">Acción sugerida</th>
-          <th scope="col">Gestiones</th>
+          <th scope="col" class="col-left">CM</th>
+          <th scope="col" class="col-left">Contribuyente</th>
+          <th scope="col" class="col-left">Tributo</th>
+          <th scope="col" class="col-left">Segmento</th>
+          <th scope="col" class="col-right">Días vencido</th>
+          <th scope="col" class="col-right">Deuda</th>
+          <th scope="col" class="col-right">Gestiones</th>
+          <th scope="col" class="col-center">Convenio</th>
+          <th scope="col" class="col-left">Contacto</th>
+          <th scope="col" class="col-left col-acciones">Acción sugerida</th>
         </tr>
       </thead>
 
@@ -60,7 +63,7 @@ function formatoImporte(importe: number) {
           class="clickable-row"
           @click="irAContribuyente($event, item.cm)"
         >
-          <td class="cm">
+          <td class="col-left cm">
             <RouterLink
               :to="`/contribuyentes/${item.cm}`"
               class="cm-link"
@@ -70,35 +73,50 @@ function formatoImporte(importe: number) {
             </RouterLink>
           </td>
 
-          <td class="contribuyente">{{ item.contribuyente }}</td>
+          <td class="col-left contribuyente">{{ item.contribuyente }}</td>
+          <td class="col-left">{{ item.tributo }}</td>
 
-          <td>{{ item.tributo }}</td>
-
-          <td class="deuda">$ {{ formatoImporte(item.deuda) }}</td>
-
-          <td>{{ item.diasVencido }}</td>
-
-          <td>
+          <td class="col-left">
             <span class="segmento" :class="getSegmentoClass(item.segmento)">
               {{ item.segmento }}
             </span>
           </td>
 
-          <td>
+          <td class="col-right num">{{ item.diasVencido }}</td>
+          <td class="col-right deuda">$ {{ formatoImporte(item.deuda) }}</td>
+          <td class="col-right gestiones num">{{ item.gestiones ?? '—' }}</td>
+
+          <td class="col-center">
             <span class="estado" :class="item.convenio ? 'si' : 'no'">
               {{ item.convenio ? 'Sí' : 'No' }}
             </span>
           </td>
 
-          <td>
+          <td class="col-left">
             <span class="contacto" :class="{ 'sin-datos': item.contacto === 'Sin datos' }">
               {{ item.contacto }}
             </span>
           </td>
 
-          <td>{{ item.accionSugerida }}</td>
+          <td class="col-left col-acciones acciones">
+            <template v-if="item.accionesSugeridas.length">
+              <span class="accion-principal">
+                {{ item.accionesSugeridas[0] }}
+              </span>
 
-          <td class="gestiones">{{ item.gestiones ?? '—' }}</td>
+              <button
+                v-if="item.accionesSugeridas.length > 1"
+                class="acciones-mas"
+                type="button"
+                :title="item.accionesSugeridas.slice(1).join(', ')"
+                @click.stop="mostrarAcciones(item.accionesSugeridas)"
+              >
+                +{{ item.accionesSugeridas.length - 1 }} más
+              </button>
+            </template>
+
+            <span v-else>—</span>
+          </td>
         </tr>
 
         <tr v-if="cartera.length === 0">
@@ -122,37 +140,68 @@ function formatoImporte(importe: number) {
   font-size: 13px;
 }
 
+/* Mismo padding horizontal en th y td para que encabezado y contenido coincidan */
+.cartera-table th,
+.cartera-table td {
+  padding: 14px 16px;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
 .cartera-table th {
   position: sticky;
   top: 0;
   z-index: 1;
-  padding: 14px 12px;
-  text-align: center;
   font-weight: 600;
   color: var(--color-text-secondary);
   background: var(--color-surface-secondary);
-  white-space: nowrap;
   box-shadow:
     inset 0 1px 0 var(--color-border),
     0 1px 0 var(--color-border);
 }
 
 .cartera-table td {
-  padding: 15px 12px;
-  text-align: center;
   color: var(--color-text);
-  white-space: nowrap;
+}
+
+/* Alineación por columna (aplica igual a th y td) */
+.col-left {
+  text-align: left;
+}
+
+.col-right {
+  text-align: right;
+}
+
+.col-center {
+  text-align: center;
+}
+
+/* Números con ancho de dígito uniforme */
+.deuda,
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+.deuda {
+  font-weight: 600;
+}
+
+/* Acciones sugeridas */
+.col-acciones {
+  width: 220px;
+  min-width: 180px;
+  max-width: 220px;
+}
+
+.cartera-table td.acciones {
+  white-space: normal;
+  line-height: 1.4;
 }
 
 .cartera-table .cm {
   font-weight: 600;
   color: var(--color-primary);
-}
-
-.cartera-table .deuda {
-  text-align: right;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
 }
 
 .cartera-table .empty {
@@ -190,12 +239,10 @@ function formatoImporte(importe: number) {
   background-color: var(--color-surface);
 }
 
+/* Sin padding horizontal: el texto queda alineado con el encabezado */
 .segmento {
-  display: inline-flex;
-  align-items: center;
-  padding: 5px 9px;
-  border-radius: var(--radius-sm);
-  font-size: 12px;
+  display: inline-block;
+  font-size: 13px;
   font-weight: 600;
 }
 
@@ -215,15 +262,41 @@ function formatoImporte(importe: number) {
   color: #15803d;
 }
 
-.estado.no {
-  color: var(--color-text-secondary);
-}
-
+.estado.no,
 .contacto.sin-datos {
   color: var(--color-text-secondary);
 }
 
 .gestiones {
   font-weight: 500;
+}
+
+.accion-principal {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.acciones-mas {
+  display: block;
+  margin-top: 4px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--color-primary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.acciones-mas:hover {
+  text-decoration: underline;
+}
+
+.acciones-mas:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
 }
 </style>

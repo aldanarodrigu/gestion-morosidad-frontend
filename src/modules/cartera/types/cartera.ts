@@ -14,6 +14,11 @@ export interface DeudaApi {
     codigo: string
     descripcion: string | null
   }[]
+  accionesSugeridas: {
+    id: number
+    nombre: string
+    activo: boolean
+  }[]
   importe: number
   diasAtraso: number | null
   convenio: boolean
@@ -45,6 +50,6 @@ export interface CarteraItem {
   segmento: string
   convenio: boolean
   contacto: string
-  accionSugerida: string
+  accionesSugeridas: string[]
   gestiones: number | null
 }
