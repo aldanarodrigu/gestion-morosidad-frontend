@@ -41,6 +41,7 @@ export async function obtenerCartera(
     contenido: data.contenido.map((deuda) => ({
       id: deuda.id,
       cm: deuda.padron.cm,
+      numeroPadron: deuda.padron.numeroPadron,
       contribuyente: deuda.contribuyente.nombre,
       documento: deuda.contribuyente.documento,
       tributo: deuda.tributos.map((tributo) => tributo.descripcion || tributo.codigo).join(', '),
@@ -51,7 +52,7 @@ export async function obtenerCartera(
       convenio: deuda.convenio,
       contacto: '—',
       accionesSugeridas: deuda.accionesSugeridas?.map((accion) => accion.nombre) ?? [],
-      gestiones: null,
+      gestiones: deuda.cantidadGestiones,
     })),
   }
 }

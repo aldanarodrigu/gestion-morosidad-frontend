@@ -44,14 +44,17 @@ function mostrarAcciones(acciones: string[]) {
       <thead>
         <tr>
           <th scope="col" class="col-left">CM</th>
+          <th scope="col" class="col-left">N.º padrón</th>
           <th scope="col" class="col-left">Contribuyente</th>
           <th scope="col" class="col-left">Tributo</th>
           <th scope="col" class="col-left">Segmento</th>
           <th scope="col" class="col-right">Días vencido</th>
           <th scope="col" class="col-right">Deuda</th>
           <th scope="col" class="col-right">Gestiones</th>
+          <!--
           <th scope="col" class="col-center">Convenio</th>
           <th scope="col" class="col-left">Contacto</th>
+          -->
           <th scope="col" class="col-left col-acciones">Acción sugerida</th>
         </tr>
       </thead>
@@ -73,6 +76,8 @@ function mostrarAcciones(acciones: string[]) {
             </RouterLink>
           </td>
 
+          <td class="col-left">{{ item.numeroPadron || '—' }}</td>
+
           <td class="col-left contribuyente">{{ item.contribuyente }}</td>
           <td class="col-left">{{ item.tributo }}</td>
 
@@ -86,17 +91,20 @@ function mostrarAcciones(acciones: string[]) {
           <td class="col-right deuda">$ {{ formatoImporte(item.deuda) }}</td>
           <td class="col-right gestiones num">{{ item.gestiones ?? '—' }}</td>
 
+          <!--
           <td class="col-center">
             <span class="estado" :class="item.convenio ? 'si' : 'no'">
               {{ item.convenio ? 'Sí' : 'No' }}
             </span>
           </td>
+          
 
           <td class="col-left">
             <span class="contacto" :class="{ 'sin-datos': item.contacto === 'Sin datos' }">
               {{ item.contacto }}
             </span>
           </td>
+          -->
 
           <td class="col-left col-acciones acciones">
             <template v-if="item.accionesSugeridas.length">
@@ -120,7 +128,7 @@ function mostrarAcciones(acciones: string[]) {
         </tr>
 
         <tr v-if="cartera.length === 0">
-          <td colspan="10" class="empty">No hay registros para mostrar.</td>
+          <td colspan="8" class="empty">No hay registros para mostrar.</td>
         </tr>
       </tbody>
     </table>
