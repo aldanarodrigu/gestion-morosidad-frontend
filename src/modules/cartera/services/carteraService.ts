@@ -40,6 +40,7 @@ export async function obtenerCartera(
     ...data,
     contenido: data.contenido.map((deuda) => ({
       id: deuda.id,
+      contribuyenteId: deuda.contribuyenteId,
       cm: deuda.padron.cm,
       numeroPadron: deuda.padron.numeroPadron,
       contribuyente: deuda.contribuyente.nombre,

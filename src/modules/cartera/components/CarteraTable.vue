@@ -8,9 +8,10 @@ defineProps<{
 
 const router = useRouter()
 
-function irAContribuyente(event: MouseEvent, cm: string) {
+function irAContribuyente(event: MouseEvent, contribuyenteId: number) {
   if ((event.target as HTMLElement).closest('a, button')) return
-  router.push(`/contribuyentes/${cm}`)
+
+  router.push(`/contribuyentes/${contribuyenteId}`)
 }
 
 function getSegmentoClass(segmento: string) {
@@ -64,14 +65,10 @@ function mostrarAcciones(acciones: string[]) {
           v-for="item in cartera"
           :key="item.id"
           class="clickable-row"
-          @click="irAContribuyente($event, item.cm)"
+          @click="irAContribuyente($event, item.contribuyenteId)""
         >
           <td class="col-left cm">
-            <RouterLink
-              :to="`/contribuyentes/${item.cm}`"
-              class="cm-link"
-              :aria-label="`Ver contribuyente ${item.contribuyente} (CM ${item.cm})`"
-            >
+            <RouterLink :to="`/contribuyentes/${item.contribuyenteId}`" class="cm-link">
               {{ item.cm }}
             </RouterLink>
           </td>
@@ -128,7 +125,7 @@ function mostrarAcciones(acciones: string[]) {
         </tr>
 
         <tr v-if="cartera.length === 0">
-          <td colspan="8" class="empty">No hay registros para mostrar.</td>
+          <td colspan="9" class="empty">No hay registros para mostrar.</td>
         </tr>
       </tbody>
     </table>

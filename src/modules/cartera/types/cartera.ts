@@ -1,13 +1,23 @@
 export interface DeudaApi {
   id: number
+  contribuyenteId: number
   padron: {
     cm: string
     numeroPadron: string
+    tipoPadron?: string | null
+    localidad?: string | null
+    block?: string | null
+    unidad?: string | null
+    contribuyente?: {
+      cm: string
+      nombre: string
+      documento: string | null
+    } | null
   }
   contribuyente: {
     cm: string
     nombre: string
-    documento: string
+    documento: string | null
   }
   tributos: {
     id: number
@@ -19,8 +29,12 @@ export interface DeudaApi {
     nombre: string
     activo: boolean
   }[]
+  cantidadGestiones: number
   importe: number
+  deudaDesde: string
+  ultimoVencimiento: string | null
   diasAtraso: number | null
+  aniosDeuda: string | null
   convenio: boolean
   segmentoMora: {
     id: number
@@ -28,6 +42,10 @@ export interface DeudaApi {
     descripcion: string
     orden: number
   } | null
+  fechaUltimoCobro: string | null
+  importeUltimoCobro: number | null
+  estado: string
+  fechaSincronizacion: string | null
 }
 
 export interface PaginaResponse<T> {
@@ -40,7 +58,9 @@ export interface PaginaResponse<T> {
 
 export interface CarteraItem {
   id: number
+  contribuyenteId: number
   cm: string
+  numeroPadron: string
   contribuyente: string
   documento: string
   tributo: string
