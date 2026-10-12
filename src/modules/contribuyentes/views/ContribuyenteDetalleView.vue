@@ -14,6 +14,11 @@ import DeudasTab from '../components/DeudasTab.vue'
 
 const route = useRoute()
 
+const deudaSeleccionadaId = computed(() => {
+  const valor = route.query.deudaId
+  return valor ? Number(valor) : null
+})
+
 const deudas = ref<DeudaApi[]>([])
 const cargando = ref(false)
 const error = ref<string | null>(null)
@@ -22,9 +27,8 @@ const pestanaActiva = ref('deudas')
 const contribuyenteId = computed(() => Number(route.params.contribuyenteId))
 
 const contribuyente = computed<ContribuyenteResumenResponse | null>(() =>
-  obtenerResumenDesdeDeudas(deudas.value),
+  obtenerResumenDesdeDeudas(deudas.value, deudaSeleccionadaId.value),
 )
-
 const cargarDatos = async () => {
   if (!Number.isInteger(contribuyenteId.value) || contribuyenteId.value <= 0) {
     error.value = 'No se especificó un ID válido del contribuyente.'
@@ -95,7 +99,11 @@ watch(contribuyenteId, () => {
           <div class="contenido-pestana">
             <GestionesTab v-if="pestanaActiva === 'gestiones'" />
 
-            <DeudasTab v-else-if="pestanaActiva === 'deudas'" :deudas="deudas" />
+            <DeudasTab
+              v-else-if="pestanaActiva === 'deudas'"
+              :deudas="deudas"
+              :deuda-seleccionada-id="deudaSeleccionadaId"
+            />
 
             <DatosContactoTab v-else />
           </div>

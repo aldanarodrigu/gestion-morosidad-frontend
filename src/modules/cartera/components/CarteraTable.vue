@@ -8,11 +8,20 @@ defineProps<{
 
 const router = useRouter()
 
-function irAContribuyente(event: MouseEvent, contribuyenteId: number) {
+
+function irAContribuyente(
+  event: MouseEvent,
+  contribuyenteId: number,
+  deudaId: number,
+) {
   if ((event.target as HTMLElement).closest('a, button')) return
 
-  router.push(`/contribuyentes/${contribuyenteId}`)
+  router.push({
+    path: `/contribuyentes/${contribuyenteId}`,
+    query: { deudaId: String(deudaId) },
+  })
 }
+
 
 function getSegmentoClass(segmento: string) {
   switch (segmento.toLowerCase()) {
@@ -62,11 +71,14 @@ function mostrarAcciones(acciones: string[]) {
 
       <tbody>
         <tr
-          v-for="item in cartera"
-          :key="item.id"
-          class="clickable-row"
-          @click="irAContribuyente($event, item.contribuyenteId)""
-        >
+
+          <tr
+            v-for="item in cartera"
+            :key="item.id"
+            class="clickable-row"
+            @click="irAContribuyente($event, item.contribuyenteId, item.id)"
+          >
+
           <td class="col-left cm">
             <RouterLink :to="`/contribuyentes/${item.contribuyenteId}`" class="cm-link">
               {{ item.cm }}

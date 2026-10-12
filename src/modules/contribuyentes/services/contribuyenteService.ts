@@ -24,12 +24,19 @@ export async function obtenerDeudasPorContribuyenteId(
   return data
 }
 
-export function obtenerResumenDesdeDeudas(deudas: DeudaApi[]): ContribuyenteResumenResponse | null {
+export function obtenerResumenDesdeDeudas(
+  deudas: DeudaApi[],
+  deudaSeleccionadaId?: number | null,
+): ContribuyenteResumenResponse | null {
   const primeraDeuda = deudas[0]
 
   if (!primeraDeuda) {
     return null
   }
+
+  const deudaSeleccionada = deudas.find((deuda) => deuda.id === deudaSeleccionadaId)
+
+  const deudaParaMostrar = deudaSeleccionada ?? primeraDeuda
 
   const masAtrasada = deudas.reduce(
     (max, deuda) => ((deuda.diasAtraso ?? -1) > (max.diasAtraso ?? -1) ? deuda : max),
@@ -45,7 +52,7 @@ export function obtenerResumenDesdeDeudas(deudas: DeudaApi[]): ContribuyenteResu
 
   return {
     contribuyenteId: primeraDeuda.contribuyenteId,
-    cm: primeraDeuda.padron.cm,
+    cm: deudaParaMostrar.padron.cm,
     nombre: primeraDeuda.contribuyente.nombre,
     documento: primeraDeuda.contribuyente.documento,
     deudaTotal: Math.round(deudaTotal * 100) / 100,
