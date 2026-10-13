@@ -16,6 +16,11 @@ import DatosContactoTab from '../components/DatosContactoTab.vue'
 
 const route = useRoute()
 
+const deudaSeleccionadaId = computed(() => {
+  const valor = route.query.deudaId
+  return valor ? Number(valor) : null
+})
+
 const deudas = ref<DeudaApi[]>([])
 const cargando = ref(false)
 const error = ref<string | null>(null)
@@ -26,7 +31,7 @@ const deudaInicialId = computed(() => Number(route.query.deuda) || undefined)
 const contribuyenteId = computed(() => Number(route.params.contribuyenteId))
 
 const contribuyente = computed<ContribuyenteResumenResponse | null>(() =>
-  obtenerResumenDesdeDeudas(deudas.value),
+  obtenerResumenDesdeDeudas(deudas.value, deudaSeleccionadaId.value),
 )
 
 function gestionRegistrada(deudaId: number) {
@@ -111,7 +116,11 @@ watch(contribuyenteId, () => {
               @cantidad="cantidadGestiones = $event"
             />
 
-            <DeudasTab v-else-if="pestanaActiva === 'deudas'" :deudas="deudas" />
+            <DeudasTab
+              v-else-if="pestanaActiva === 'deudas'"
+              :deudas="deudas"
+              :deuda-seleccionada-id="deudaSeleccionadaId"
+            />
 
             <DatosContactoTab v-else :cm="contribuyente.cm" />
           </div>

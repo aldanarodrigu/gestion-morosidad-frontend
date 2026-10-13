@@ -14,6 +14,7 @@ function irAContribuyente(event: MouseEvent, contribuyenteId: number, deudaId: n
   router.push({ path: `/contribuyentes/${contribuyenteId}`, query: { deuda: String(deudaId) } })
 }
 
+
 function getSegmentoClass(segmento: string) {
   switch (segmento.toLowerCase()) {
     case 'mora tardía':
