@@ -28,8 +28,8 @@ const opcionesOrden = [
         <input
           v-model="filters.search"
           type="text"
-          placeholder="Buscar por CM, contribuyente..."
-          aria-label="Buscar por CM o contribuyente"
+          placeholder="Buscar por CM, documento o contribuyente..."
+          aria-label="Buscar por CM, documento o contribuyente"
           autocomplete="off"
         />
       </div>

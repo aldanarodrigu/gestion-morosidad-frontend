@@ -21,12 +21,33 @@ const router = createRouter({
       meta: { requiresAuth: true }, // los hijos heredan esto
       children: [
         {
+          path: 'convenios',
+          name: 'convenios',
+          meta: { requiereCartera: true },
+          component: () => import('@/shared/views/SeccionEnDesarrolloView.vue'),
+          props: { titulo: 'Convenios' },
+        },
+        {
+          path: 'reportes',
+          name: 'reportes',
+          meta: { requiereCartera: true },
+          component: () => import('@/shared/views/SeccionEnDesarrolloView.vue'),
+          props: { titulo: 'Reportes' },
+        },
+        {
+          path: 'configuracion',
+          name: 'configuracion',
+          component: () => import('@/modules/configuracion/views/ConfiguracionView.vue'),
+        },
+        {
           path: 'cartera',
+          meta: { requiereCartera: true },
           component: CarteraView,
         },
         {
           path: 'contribuyentes/:contribuyenteId',
           name: 'contribuyente-detail',
+          meta: { requiereCartera: true },
           component: () => import('@/modules/contribuyentes/views/ContribuyenteDetalleView.vue'),
         },
       ],
@@ -34,14 +55,25 @@ const router = createRouter({
   ],
 })
 
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
   const auth = useAuthStore()
 
+  if (to.meta.requiresAuth && auth.isAuthenticated) {
+    try {
+      await auth.actualizarSesion()
+    } catch {
+      // La API valida los permisos; un fallo de red no borra la sesion local.
+      if (!localStorage.getItem('token')) auth.logout()
+    }
+  }
   if (to.meta.requiresAuth && !auth.isAuthenticated) {
     return { name: 'login' }
   }
+  if (to.meta.requiereCartera && auth.isAuthenticated && !auth.puedeVerCartera) {
+    return { name: 'configuracion' }
+  }
   if (to.name === 'login' && auth.isAuthenticated) {
-    return { path: '/cartera' }
+    return { path: auth.inicio }
   }
 })
 

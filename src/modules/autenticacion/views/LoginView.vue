@@ -18,7 +18,7 @@ async function onSubmit() {
   cargando.value = true
   try {
     await auth.login({ username: username.value, password: password.value })
-    router.push('/cartera')
+    router.push(auth.inicio)
   } catch (e: any) {
     error.value = e.response?.data?.mensaje ?? 'No se pudo iniciar sesión'
   } finally {

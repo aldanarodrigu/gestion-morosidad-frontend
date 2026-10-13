@@ -11,19 +11,29 @@ import type { ContribuyenteResumenResponse } from '../services/contribuyenteServ
 
 import ContribuyenteResumen from '../components/ContribuyenteResumen.vue'
 import DeudasTab from '../components/DeudasTab.vue'
+import GestionesTab from '../components/GestionesTab.vue'
+import DatosContactoTab from '../components/DatosContactoTab.vue'
 
 const route = useRoute()
 
 const deudas = ref<DeudaApi[]>([])
 const cargando = ref(false)
 const error = ref<string | null>(null)
-const pestanaActiva = ref('deudas')
+const pestanaActiva = ref('gestiones')
+
+const deudaInicialId = computed(() => Number(route.query.deuda) || undefined)
 
 const contribuyenteId = computed(() => Number(route.params.contribuyenteId))
 
 const contribuyente = computed<ContribuyenteResumenResponse | null>(() =>
   obtenerResumenDesdeDeudas(deudas.value),
 )
+
+function gestionRegistrada(deudaId: number) {
+  const deuda = deudas.value.find((d) => d.id === deudaId)
+  if (deuda) deuda.cantidadGestiones = (deuda.cantidadGestiones ?? 0) + 1
+}
+const cantidadGestiones = ref<number | null>(null)
 
 const cargarDatos = async () => {
   if (!Number.isInteger(contribuyenteId.value) || contribuyenteId.value <= 0) {
@@ -74,7 +84,7 @@ watch(contribuyenteId, () => {
               :class="{ activa: pestanaActiva === 'gestiones' }"
               @click="pestanaActiva = 'gestiones'"
             >
-              Gestiones
+              Gestiones<span v-if="cantidadGestiones !== null"> ({{ cantidadGestiones }})</span>
             </button>
 
             <button
@@ -93,11 +103,17 @@ watch(contribuyenteId, () => {
           </nav>
 
           <div class="contenido-pestana">
-            <GestionesTab v-if="pestanaActiva === 'gestiones'" />
+            <GestionesTab
+              v-if="pestanaActiva === 'gestiones'"
+              :deudas="deudas"
+              :deuda-inicial-id="deudaInicialId"
+              @registrada="gestionRegistrada"
+              @cantidad="cantidadGestiones = $event"
+            />
 
             <DeudasTab v-else-if="pestanaActiva === 'deudas'" :deudas="deudas" />
 
-            <DatosContactoTab v-else />
+            <DatosContactoTab v-else :cm="contribuyente.cm" />
           </div>
         </section>
       </template>

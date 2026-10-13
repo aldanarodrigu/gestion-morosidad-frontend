@@ -1,6 +1,7 @@
 export interface DeudaApi {
   id: number
   contribuyenteId: number
+  conContacto: boolean
   padron: {
     cm: string
     numeroPadron: string
@@ -62,7 +63,7 @@ export interface CarteraItem {
   cm: string
   numeroPadron: string
   contribuyente: string
-  documento: string
+  documento: string | null
   tributo: string
   codigosTributo: string[]
   deuda: number
@@ -72,4 +73,18 @@ export interface CarteraItem {
   contacto: string
   accionesSugeridas: string[]
   gestiones: number | null
+}
+
+export interface DeudasAgrupadasApi {
+  clave: string
+  documento: string | null
+  nombres: string[]
+  importeTotal: number
+  diasAtrasoMaximos: number | null
+  segmentoMora: DeudaApi['segmentoMora']
+  deudas: DeudaApi[]
+}
+
+export interface CarteraGrupo extends Omit<DeudasAgrupadasApi, 'deudas'> {
+  deudas: CarteraItem[]
 }

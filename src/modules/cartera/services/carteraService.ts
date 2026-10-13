@@ -1,10 +1,17 @@
 import { http } from '@/shared/api/http'
-import type { CarteraItem, DeudaApi, PaginaResponse } from '../types/cartera'
+import type {
+  CarteraItem,
+  DeudaApi,
+  PaginaResponse,
+  CarteraGrupo,
+  DeudasAgrupadasApi,
+} from '../types/cartera'
 
 export interface FiltrosCarteraApi {
   busqueda?: string
   segmento?: string
   tributo?: string
+  contacto?: string
   ordenarPor?: 'antiguedad' | 'importe' | 'nombre'
 }
 
@@ -24,36 +31,67 @@ export async function obtenerCartera(
   pagina = 0,
   tamanio = 20,
   filtros: FiltrosCarteraApi = {},
+  signal?: AbortSignal,
 ): Promise<PaginaResponse<CarteraItem>> {
   const { data } = await http.get<PaginaResponse<DeudaApi>>('/deudas', {
-    params: {
-      page: pagina,
-      size: tamanio,
-      sort: ordenesApi[filtros.ordenarPor ?? 'antiguedad'],
-      contribuyente: filtros.busqueda?.trim() || undefined,
-      segmento: filtros.segmento ? idsSegmentos[filtros.segmento] : undefined,
-      tributo: filtros.tributo || undefined,
-    },
+    signal,
+    params: parametros(pagina, tamanio, filtros),
   })
 
   return {
     ...data,
-    contenido: data.contenido.map((deuda) => ({
-      id: deuda.id,
-      contribuyenteId: deuda.contribuyenteId,
-      cm: deuda.padron.cm,
-      numeroPadron: deuda.padron.numeroPadron,
-      contribuyente: deuda.contribuyente.nombre,
-      documento: deuda.contribuyente.documento,
-      tributo: deuda.tributos.map((tributo) => tributo.descripcion || tributo.codigo).join(', '),
-      codigosTributo: deuda.tributos.map((tributo) => tributo.codigo),
-      deuda: Number(deuda.importe),
-      diasVencido: deuda.diasAtraso ?? 0,
-      segmento: deuda.segmentoMora?.nombre ?? 'Sin segmento',
-      convenio: deuda.convenio,
-      contacto: '—',
-      accionesSugeridas: deuda.accionesSugeridas?.map((accion) => accion.nombre) ?? [],
-      gestiones: deuda.cantidadGestiones,
+    contenido: data.contenido.map(mapearDeuda),
+  }
+}
+
+function parametros(pagina: number, tamanio: number, filtros: FiltrosCarteraApi) {
+  return {
+    page: pagina,
+    size: tamanio,
+    sort: ordenesApi[filtros.ordenarPor ?? 'antiguedad'],
+    contribuyente: filtros.busqueda?.trim() || undefined,
+    segmento: filtros.segmento ? idsSegmentos[filtros.segmento] : undefined,
+    tributo: filtros.tributo || undefined,
+    conContacto: filtros.contacto === 'con' ? true : filtros.contacto === 'sin' ? false : undefined,
+  }
+}
+
+function mapearDeuda(deuda: DeudaApi): CarteraItem {
+  return {
+    id: deuda.id,
+    contribuyenteId: deuda.contribuyenteId,
+    cm: deuda.padron.cm,
+    numeroPadron: deuda.padron.numeroPadron,
+    contribuyente: deuda.contribuyente.nombre,
+    documento: deuda.contribuyente.documento,
+    tributo: deuda.tributos.map((tributo) => tributo.descripcion || tributo.codigo).join(', '),
+    codigosTributo: deuda.tributos.map((tributo) => tributo.codigo),
+    deuda: Number(deuda.importe),
+    diasVencido: deuda.diasAtraso ?? 0,
+    segmento: deuda.segmentoMora?.nombre ?? 'Sin segmento',
+    convenio: deuda.convenio,
+    contacto: deuda.conContacto ? 'Con datos' : 'Sin datos',
+    accionesSugeridas: deuda.accionesSugeridas?.map((accion) => accion.nombre) ?? [],
+    gestiones: deuda.cantidadGestiones,
+  }
+}
+
+export async function obtenerCarteraAgrupada(
+  pagina = 0,
+  tamanio = 20,
+  filtros: FiltrosCarteraApi = {},
+  signal?: AbortSignal,
+): Promise<PaginaResponse<CarteraGrupo>> {
+  const { data } = await http.get<PaginaResponse<DeudasAgrupadasApi>>('/deudas/agrupadas', {
+    signal,
+    params: parametros(pagina, tamanio, filtros),
+  })
+  return {
+    ...data,
+    contenido: data.contenido.map((grupo) => ({
+      ...grupo,
+      importeTotal: Number(grupo.importeTotal),
+      deudas: grupo.deudas.map(mapearDeuda),
     })),
   }
 }

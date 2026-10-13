@@ -1,9 +1,9 @@
 import { onScopeDispose, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { LocationQuery, LocationQueryValue } from 'vue-router'
-import { obtenerCartera } from '../services/carteraService'
+import { obtenerCartera, obtenerCarteraAgrupada } from '../services/carteraService'
 import type { CarteraFilters } from '../components/MorosidadFilters.vue'
-import type { CarteraItem } from '../types/cartera'
+import type { CarteraItem, CarteraGrupo } from '../types/cartera'
 
 const ORDENES = ['antiguedad', 'importe', 'nombre'] as const
 const SEGMENTOS = ['temprana', 'inicial', 'tardia']
@@ -30,7 +30,7 @@ function filtrosDesdeUrl(q: LocationQuery): CarteraFilters {
     origen: permitido(leerParam(q.origen), ORIGENES),
     multa: permitido(leerParam(q.multa), CON_SIN),
     contacto: permitido(leerParam(q.contacto), CON_SIN),
-    agruparPor: true,
+    agruparPor: leerParam(q.agrupar) === 'true',
     ordenarPor: (ORDENES as readonly string[]).includes(orden)
       ? (orden as CarteraFilters['ordenarPor'])
       : 'antiguedad',
@@ -49,6 +49,7 @@ export function useCartera(tamanio = 20) {
   const rutaDeLaVista = route.path
 
   const cartera = ref<CarteraItem[]>([])
+  const grupos = ref<CarteraGrupo[]>([])
   const cargando = ref(false)
   const error = ref('')
   const pagina = ref(paginaDesdeUrl(route.query))
@@ -73,6 +74,7 @@ export function useCartera(tamanio = 20) {
     if (f.origen) query.origen = f.origen
     if (f.multa) query.multa = f.multa
     if (f.contacto) query.contacto = f.contacto
+    if (f.agruparPor) query.agrupar = 'true'
     if (f.ordenarPor !== 'antiguedad') query.orden = f.ordenarPor
     if (pagina.value > 0) query.pagina = String(pagina.value + 1)
 
@@ -90,20 +92,21 @@ export function useCartera(tamanio = 20) {
     error.value = ''
 
     try {
-      const r = await obtenerCartera(
-        pagina.value,
-        tamanio,
-        {
-          busqueda: filtros.value.search,
-          segmento: filtros.value.segmento,
-          tributo: filtros.value.tributo,
-          ordenarPor: filtros.value.ordenarPor,
-        },
-        ctrl.signal,
-      )
+      const filtrosApi = {
+        busqueda: filtros.value.search,
+        segmento: filtros.value.segmento,
+        tributo: filtros.value.tributo,
+        contacto: filtros.value.contacto,
+        ordenarPor: filtros.value.ordenarPor,
+      }
+      const agrupada = filtros.value.agruparPor
+      const r = agrupada
+        ? await obtenerCarteraAgrupada(pagina.value, tamanio, filtrosApi, ctrl.signal)
+        : await obtenerCartera(pagina.value, tamanio, filtrosApi, ctrl.signal)
       if (ctrl.signal.aborted) return
 
-      cartera.value = r.contenido
+      grupos.value = agrupada ? (r.contenido as CarteraGrupo[]) : []
+      cartera.value = agrupada ? [] : (r.contenido as CarteraItem[])
       totalElementos.value = r.totalElementos
       totalPaginas.value = r.totalPaginas
 
@@ -144,7 +147,7 @@ export function useCartera(tamanio = 20) {
   watch(
     () => {
       const f = filtros.value
-      return [f.segmento, f.tributo, f.origen, f.multa, f.contacto, f.ordenarPor]
+      return [f.segmento, f.tributo, f.origen, f.multa, f.contacto, f.ordenarPor, f.agruparPor]
     },
     () => programarCarga(0),
   )
@@ -158,6 +161,7 @@ export function useCartera(tamanio = 20) {
 
   return {
     cartera,
+    grupos,
     cargando,
     error,
     pagina,

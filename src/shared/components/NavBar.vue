@@ -8,13 +8,14 @@ const auth = useAuthStore()
 const router = useRouter()
 
 const etiquetasRol: Record<string, string> = {
-  ADMIN: 'Administrador',
+  ADMINISTRADOR: 'Administrador',
+  NOTIFICADOR: 'Notificador',
+  ANALISTA: 'Analista',
 }
 
-const rolLabel = computed(() => {
-  const rol = auth.user?.rol ?? ''
-  return etiquetasRol[rol] ?? rol
-})
+const rolLabel = computed(() =>
+  (auth.user?.roles ?? []).map((rol) => etiquetasRol[rol] ?? rol).join(' / '),
+)
 
 function cerrarSesion() {
   auth.logout()
@@ -35,10 +36,14 @@ function cerrarSesion() {
 
     <div class="navbar-right">
       <nav class="navbar-nav" aria-label="Principal">
-        <RouterLink to="/cartera" class="nav-link">Cartera</RouterLink>
-        <RouterLink to="/convenios" class="nav-link">Convenios</RouterLink>
+        <RouterLink v-if="auth.puedeVerCartera" to="/cartera" class="nav-link">Cartera</RouterLink>
+        <RouterLink v-if="auth.puedeVerCartera" to="/convenios" class="nav-link"
+          >Convenios</RouterLink
+        >
         <RouterLink to="/configuracion" class="nav-link">Configuración</RouterLink>
-        <RouterLink to="/reportes" class="nav-link">Reportes</RouterLink>
+        <RouterLink v-if="auth.puedeVerCartera" to="/reportes" class="nav-link"
+          >Reportes</RouterLink
+        >
       </nav>
 
       <div class="user-session">

@@ -8,10 +8,10 @@ defineProps<{
 
 const router = useRouter()
 
-function irAContribuyente(event: MouseEvent, contribuyenteId: number) {
+function irAContribuyente(event: MouseEvent, contribuyenteId: number, deudaId: number) {
   if ((event.target as HTMLElement).closest('a, button')) return
 
-  router.push(`/contribuyentes/${contribuyenteId}`)
+  router.push({ path: `/contribuyentes/${contribuyenteId}`, query: { deuda: String(deudaId) } })
 }
 
 function getSegmentoClass(segmento: string) {
@@ -65,17 +65,26 @@ function mostrarAcciones(acciones: string[]) {
           v-for="item in cartera"
           :key="item.id"
           class="clickable-row"
-          @click="irAContribuyente($event, item.contribuyenteId)""
+          @click="irAContribuyente($event, item.contribuyenteId, item.id)"
         >
           <td class="col-left cm">
-            <RouterLink :to="`/contribuyentes/${item.contribuyenteId}`" class="cm-link">
+            <RouterLink
+              :to="{
+                path: `/contribuyentes/${item.contribuyenteId}`,
+                query: { deuda: String(item.id) },
+              }"
+              class="cm-link"
+            >
               {{ item.cm }}
             </RouterLink>
           </td>
 
           <td class="col-left">{{ item.numeroPadron || '—' }}</td>
 
-          <td class="col-left contribuyente">{{ item.contribuyente }}</td>
+          <td class="col-left contribuyente">
+            {{ item.contribuyente }}
+            <span class="documento">Documento: {{ item.documento || 'Sin documento' }}</span>
+          </td>
           <td class="col-left">{{ item.tributo }}</td>
 
           <td class="col-left">
@@ -232,6 +241,14 @@ function mostrarAcciones(acciones: string[]) {
 
 .contribuyente {
   font-weight: 500;
+}
+
+.documento {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--color-text-secondary);
 }
 
 .clickable-row {

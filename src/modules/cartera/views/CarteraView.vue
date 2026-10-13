@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed } from 'vue'
 import MorosidadFilters from '../components/MorosidadFilters.vue'
 import CarteraTable from '../components/CarteraTable.vue'
+import CarteraAgrupadaTable from '../components/CarteraAgrupadaTable.vue'
 import { useCartera } from '../composables/useCartera'
 
 const {
   cartera,
+  grupos,
   cargando,
   error,
   pagina,
@@ -15,17 +16,6 @@ const {
   cargar,
   cambiarPagina,
 } = useCartera()
-
-// Temporal: se va cuando `contacto` se filtre en el backend
-const carteraVisible = computed(() => {
-  const c = filtros.value.contacto
-  if (!c) return cartera.value
-
-  return cartera.value.filter((item) => {
-    const sinContacto = item.contacto === '—' || item.contacto === 'Sin datos'
-    return c === 'con' ? !sinContacto : sinContacto
-  })
-})
 
 function exportarExcel() {
   const encabezados = [
@@ -39,7 +29,19 @@ function exportarExcel() {
     'Convenio',
   ]
 
-  const filas = carteraVisible.value.map((item) => [
+  const registros = filtros.value.agruparPor
+    ? grupos.value.map((grupo) => ({
+        cm: grupo.deudas.map((d) => d.cm).join(', '),
+        contribuyente: grupo.nombres.join(' / '),
+        documento: grupo.documento,
+        tributo: [...new Set(grupo.deudas.map((d) => d.tributo))].join(', '),
+        deuda: grupo.importeTotal,
+        diasVencido: grupo.diasAtrasoMaximos,
+        segmento: grupo.segmentoMora?.nombre ?? 'Sin segmento',
+        convenio: grupo.deudas.some((d) => d.convenio),
+      }))
+    : cartera.value
+  const filas = registros.map((item) => [
     item.cm,
     item.contribuyente,
     item.documento,
@@ -50,7 +52,7 @@ function exportarExcel() {
     item.convenio ? 'Sí' : 'No',
   ])
 
-  const escapar = (valor: string | number) => {
+  const escapar = (valor: string | number | null) => {
     let texto = String(valor ?? '')
     // Evita que Excel interprete el texto como fórmula (CSV injection)
     if (typeof valor === 'string' && /^[=+\-@]/.test(texto)) {
@@ -88,9 +90,15 @@ function exportarExcel() {
     </div>
 
     <template v-else>
-      <p class="resumen">{{ totalElementos }} resultados</p>
+      <p class="resumen">
+        {{ totalElementos }} {{ filtros.agruparPor ? 'contribuyentes' : 'deudas' }}
+      </p>
 
-      <CarteraTable class="tabla" :cartera="carteraVisible" />
+      <p v-if="filtros.agruparPor" class="nota-agrupacion">
+        Agrupado por documento. Los totales corresponden a las deudas que cumplen los filtros.
+      </p>
+      <CarteraAgrupadaTable v-if="filtros.agruparPor" class="tabla" :grupos="grupos" />
+      <CarteraTable v-else class="tabla" :cartera="cartera" />
 
       <div v-if="totalPaginas > 1" class="paginacion">
         <button
@@ -133,6 +141,12 @@ function exportarExcel() {
   padding: 12px 21px;
   color: var(--color-text-secondary);
   font-size: 13px;
+}
+
+.nota-agrupacion {
+  padding: 0 21px 12px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
 }
 
 .error {
