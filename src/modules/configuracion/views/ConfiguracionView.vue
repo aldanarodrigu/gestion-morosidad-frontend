@@ -136,7 +136,6 @@ h1 {
 }
 .pestanas {
   display: flex;
-  overflow-x: auto;
   border-bottom: 1px solid var(--color-border);
 }
 .pestanas button {
