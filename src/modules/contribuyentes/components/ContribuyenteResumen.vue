@@ -37,7 +37,7 @@ function claseSegmento(segmento?: string | null): string {
   <section class="resumen">
     <header class="cabecera">
       <div class="identidad">
-        <p class="meta">CM {{ contribuyente.cm }}</p>
+        <p v-if="contribuyente.cm" class="meta">CM {{ contribuyente.cm }}</p>
 
         <h1>{{ contribuyente.nombre }}</h1>
 

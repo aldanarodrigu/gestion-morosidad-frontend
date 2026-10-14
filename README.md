@@ -188,3 +188,18 @@ filas de la página visible. Cuenta cualquier correo, teléfono o domicilio con 
 para el contribuyente, incluyendo contactos de terceros y cualquiera sea el origen.
 Los contactos vacíos no cuentan. El campo `conContacto` de cada deuda refleja su
  disponibilidad real en la base, sin usar un valor fijo del frontend.
+
+
+## CM en el detalle y en Gestiones
+
+La cabecera y el historial utilizan la misma deuda seleccionada en cartera (`?deuda=ID`).
+También se aceptan enlaces anteriores con `deudaId`; si llegan ambos, prevalece `deuda`.
+El CM de la cabecera corresponde al padrón de esa deuda. El importe total y los contadores
+siguen resumiendo todas las deudas del contribuyente.
+
+Si hay varias deudas y no se identifica una selección válida, no se muestra el CM de una
+deuda arbitraria ni se consulta su historial. Con una sola deuda, se selecciona automáticamente.
+Los contactos siguen siendo consultables por pertenecer al contribuyente.
+
+`ContribuyenteDetalleView.test.ts` verifica coincidencia entre cabecera e historial,
+cambio de deuda, enlaces anteriores, ausencia de selección y el ID usado al guardar una gestión.

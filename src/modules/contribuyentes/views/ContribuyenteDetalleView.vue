@@ -16,9 +16,10 @@ import DatosContactoTab from '../components/DatosContactoTab.vue'
 
 const route = useRoute()
 
-const deudaSeleccionadaId = computed(() => {
-  const valor = route.query.deudaId
-  return valor ? Number(valor) : null
+const deudaSolicitadaId = computed(() => {
+  const valor = route.query.deuda ?? route.query.deudaId
+  const id = Number(Array.isArray(valor) ? valor[0] : valor)
+  return Number.isSafeInteger(id) && id > 0 ? id : undefined
 })
 
 const deudas = ref<DeudaApi[]>([])
@@ -26,7 +27,11 @@ const cargando = ref(false)
 const error = ref<string | null>(null)
 const pestanaActiva = ref('gestiones')
 
-const deudaInicialId = computed(() => Number(route.query.deuda) || undefined)
+// Cabecera e historial comparten la misma deuda, independientemente del orden recibido.
+const deudaSeleccionadaId = computed(() => {
+  const seleccionada = deudas.value.find((deuda) => deuda.id === deudaSolicitadaId.value)
+  return seleccionada?.id ?? (deudas.value.length === 1 ? deudas.value[0]!.id : undefined)
+})
 
 const contribuyenteId = computed(() => Number(route.params.contribuyenteId))
 
@@ -111,7 +116,7 @@ watch(contribuyenteId, () => {
             <GestionesTab
               v-if="pestanaActiva === 'gestiones'"
               :deudas="deudas"
-              :deuda-inicial-id="deudaInicialId"
+              :deuda-inicial-id="deudaSeleccionadaId"
               @registrada="gestionRegistrada"
               @cantidad="cantidadGestiones = $event"
             />
@@ -122,7 +127,7 @@ watch(contribuyenteId, () => {
               :deuda-seleccionada-id="deudaSeleccionadaId"
             />
 
-            <DatosContactoTab v-else :cm="contribuyente.cm" />
+            <DatosContactoTab v-else :cm="contribuyente.cm ?? deudas[0]?.padron.cm ?? ''" />
           </div>
         </section>
       </template>

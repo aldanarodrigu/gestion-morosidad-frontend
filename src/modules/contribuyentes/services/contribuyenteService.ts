@@ -3,7 +3,7 @@ import type { DeudaApi } from '@/modules/cartera/types/cartera'
 
 export interface ContribuyenteResumenResponse {
   contribuyenteId: number
-  cm: string
+  cm: string | null
   nombre: string
   documento: string | null
   deudaTotal: number
@@ -36,7 +36,7 @@ export function obtenerResumenDesdeDeudas(
 
   const deudaSeleccionada = deudas.find((deuda) => deuda.id === deudaSeleccionadaId)
 
-  const deudaParaMostrar = deudaSeleccionada ?? primeraDeuda
+  const deudaParaMostrar = deudaSeleccionada ?? (deudas.length === 1 ? primeraDeuda : undefined)
 
   const masAtrasada = deudas.reduce(
     (max, deuda) => ((deuda.diasAtraso ?? -1) > (max.diasAtraso ?? -1) ? deuda : max),
@@ -52,7 +52,7 @@ export function obtenerResumenDesdeDeudas(
 
   return {
     contribuyenteId: primeraDeuda.contribuyenteId,
-    cm: deudaParaMostrar.padron.cm,
+    cm: deudaParaMostrar?.padron.cm ?? null,
     nombre: primeraDeuda.contribuyente.nombre,
     documento: primeraDeuda.contribuyente.documento,
     deudaTotal: Math.round(deudaTotal * 100) / 100,
