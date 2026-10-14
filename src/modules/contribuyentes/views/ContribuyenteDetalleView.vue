@@ -179,7 +179,6 @@ watch(contribuyenteId, () => {
 .pestanas {
   display: flex;
   border-bottom: 1px solid var(--color-border);
-  overflow-x: auto;
   background: var(--color-surface);
 }
 
