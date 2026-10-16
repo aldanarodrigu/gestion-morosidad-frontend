@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { http } from '../src/shared/api/http'
 import {
+  exportarCartera,
   obtenerCartera,
   obtenerCarteraAgrupada,
   obtenerTiposPadron,
@@ -122,5 +123,30 @@ describe('consulta de cartera', () => {
     })
     const r = await obtenerCartera()
     expect(r.contenido.map((d) => d.contacto)).toEqual(['Con datos', 'Sin datos'])
+  })
+})
+
+describe('exportación Excel', () => {
+  it('solicita un archivo con todos los filtros y agrupación, sin página ni tamaño', async () => {
+    const archivo = new Blob(['xlsx'])
+    vi.mocked(http.get).mockResolvedValue({ data: archivo })
+    expect(await exportarCartera({
+      busqueda: ' 00123 ', segmento: 'tardia', tipoPadron: 'CIU', origen: 'sucive',
+      contacto: 'con', ordenarPor: 'importe',
+    }, true)).toBe(archivo)
+    expect(http.get).toHaveBeenCalledWith('/deudas/exportar', {
+      responseType: 'blob',
+      params: { contribuyente: '00123', segmento: 3, tipoPadron: 'CIU', origen: 'SUCIVE',
+        conContacto: true, sort: 'importe,desc', agrupar: true },
+    })
+  })
+  it('sin filtros solicita toda la cartera sin agrupar', async () => {
+    vi.mocked(http.get).mockResolvedValue({ data: new Blob() })
+    await exportarCartera()
+    expect(http.get).toHaveBeenCalledWith('/deudas/exportar', {
+      responseType: 'blob',
+      params: { contribuyente: undefined, segmento: undefined, tipoPadron: undefined,
+        origen: undefined, conContacto: undefined, sort: 'deudaDesde,asc', agrupar: false },
+    })
   })
 })

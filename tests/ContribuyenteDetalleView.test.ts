@@ -149,3 +149,59 @@ describe('CM de la deuda seleccionada en el detalle', () => {
     w.unmount()
   })
 })
+
+describe('segmento del resumen con distintos PadTipo', () => {
+  it('muestra la mora más avanzada aunque no sea la deuda más antigua ni la seleccionada', async () => {
+    const datos: DeudaApi[] = deudas.map((d, indice) => ({
+      ...d,
+      padron: { ...d.padron, tipoPadron: ['CIU', 'PAT', 'CIR'][indice] },
+      diasAtraso: [100, 50, 75][indice]!,
+      deudaDesde: ['2026-07-08', '2026-08-27', '2026-08-02'][indice]!,
+      segmentoMora: [
+        { id: 1, nombre: 'Mora Temprana', descripcion: '', orden: 1 },
+        { id: 99, nombre: 'Mora Tardía', descripcion: '', orden: 3 },
+        { id: 2, nombre: 'Mora Inicial', descripcion: '', orden: 2 },
+      ][indice]!,
+    }))
+    route.query = { deuda: '10' }
+    vi.mocked(contribuyentes.obtenerDeudasPorContribuyenteId).mockResolvedValue(datos)
+    const w = montar()
+    await flushPromises()
+    expect(w.get('.resumen .segmento-badge').text()).toBe('Mora Tardía')
+    expect(w.get('.resumen .segmento-badge').classes()).toContain('tardia')
+    expect(w.findAll('.resumen .stat dd')[0]!.text()).toBe('100 días')
+    expect(w.findAll('.resumen .stat dd')[1]!.text()).toBe('08/07/2026')
+    expect(w.get('.deuda-monto').text()).toContain('600,00')
+    expect(w.get('.resumen .meta').text()).toBe('CM 82461')
+    expect(w.get('.contexto-deuda').text()).toContain('CM 82461')
+    expect(gestiones.obtenerGestiones).toHaveBeenCalledWith(10, expect.any(AbortSignal))
+    route.query = { deuda: '30' }
+    await flushPromises()
+    expect(w.get('.resumen .segmento-badge').text()).toBe('Mora Tardía')
+    expect(w.get('.resumen .meta').text()).toBe('CM 81619')
+    w.unmount()
+  })
+  it.each([true, false])(
+    'maneja deudas sin segmento: existe un segmento informado=%s',
+    async (tieneSegmento) => {
+      const datos = [
+        { ...deudas[0]!, diasAtraso: 200, segmentoMora: null },
+        {
+          ...deudas[1]!,
+          diasAtraso: 50,
+          segmentoMora: tieneSegmento
+            ? { id: 3, nombre: 'Mora Tardía', descripcion: '', orden: 3 }
+            : null,
+        },
+      ]
+      vi.mocked(contribuyentes.obtenerDeudasPorContribuyenteId).mockResolvedValue(datos)
+      const w = montar()
+      await flushPromises()
+      expect(w.get('.resumen .segmento-badge').text()).toBe(
+        tieneSegmento ? 'Mora Tardía' : 'Sin segmento',
+      )
+      expect(w.findAll('.resumen .stat dd')[0]!.text()).toBe('200 días')
+      w.unmount()
+    },
+  )
+})

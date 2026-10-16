@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import { ref } from 'vue'
+import { exportarCartera } from '../services/carteraService'
+import type { FiltrosCarteraApi } from '../services/carteraService'
+import ExportacionCarteraPanel from '../components/ExportacionCarteraPanel.vue'
 import MorosidadFilters from '../components/MorosidadFilters.vue'
 import CarteraTable from '../components/CarteraTable.vue'
 import CarteraAgrupadaTable from '../components/CarteraAgrupadaTable.vue'
@@ -17,73 +21,58 @@ const {
   cambiarPagina,
 } = useCartera()
 
-function exportarExcel() {
-  const encabezados = [
-    'CM',
-    'Contribuyente',
-    'Documento',
-    'Origen',
-    'Tributo',
-    'Deuda',
-    'Días vencido',
-    'Segmento',
-    'Convenio',
-  ]
+const panelExportacion = ref(false)
+const exportando = ref(false)
+const errorExportacion = ref('')
 
-  const registros = filtros.value.agruparPor
-    ? grupos.value.map((grupo) => ({
-        cm: grupo.deudas.map((d) => d.cm).join(', '),
-        contribuyente: grupo.nombres.join(' / '),
-        documento: grupo.documento,
-        origen: [...new Set(grupo.deudas.map((d) => d.origen))].join(', '),
-        tributo: [...new Set(grupo.deudas.map((d) => d.tributo))].join(', '),
-        deuda: grupo.importeTotal,
-        diasVencido: grupo.diasAtrasoMaximos,
-        segmento: grupo.segmentoMora?.nombre ?? 'Sin segmento',
-        convenio: grupo.deudas.some((d) => d.convenio),
-      }))
-    : cartera.value
-  const filas = registros.map((item) => [
-    item.cm,
-    item.contribuyente,
-    item.documento,
-    item.origen,
-    item.tributo,
-    item.deuda,
-    item.diasVencido,
-    item.segmento,
-    item.convenio ? 'Sí' : 'No',
-  ])
+function abrirExportacion() {
+  errorExportacion.value = ''
+  panelExportacion.value = true
+}
 
-  const escapar = (valor: string | number | null) => {
-    let texto = String(valor ?? '')
-    // Evita que Excel interprete el texto como fórmula (CSV injection)
-    if (typeof valor === 'string' && /^[=+\-@]/.test(texto)) {
-      texto = `'${texto}`
+async function exportarExcel(filtrosExportacion: FiltrosCarteraApi) {
+  if (exportando.value) return
+  exportando.value = true
+  errorExportacion.value = ''
+  const f = filtros.value
+  try {
+    const archivo = await exportarCartera({
+      ...filtrosExportacion,
+      ordenarPor: f.ordenarPor,
+    }, f.agruparPor)
+    const url = URL.createObjectURL(archivo)
+    const enlace = document.createElement('a')
+    enlace.href = url
+    enlace.download = 'cartera-morosidad.xlsx'
+    document.body.appendChild(enlace)
+    try {
+      enlace.click()
+      panelExportacion.value = false
+    } finally {
+      enlace.remove()
+      // Da tiempo al navegador para iniciar la descarga antes de liberar el archivo.
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
     }
-    return `"${texto.replace(/"/g, '""')}"`
+  } catch {
+    errorExportacion.value = 'No se pudo exportar la cartera. Intentá nuevamente.'
+  } finally {
+    exportando.value = false
   }
-
-  const contenido = [encabezados, ...filas].map((fila) => fila.map(escapar).join(';')).join('\r\n')
-
-  const archivo = new Blob(['\uFEFF', contenido], {
-    type: 'text/csv;charset=utf-8;',
-  })
-
-  const url = URL.createObjectURL(archivo)
-  const enlace = document.createElement('a')
-
-  enlace.href = url
-  enlace.download = 'cartera-morosidad.csv'
-  enlace.click()
-
-  URL.revokeObjectURL(url)
 }
 </script>
 
 <template>
   <section class="cartera-view">
-    <MorosidadFilters v-model="filtros" @export="exportarExcel" />
+    <MorosidadFilters v-model="filtros" :exportando="exportando" @export="abrirExportacion" />
+    <ExportacionCarteraPanel
+      v-if="panelExportacion"
+      :exportando="exportando"
+      :agrupada="filtros.agruparPor"
+      @cancelar="panelExportacion = false"
+      @confirmar="exportarExcel"
+    />
+    <p v-if="exportando" class="mensaje" role="status">Preparando Excel con todas las filas filtradas...</p>
+    <p v-if="errorExportacion" class="mensaje error" role="alert">{{ errorExportacion }}</p>
 
     <p v-if="cargando" class="mensaje">Cargando cartera...</p>
 

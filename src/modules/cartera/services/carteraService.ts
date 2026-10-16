@@ -104,3 +104,16 @@ export async function obtenerCarteraAgrupada(
     })),
   }
 }
+
+/** Exporta toda la cartera filtrada; la página visible no limita el archivo. */
+export async function exportarCartera(
+  filtros: FiltrosCarteraApi = {},
+  agrupar = false,
+): Promise<Blob> {
+  const { page: _page, size: _size, ...params } = parametros(0, 20, filtros)
+  const { data } = await http.get<Blob>('/deudas/exportar', {
+    params: { ...params, agrupar },
+    responseType: 'blob',
+  })
+  return data
+}

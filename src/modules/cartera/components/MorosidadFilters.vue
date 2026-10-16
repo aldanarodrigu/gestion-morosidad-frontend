@@ -15,6 +15,8 @@ export interface CarteraFilters {
 
 const filters = defineModel<CarteraFilters>({ required: true })
 
+defineProps<{ exportando?: boolean }>()
+
 const emit = defineEmits<{ export: [] }>()
 
 const tiposPadron = ref<string[]>([])
@@ -132,7 +134,9 @@ const opcionesOrden = [
           </button>
         </div>
 
-        <button type="button" class="export-button" @click="emit('export')">Exportar Excel</button>
+        <button type="button" class="export-button" :disabled="exportando" @click="emit('export')">
+          {{ exportando ? 'Exportando...' : 'Exportar Excel' }}
+        </button>
       </div>
     </section>
   </div>
@@ -241,7 +245,12 @@ const opcionesOrden = [
     color 0.2s ease;
 }
 
-.export-button:hover {
+.export-button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.export-button:hover:not(:disabled) {
   border-color: var(--color-primary);
   color: var(--color-primary);
 }

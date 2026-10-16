@@ -43,6 +43,11 @@ export function obtenerResumenDesdeDeudas(
     primeraDeuda,
   )
 
+  const segmentoMasAvanzado = deudas.reduce<DeudaApi['segmentoMora']>((max, deuda) => {
+    const segmento = deuda.segmentoMora
+    return segmento && (!max || segmento.orden > max.orden) ? segmento : max
+  }, null)
+
   const fechas = deudas
     .map((deuda) => deuda.deudaDesde)
     .filter((fecha): fecha is string => Boolean(fecha))
@@ -58,8 +63,10 @@ export function obtenerResumenDesdeDeudas(
     deudaTotal: Math.round(deudaTotal * 100) / 100,
     diasMaxVencido: masAtrasada.diasAtraso ?? null,
     deudaMasAntigua: fechas[0] ?? null,
-    segmento: masAtrasada.segmentoMora?.nombre ?? null,
+    segmento: segmentoMasAvanzado?.nombre ?? null,
     cantidadDeudas: deudas.length,
-    cantidadPadrones: new Set(deudas.map((deuda) => `${deuda.padron.origen ?? 'INTENDENCIA'}:${deuda.padron.cm}`)).size,
+    cantidadPadrones: new Set(
+      deudas.map((deuda) => `${deuda.padron.origen ?? 'INTENDENCIA'}:${deuda.padron.cm}`),
+    ).size,
   }
 }
