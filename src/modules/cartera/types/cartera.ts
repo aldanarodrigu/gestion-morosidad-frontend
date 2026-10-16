@@ -1,8 +1,11 @@
+export type OrigenDatos = 'INTENDENCIA' | 'SUCIVE'
+
 export interface DeudaApi {
   id: number
   contribuyenteId: number
   conContacto: boolean
   padron: {
+    origen?: OrigenDatos
     cm: string
     numeroPadron: string
     tipoPadron?: string | null
@@ -62,6 +65,8 @@ export interface CarteraItem {
   contribuyenteId: number
   cm: string
   numeroPadron: string
+  tipoPadron: string | null
+  origen: 'Intendencia' | 'SUCIVE'
   contribuyente: string
   documento: string | null
   tributo: string

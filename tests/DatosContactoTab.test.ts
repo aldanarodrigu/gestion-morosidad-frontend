@@ -34,6 +34,20 @@ async function nuevo(w: ReturnType<typeof montar>) {
   await w.get('#contacto-origen').setValue(' Llamada ')
 }
 describe('datos de contacto', () => {
+  it('distingue contactos del mismo CM al cambiar de origen y guarda en SUCIVE', async () => {
+    const w = montar()
+    await flushPromises()
+    await w.setProps({ origen: 'SUCIVE' })
+    await flushPromises()
+    expect(api.obtenerContactos).toHaveBeenLastCalledWith('123', expect.any(AbortSignal), 'SUCIVE')
+    await nuevo(w)
+    await w.get('form').trigger('submit')
+    await flushPromises()
+    expect(api.guardarContacto).toHaveBeenLastCalledWith('123', expect.objectContaining({
+      tipoContacto: 'TELEFONO', valor: '099123456', origen: 'Llamada',
+    }), 'SUCIVE')
+    w.unmount()
+  })
   it('consulta el CM y muestra los contactos con su origen', async () => {
     const w = montar()
     await flushPromises()

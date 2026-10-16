@@ -23,6 +23,9 @@ const deudaSolicitadaId = computed(() => {
 })
 
 const deudas = ref<DeudaApi[]>([])
+const padronContacto = computed(() =>
+  (deudas.value.find((d) => d.id === deudaSeleccionadaId.value) ?? deudas.value[0])?.padron,
+)
 const cargando = ref(false)
 const error = ref<string | null>(null)
 const pestanaActiva = ref('gestiones')
@@ -101,7 +104,7 @@ watch(contribuyenteId, () => {
               :class="{ activa: pestanaActiva === 'deudas' }"
               @click="pestanaActiva = 'deudas'"
             >
-              Deudas ({{ deudas.length }})
+              Padrones ({{ deudas.length }})
             </button>
 
             <button
@@ -127,7 +130,7 @@ watch(contribuyenteId, () => {
               :deuda-seleccionada-id="deudaSeleccionadaId"
             />
 
-            <DatosContactoTab v-else :cm="contribuyente.cm ?? deudas[0]?.padron.cm ?? ''" />
+            <DatosContactoTab v-else :cm="padronContacto?.cm ?? ''" :origen="padronContacto?.origen" />
           </div>
         </section>
       </template>

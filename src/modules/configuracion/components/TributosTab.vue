@@ -176,6 +176,7 @@ onScopeDispose(() => controller?.abort())
           <thead>
             <tr>
               <th scope="col">Código</th>
+              <th scope="col">Origen</th>
               <th scope="col">Descripción</th>
               <th v-if="puedeEditar" scope="col"><span class="sr-only">Opciones</span></th>
             </tr>
@@ -183,6 +184,7 @@ onScopeDispose(() => controller?.abort())
           <tbody>
             <tr v-for="tributo in tributos" :key="tributo.id">
               <td class="codigo">{{ tributo.codigo }}</td>
+              <td>{{ tributo.origen === 'SUCIVE' ? 'SUCIVE' : 'Intendencia' }}</td>
               <td :class="{ 'sin-descripcion': !tributo.descripcion }">
                 {{ tributo.descripcion || 'Sin descripción' }}
               </td>

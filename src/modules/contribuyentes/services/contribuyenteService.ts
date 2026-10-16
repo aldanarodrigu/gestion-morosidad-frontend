@@ -60,6 +60,6 @@ export function obtenerResumenDesdeDeudas(
     deudaMasAntigua: fechas[0] ?? null,
     segmento: masAtrasada.segmentoMora?.nombre ?? null,
     cantidadDeudas: deudas.length,
-    cantidadPadrones: new Set(deudas.map((deuda) => deuda.padron.numeroPadron)).size,
+    cantidadPadrones: new Set(deudas.map((deuda) => `${deuda.padron.origen ?? 'INTENDENCIA'}:${deuda.padron.cm}`)).size,
   }
 }

@@ -5,8 +5,9 @@ import { useAuthStore } from '@/modules/autenticacion/stores/auth.store'
 import { EnvelopeIcon, PhoneIcon, MapPinIcon, PencilSquareIcon } from '@heroicons/vue/24/outline'
 import { guardarContacto, obtenerContactos } from '../services/contactoService'
 import type { Contacto, ContactoRequest, TipoContacto } from '../services/contactoService'
+import type { OrigenDatos } from '@/modules/cartera/types/cartera'
 
-const props = defineProps<{ cm: string }>()
+const props = withDefaults(defineProps<{ cm: string; origen?: OrigenDatos }>(), { origen: 'INTENDENCIA' })
 const auth = useAuthStore()
 const puedeEditar = computed(
   () => auth.tieneRol('ADMINISTRADOR') || auth.tieneRol('NOTIFICADOR') || auth.tieneRol('ANALISTA'),
@@ -28,6 +29,8 @@ const fuentes: Record<string, string> = {
   API_PERSONAS: 'API Personas',
   API_GEOPAGOS: 'API GeoPagos',
   API_FACTURAS_PENDIENTES: 'API Facturas pendientes',
+  API_GEOPAT_PERSONAS: 'API GeoPat Personas',
+  API_GEOPAT_PENDIENTES: 'API GeoPat Facturas pendientes',
   MANUAL: 'Carga manual',
 }
 let controller: AbortController | null = null
@@ -49,7 +52,9 @@ async function cargar() {
   }
   cargando.value = true
   try {
-    const datos = await obtenerContactos(props.cm, ctrl.signal)
+    const datos = props.origen === 'SUCIVE'
+      ? await obtenerContactos(props.cm, ctrl.signal, props.origen)
+      : await obtenerContactos(props.cm, ctrl.signal)
     if (!ctrl.signal.aborted) contactos.value = datos
   } catch (e) {
     if (!ctrl.signal.aborted) errorCarga.value = errorApi(e, 'No se pudieron cargar los contactos.')
@@ -57,7 +62,7 @@ async function cargar() {
     if (controller === ctrl) cargando.value = false
   }
 }
-watch(() => props.cm, cargar, { immediate: true })
+watch(() => [props.cm, props.origen], cargar, { immediate: true })
 onScopeDispose(() => controller?.abort())
 function abrir(contacto?: Contacto) {
   if (!puedeEditar.value) return
@@ -100,7 +105,9 @@ async function guardar() {
   const contexto = controller
   guardando.value = true
   try {
-    const contacto = await guardarContacto(cm, request)
+    const contacto = props.origen === 'SUCIVE'
+      ? await guardarContacto(cm, request, props.origen)
+      : await guardarContacto(cm, request)
     if (controller !== contexto || contexto?.signal.aborted) return
     const indice = contactos.value.findIndex((c) => c.id === contacto.id)
     if (indice < 0) contactos.value.push(contacto)
@@ -229,7 +236,7 @@ async function guardar() {
           </div>
           <label class="propietario"
             ><input v-model="formulario.esDeContribuyente" type="checkbox" /> Este contacto
-            pertenece al contribuyente</label
+            pertenece al propietario</label
           >
         </fieldset>
         <p v-if="errorFormulario" role="alert" class="error">{{ errorFormulario }}</p>

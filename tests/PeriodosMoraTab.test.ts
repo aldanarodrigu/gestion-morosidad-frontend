@@ -4,9 +4,9 @@ import { createPinia, setActivePinia } from 'pinia'
 import { useAuthStore } from '../src/modules/autenticacion/stores/auth.store'
 import PeriodosMoraTab from '../src/modules/configuracion/components/PeriodosMoraTab.vue'
 import * as api from '../src/modules/configuracion/services/periodoMoraService'
-import { obtenerTributos } from '../src/modules/configuracion/services/tributoService'
+
 vi.mock('../src/modules/configuracion/services/periodoMoraService')
-vi.mock('../src/modules/configuracion/services/tributoService')
+
 const segmentos = ['Mora Temprana', 'Mora Inicial', 'Mora Tardia'].map((nombre, i) => ({
   id: i + 1,
   nombre,
@@ -21,16 +21,16 @@ const rangos: api.RangoMora[] = segmentos.map((s, i) => ({
   diasHasta: [90, 365, null][i]!,
   activa: true,
   fechaCreacion: '2026-10-13T10:00:00',
-  tributoId: null,
+  tipoPadron: null,
 }))
 beforeEach(() => {
   vi.resetAllMocks()
-  vi.mocked(obtenerTributos).mockResolvedValue([{ id: 101, codigo: '101', descripcion: 'Rural' }])
+  vi.mocked(api.obtenerTiposPadron).mockResolvedValue(['CIU', 'CIR'])
   setActivePinia(createPinia())
   useAuthStore().user = { id: 1, username: 'admin', roles: ['ADMINISTRADOR', 'NOTIFICADOR'] }
   vi.mocked(api.obtenerPeriodos).mockResolvedValue({ segmentos, rangos })
-  vi.mocked(api.guardarPeriodos).mockImplementation(async (nuevos, tributoId) =>
-    nuevos.map((r, i) => ({ ...rangos[i]!, ...r, tributoId: tributoId ?? null })),
+  vi.mocked(api.guardarPeriodos).mockImplementation(async (nuevos, tipoPadron) =>
+    nuevos.map((r, i) => ({ ...rangos[i]!, ...r, tipoPadron: tipoPadron ?? null })),
   )
 })
 describe('periodos de mora', () => {
@@ -46,13 +46,13 @@ describe('periodos de mora', () => {
   it('guarda los limites juntos y calcula los inicios sin huecos', async () => {
     const w = mount(PeriodosMoraTab)
     await flushPromises()
-    await w.get('#mora-tributo').setValue('101')
+    await w.get('#mora-padtipo').setValue('CIU')
     await flushPromises()
     await w.get('.editar').trigger('click')
     await w.get('#mora-hasta-1').setValue(120)
     await w.get('#mora-hasta-2').setValue(450)
-    expect(w.get<HTMLSelectElement>('#mora-tributo').element.value).toBe('101')
-    expect(api.obtenerPeriodos).toHaveBeenLastCalledWith(expect.any(AbortSignal), 101)
+    expect(w.get<HTMLSelectElement>('#mora-padtipo').element.value).toBe('CIU')
+    expect(api.obtenerPeriodos).toHaveBeenLastCalledWith(expect.any(AbortSignal), 'CIU')
     expect(w.findAll('.desde')[1]!.text()).toContain('121')
     await w.get('form').trigger('submit')
     await flushPromises()
@@ -62,7 +62,7 @@ describe('periodos de mora', () => {
         { segmentoId: 2, diasDesde: 121, diasHasta: 450 },
         { segmentoId: 3, diasDesde: 451, diasHasta: null },
       ],
-      101,
+      'CIU',
     )
     expect(w.find('form').exists()).toBe(false)
     expect(w.get('tbody').text()).toContain('451')
@@ -73,7 +73,7 @@ describe('periodos de mora', () => {
     const w = mount(PeriodosMoraTab)
     await flushPromises()
     expect(w.findAll('tbody tr')).toHaveLength(3)
-    await w.get('#mora-tributo').setValue('101')
+    await w.get('#mora-padtipo').setValue('CIU')
     await flushPromises()
     expect(w.find('.editar').exists()).toBe(false)
     w.unmount()
@@ -81,7 +81,7 @@ describe('periodos de mora', () => {
   it('rechaza limites invertidos', async () => {
     const w = mount(PeriodosMoraTab)
     await flushPromises()
-    await w.get('#mora-tributo').setValue('101')
+    await w.get('#mora-padtipo').setValue('CIU')
     await flushPromises()
     await w.get('.editar').trigger('click')
     await w.get('#mora-hasta-1').setValue(400)
@@ -93,7 +93,7 @@ describe('periodos de mora', () => {
   it('cancelar conserva los rangos anteriores', async () => {
     const w = mount(PeriodosMoraTab)
     await flushPromises()
-    await w.get('#mora-tributo').setValue('101')
+    await w.get('#mora-padtipo').setValue('CIU')
     await flushPromises()
     await w.get('.editar').trigger('click')
     await w.get('#mora-hasta-1').setValue(120)
@@ -106,7 +106,7 @@ describe('periodos de mora', () => {
     vi.mocked(api.guardarPeriodos).mockRejectedValue(new Error('Sin conexion'))
     const w = mount(PeriodosMoraTab)
     await flushPromises()
-    await w.get('#mora-tributo').setValue('101')
+    await w.get('#mora-padtipo').setValue('CIU')
     await flushPromises()
     await w.get('.editar').trigger('click')
     await w.get('#mora-hasta-1').setValue(120)
@@ -132,37 +132,37 @@ describe('periodos de mora', () => {
     await flushPromises()
     expect(w.find('.editar').exists()).toBe(false)
     expect(api.obtenerPeriodos).toHaveBeenCalledWith(expect.any(AbortSignal), undefined)
-    await w.get('#mora-tributo').setValue('101')
+    await w.get('#mora-padtipo').setValue('CIU')
     await flushPromises()
-    expect(api.obtenerPeriodos).toHaveBeenLastCalledWith(expect.any(AbortSignal), 101)
+    expect(api.obtenerPeriodos).toHaveBeenLastCalledWith(expect.any(AbortSignal), 'CIU')
     expect(w.find('.editar').exists()).toBe(true)
     expect(w.text()).toContain('usa los rangos base')
     w.unmount()
   })
-  it('restaura la base del tributo seleccionado', async () => {
-    const propias = rangos.map((r) => ({ ...r, tributoId: 101 }))
+  it('restaura la base del PadTipo seleccionado', async () => {
+    const propias = rangos.map((r) => ({ ...r, tipoPadron: 'CIU' }))
     vi.mocked(api.obtenerPeriodos).mockResolvedValue({ segmentos, rangos: propias })
     vi.mocked(api.restaurarPeriodosBase).mockResolvedValue(undefined)
     const w = mount(PeriodosMoraTab)
     await flushPromises()
-    await w.get('#mora-tributo').setValue('101')
+    await w.get('#mora-padtipo').setValue('CIU')
     await flushPromises()
     vi.mocked(api.obtenerPeriodos).mockResolvedValue({ segmentos, rangos })
     await w.get('.restaurar').trigger('click')
     await flushPromises()
-    expect(api.restaurarPeriodosBase).toHaveBeenCalledWith(101)
+    expect(api.restaurarPeriodosBase).toHaveBeenCalledWith('CIU')
     expect(w.find('.restaurar').exists()).toBe(false)
     expect(w.text()).toContain('usa los rangos base')
     w.unmount()
   })
-  it('al cambiar de tributo cierra el formulario anterior', async () => {
+  it('al cambiar de PadTipo cierra el formulario anterior', async () => {
     const w = mount(PeriodosMoraTab)
     await flushPromises()
-    await w.get('#mora-tributo').setValue('101')
+    await w.get('#mora-padtipo').setValue('CIU')
     await flushPromises()
     await w.get('.editar').trigger('click')
     await w.get('#mora-hasta-1').setValue(120)
-    await w.get('#mora-tributo').setValue('')
+    await w.get('#mora-padtipo').setValue('')
     await flushPromises()
     expect(w.find('form').exists()).toBe(false)
     expect(api.guardarPeriodos).not.toHaveBeenCalled()

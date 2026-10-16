@@ -48,6 +48,8 @@ function mostrarAcciones(acciones: string[]) {
           <th scope="col" class="col-left">CM</th>
           <th scope="col" class="col-left">N.º padrón</th>
           <th scope="col" class="col-left">Contribuyente</th>
+          <th scope="col" class="col-left">Origen</th>
+          <th scope="col" class="col-left">PadTipo</th>
           <th scope="col" class="col-left">Tributo</th>
           <th scope="col" class="col-left">Segmento</th>
           <th scope="col" class="col-right">Días vencido</th>
@@ -86,6 +88,8 @@ function mostrarAcciones(acciones: string[]) {
             {{ item.contribuyente }}
             <span class="documento">Documento: {{ item.documento || 'Sin documento' }}</span>
           </td>
+          <td class="col-left">{{ item.origen }}</td>
+          <td class="col-left">{{ item.tipoPadron || '—' }}</td>
           <td class="col-left">{{ item.tributo }}</td>
 
           <td class="col-left">
@@ -135,7 +139,7 @@ function mostrarAcciones(acciones: string[]) {
         </tr>
 
         <tr v-if="cartera.length === 0">
-          <td colspan="9" class="empty">No hay registros para mostrar.</td>
+          <td colspan="11" class="empty">No hay registros para mostrar.</td>
         </tr>
       </tbody>
     </table>

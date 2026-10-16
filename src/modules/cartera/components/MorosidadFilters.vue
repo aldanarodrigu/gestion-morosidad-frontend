@@ -1,8 +1,11 @@
 <script setup lang="ts">
+import { onMounted, onScopeDispose, ref } from 'vue'
+import { obtenerTiposPadron } from '../services/carteraService'
+
 export interface CarteraFilters {
   search: string
   segmento: string
-  tributo: string
+  tipoPadron: string
   origen: string
   multa: string
   contacto: string
@@ -13,6 +16,27 @@ export interface CarteraFilters {
 const filters = defineModel<CarteraFilters>({ required: true })
 
 const emit = defineEmits<{ export: [] }>()
+
+const tiposPadron = ref<string[]>([])
+const cargandoTipos = ref(false)
+const errorTipos = ref(false)
+const tiposController = new AbortController()
+
+async function cargarTiposPadron() {
+  cargandoTipos.value = true
+  errorTipos.value = false
+  try {
+    const tipos = await obtenerTiposPadron(tiposController.signal)
+    if (!tiposController.signal.aborted) tiposPadron.value = tipos
+  } catch {
+    if (!tiposController.signal.aborted) errorTipos.value = true
+  } finally {
+    cargandoTipos.value = false
+  }
+}
+
+onMounted(cargarTiposPadron)
+onScopeDispose(() => tiposController.abort())
 
 const opcionesOrden = [
   { value: 'antiguedad', label: 'Antigüedad' },
@@ -44,24 +68,16 @@ const opcionesOrden = [
       </div>
 
       <div class="filter">
-        <select v-model="filters.tributo" aria-label="Tributo">
-          <option value="">Todos los tributos</option>
-          <option value="101">101 - CIR</option>
-          <option value="201">201 - CIU</option>
-          <option value="301">301 - CIU</option>
-          <option value="801">801 - Impuesto Ley 12.700</option>
-          <option value="802">802 - Impuesto Ley 12.700</option>
-          <option value="2401">2401 - CIU</option>
-          <option value="3101">3101 - CIU</option>
-          <option value="3801">3801 - CIU</option>
-          <option value="3802">3802 - CIR</option>
-          <option value="7502">7502 - Hogar estudiantil</option>
-          <option value="7503">7503 - Hogar estudiantil</option>
-          <option value="10206">10206 - Instituciones Piscina Fraternidad</option>
-          <option value="35701">35701 - Impuesto Ley 12.700</option>
-          <option value="2800">2800</option>
-          <option value="2806">2806</option>
+        <select v-model="filters.tipoPadron" aria-label="PadTipo" :disabled="cargandoTipos || errorTipos">
+          <option value="">{{ cargandoTipos ? 'Cargando PadTipo...' : 'Todos los PadTipo' }}</option>
+          <option v-if="filters.tipoPadron && !tiposPadron.includes(filters.tipoPadron)" :value="filters.tipoPadron">
+            {{ filters.tipoPadron }}
+          </option>
+          <option v-for="tipo in tiposPadron" :key="tipo" :value="tipo">{{ tipo }}</option>
         </select>
+        <button v-if="errorTipos" type="button" @click="cargarTiposPadron">
+          No se pudieron cargar los PadTipo. Reintentar
+        </button>
       </div>
 
       <div class="filter">

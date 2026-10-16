@@ -42,6 +42,20 @@ beforeEach(() => {
 })
 afterEach(() => vi.useRealTimers())
 describe('checkbox de agrupación', () => {
+  it('restaura el origen y lo mantiene al cambiar de vista', async () => {
+    route.query = { origen: 'sucive' }
+    const w = montar()
+    await flushPromises()
+    expect(api.obtenerCartera).toHaveBeenLastCalledWith(0, 20,
+      expect.objectContaining({ origen: 'sucive' }), expect.any(AbortSignal))
+    estado.filtros.value.agruparPor = true
+    await vi.advanceTimersByTimeAsync(0)
+    await flushPromises()
+    expect(api.obtenerCarteraAgrupada).toHaveBeenLastCalledWith(0, 20,
+      expect.objectContaining({ origen: 'sucive' }), expect.any(AbortSignal))
+    expect(replace).toHaveBeenLastCalledWith({ query: { origen: 'sucive', agrupar: 'true' } })
+    w.unmount()
+  })
   it('arranca sin agrupar y al marcar consulta grupos, reinicia página y conserva la opción en URL', async () => {
     const w = montar()
     await flushPromises()
@@ -83,12 +97,12 @@ describe('checkbox de agrupación', () => {
     expect(api.obtenerCartera).not.toHaveBeenCalled()
     w.unmount()
   })
-  it('envía documento, segmento y tributo al modo agrupado y vuelve a primera página', async () => {
+  it('envía documento, segmento y PadTipo al modo agrupado y vuelve a primera página', async () => {
     route.query = { agrupar: 'true', pagina: '2' }
     const w = montar()
     await flushPromises()
     estado.filtros.value.segmento = 'tardia'
-    estado.filtros.value.tributo = '201'
+    estado.filtros.value.tipoPadron = 'CIU'
     await vi.advanceTimersByTimeAsync(0)
     estado.filtros.value.search = '90000001'
     await vi.advanceTimersByTimeAsync(300)
@@ -96,7 +110,7 @@ describe('checkbox de agrupación', () => {
     expect(api.obtenerCarteraAgrupada).toHaveBeenLastCalledWith(
       0,
       20,
-      expect.objectContaining({ busqueda: '90000001', segmento: 'tardia', tributo: '201' }),
+      expect.objectContaining({ busqueda: '90000001', segmento: 'tardia', tipoPadron: 'CIU' }),
       expect.any(AbortSignal),
     )
     w.unmount()

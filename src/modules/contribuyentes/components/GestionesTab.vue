@@ -194,7 +194,7 @@ function tributos(deuda: DeudaApi) {
             </select>
           </div>
           <div>
-            <label for="gestion-resultado">Resultado</label>
+            <label for="gestion-resultado">Respuesta del contribuyente</label>
             <select id="gestion-resultado" v-model="resultado" required :disabled="guardando">
               <option disabled value="">Seleccioná un resultado</option>
               <option v-for="opcion in resultadosGestion" :key="opcion.value" :value="opcion.value">

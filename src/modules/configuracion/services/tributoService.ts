@@ -1,5 +1,6 @@
 import { http } from '@/shared/api/http'
 export interface Tributo {
+  origen?: 'INTENDENCIA' | 'SUCIVE'
   id: number
   codigo: string
   descripcion: string | null

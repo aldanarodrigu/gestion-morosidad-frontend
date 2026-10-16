@@ -6,18 +6,17 @@ import {
   obtenerPeriodos,
   guardarPeriodos,
   restaurarPeriodosBase,
+  obtenerTiposPadron,
 } from '../services/periodoMoraService'
-import { obtenerTributos } from '../services/tributoService'
-import type { Tributo } from '../services/tributoService'
 import type { SegmentoMora, RangoMora, RangoMoraRequest } from '../services/periodoMoraService'
 const auth = useAuthStore()
-const tributoId = ref<number | null>(null)
-const tributos = ref<Tributo[]>([])
+const tipoPadron = ref<string | null>(null)
+const tiposPadron = ref<string[]>([])
 const puedeEditar = computed(
-  () => auth.tieneRol('ADMINISTRADOR') && Number.isInteger(tributoId.value),
+  () => auth.tieneRol('ADMINISTRADOR') && !!tipoPadron.value,
 )
 const usaBase = computed(
-  () => tributoId.value !== null && rangos.value.every((r) => r.tributoId == null),
+  () => tipoPadron.value !== null && rangos.value.every((r) => r.tipoPadron == null),
 )
 const segmentos = ref<SegmentoMora[]>([])
 const rangos = ref<RangoMora[]>([])
@@ -47,13 +46,13 @@ async function cargar() {
   mensaje.value = ''
   try {
     const [datos, catalogo] = await Promise.all([
-      obtenerPeriodos(ctrl.signal, tributoId.value ?? undefined),
-      obtenerTributos(ctrl.signal),
+      obtenerPeriodos(ctrl.signal, tipoPadron.value ?? undefined),
+      obtenerTiposPadron(ctrl.signal),
     ])
     if (ctrl.signal.aborted) return
     segmentos.value = [...datos.segmentos].sort((a, b) => a.orden - b.orden)
     rangos.value = datos.rangos
-    tributos.value = catalogo
+    tiposPadron.value = catalogo
   } catch (e) {
     if (!ctrl.signal.aborted)
       errorCarga.value = errorApi(e, 'No se pudieron cargar los períodos de mora.')
@@ -62,18 +61,18 @@ async function cargar() {
   }
 }
 onMounted(cargar)
-watch(tributoId, cargar)
+watch(tipoPadron, cargar)
 onScopeDispose(() => controller?.abort())
 async function restaurar() {
-  if (!puedeEditar.value || tributoId.value === null || guardando.value) return
+  if (!puedeEditar.value || tipoPadron.value === null || guardando.value) return
   const contexto = controller
   guardando.value = true
   errorFormulario.value = ''
   try {
-    await restaurarPeriodosBase(tributoId.value)
+    await restaurarPeriodosBase(tipoPadron.value)
     if (contexto?.signal.aborted) return
     await cargar()
-    mensaje.value = 'Se restauraron los rangos base para este tributo.'
+    mensaje.value = 'Se restauraron los rangos base para este PadTipo.'
   } catch (e) {
     if (!contexto?.signal.aborted)
       errorFormulario.value = errorApi(e, 'No se pudieron restaurar los rangos base.')
@@ -125,7 +124,7 @@ async function guardar() {
   const contexto = controller
   guardando.value = true
   try {
-    const guardados = await guardarPeriodos(nuevos, tributoId.value ?? undefined)
+    const guardados = await guardarPeriodos(nuevos, tipoPadron.value ?? undefined)
     if (contexto?.signal.aborted) return
     rangos.value = guardados
     cancelar()
@@ -140,12 +139,12 @@ async function guardar() {
 </script>
 <template>
   <section class="periodos" aria-label="Períodos de mora">
-    <div class="selector-tributo">
-      <label for="mora-tributo">Tipo de tributo</label>
-      <select id="mora-tributo" v-model="tributoId" :disabled="guardando">
+    <div class="selector-padtipo">
+      <label for="mora-padtipo">PadTipo</label>
+      <select id="mora-padtipo" v-model="tipoPadron" :disabled="guardando">
         <option :value="null">Rangos base</option>
-        <option v-for="tributo in tributos" :key="tributo.id" :value="tributo.id">
-          {{ tributo.codigo }}{{ tributo.descripcion ? ` · ${tributo.descripcion}` : '' }}
+        <option v-for="tipo in tiposPadron" :key="tipo" :value="tipo">
+          {{ tipo }}
         </option>
       </select>
     </div>
@@ -175,15 +174,15 @@ async function guardar() {
       <button type="button" class="secundario" @click="cargar">Reintentar</button>
     </div>
     <template v-else>
-      <p v-if="tributoId === null" class="ayuda">
-        Estos rangos se aplican a todos los tributos sin configuración propia. Seleccioná un tributo
-        para personalizar sus límites.
+      <p v-if="tipoPadron === null" class="ayuda">
+        Estos rangos se aplican a los PadTipo sin configuración propia. Seleccioná un PadTipo
+        para personalizar los períodos de todos sus padrones.
       </p>
       <p v-else class="ayuda">
         {{
           usaBase
-            ? 'Este tributo usa los rangos base. Podés definir sus propios límites.'
-            : 'Este tributo tiene límites propios.'
+            ? 'Este PadTipo usa los rangos base. Podés definir sus propios límites.'
+            : 'Este PadTipo tiene límites propios.'
         }}
       </p>
       <button
@@ -257,9 +256,9 @@ async function guardar() {
           </div>
         </fieldset>
         <p class="ayuda explicacion">
-          Al guardar se actualizarán los segmentos de las deudas no canceladas según sus tributos.
-          Si hay varios, se usa el segmento más avanzado. Los rangos anteriores quedan en el
-          historial.
+          Al guardar se actualizarán los segmentos de las deudas no canceladas del PadTipo
+          seleccionado, cualquiera sea su combinación de tributos. Los rangos anteriores quedan
+          en el historial.
         </p>
         <p v-if="errorFormulario" role="alert" class="error">{{ errorFormulario }}</p>
         <div class="botones">

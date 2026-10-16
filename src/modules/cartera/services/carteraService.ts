@@ -10,7 +10,8 @@ import type {
 export interface FiltrosCarteraApi {
   busqueda?: string
   segmento?: string
-  tributo?: string
+  tipoPadron?: string
+  origen?: string
   contacto?: string
   ordenarPor?: 'antiguedad' | 'importe' | 'nombre'
 }
@@ -51,9 +52,15 @@ function parametros(pagina: number, tamanio: number, filtros: FiltrosCarteraApi)
     sort: ordenesApi[filtros.ordenarPor ?? 'antiguedad'],
     contribuyente: filtros.busqueda?.trim() || undefined,
     segmento: filtros.segmento ? idsSegmentos[filtros.segmento] : undefined,
-    tributo: filtros.tributo || undefined,
+    tipoPadron: filtros.tipoPadron || undefined,
+    origen: filtros.origen === 'sucive' ? 'SUCIVE' : filtros.origen === 'intendencia' ? 'INTENDENCIA' : undefined,
     conContacto: filtros.contacto === 'con' ? true : filtros.contacto === 'sin' ? false : undefined,
   }
+}
+
+export async function obtenerTiposPadron(signal?: AbortSignal): Promise<string[]> {
+  const { data } = await http.get<string[]>('/deudas/tipos-padron', { signal })
+  return data
 }
 
 function mapearDeuda(deuda: DeudaApi): CarteraItem {
@@ -62,6 +69,8 @@ function mapearDeuda(deuda: DeudaApi): CarteraItem {
     contribuyenteId: deuda.contribuyenteId,
     cm: deuda.padron.cm,
     numeroPadron: deuda.padron.numeroPadron,
+    tipoPadron: deuda.padron.tipoPadron ?? null,
+    origen: deuda.padron.origen === 'SUCIVE' ? 'SUCIVE' : 'Intendencia',
     contribuyente: deuda.contribuyente.nombre,
     documento: deuda.contribuyente.documento,
     tributo: deuda.tributos.map((tributo) => tributo.descripcion || tributo.codigo).join(', '),

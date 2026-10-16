@@ -26,7 +26,7 @@ function filtrosDesdeUrl(q: LocationQuery): CarteraFilters {
   return {
     search: leerParam(q.q),
     segmento: permitido(leerParam(q.segmento), SEGMENTOS),
-    tributo: leerParam(q.tributo),
+    tipoPadron: leerParam(q.tipoPadron),
     origen: permitido(leerParam(q.origen), ORIGENES),
     multa: permitido(leerParam(q.multa), CON_SIN),
     contacto: permitido(leerParam(q.contacto), CON_SIN),
@@ -70,7 +70,7 @@ export function useCartera(tamanio = 20) {
 
     if (f.search) query.q = f.search
     if (f.segmento) query.segmento = f.segmento
-    if (f.tributo) query.tributo = f.tributo
+    if (f.tipoPadron) query.tipoPadron = f.tipoPadron
     if (f.origen) query.origen = f.origen
     if (f.multa) query.multa = f.multa
     if (f.contacto) query.contacto = f.contacto
@@ -95,7 +95,8 @@ export function useCartera(tamanio = 20) {
       const filtrosApi = {
         busqueda: filtros.value.search,
         segmento: filtros.value.segmento,
-        tributo: filtros.value.tributo,
+        tipoPadron: filtros.value.tipoPadron,
+        origen: filtros.value.origen,
         contacto: filtros.value.contacto,
         ordenarPor: filtros.value.ordenarPor,
       }
@@ -147,7 +148,7 @@ export function useCartera(tamanio = 20) {
   watch(
     () => {
       const f = filtros.value
-      return [f.segmento, f.tributo, f.origen, f.multa, f.contacto, f.ordenarPor, f.agruparPor]
+      return [f.segmento, f.tipoPadron, f.origen, f.multa, f.contacto, f.ordenarPor, f.agruparPor]
     },
     () => programarCarga(0),
   )

@@ -34,13 +34,15 @@ const formatoFecha = (fecha: string | null) => {
 
 <template>
   <section class="deudas">
-    <p v-if="deudas.length === 0" class="vacio">No hay deudas para mostrar.</p>
+    <p v-if="deudas.length === 0" class="vacio">No hay padrones para mostrar.</p>
 
     <div v-else class="tabla-contenedor">
       <table>
         <thead>
           <tr>
             <th scope="col" class="col-left">Padrón</th>
+            <th scope="col" class="col-left">Origen</th>
+            <th scope="col" class="col-left">PadTipo</th>
             <th scope="col" class="col-left">Tributos</th>
             <th scope="col" class="col-left">Desde</th>
             <th scope="col" class="col-right">Días vencido</th>
@@ -55,6 +57,9 @@ const formatoFecha = (fecha: string | null) => {
               <strong>{{ deuda.padron.numeroPadron || '—' }}</strong>
               <span class="secundario">CM: {{ deuda.padron.cm }}</span>
             </td>
+
+            <td class="col-left">{{ deuda.padron.origen === 'SUCIVE' ? 'SUCIVE' : 'Intendencia' }}</td>
+            <td class="col-left">{{ deuda.padron.tipoPadron || '—' }}</td>
 
             <td class="col-left">
               <span v-for="tributo in deuda.tributos" :key="tributo.id" class="tributo">
