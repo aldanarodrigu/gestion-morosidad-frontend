@@ -31,8 +31,13 @@ const router = createRouter({
           path: 'reportes',
           name: 'reportes',
           meta: { requiereCartera: true },
-          component: () => import('@/shared/views/SeccionEnDesarrolloView.vue'),
-          props: { titulo: 'Reportes' },
+          component: () => import('@/modules/reportes/views/ReportesView.vue'),
+        },
+        {
+          path: 'comparar-cartera',
+          name: 'comparar-cartera',
+          meta: { requiereCartera: true },
+          component: () => import('@/modules/comparacion/views/ComparacionCarteraView.vue'),
         },
         {
           path: 'configuracion',

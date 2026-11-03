@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
+import FechaSincronizacion from '@/shared/components/FechaSincronizacion.vue'
 import { exportarCartera } from '../services/carteraService'
 import type { FiltrosCarteraApi } from '../services/carteraService'
 import ExportacionCarteraPanel from '../components/ExportacionCarteraPanel.vue'
@@ -20,6 +21,10 @@ const {
   cargar,
   cambiarPagina,
 } = useCartera()
+
+const fechasVisibles = computed(() => (filtros.value.agruparPor
+  ? grupos.value.flatMap(g => g.deudas)
+  : cartera.value).map(d => d.fechaSincronizacion))
 
 const panelExportacion = ref(false)
 const exportando = ref(false)
@@ -85,6 +90,8 @@ async function exportarExcel(filtrosExportacion: FiltrosCarteraApi) {
       <p class="resumen">
         {{ totalElementos }} {{ filtros.agruparPor ? 'contribuyentes' : 'deudas' }}
       </p>
+      <FechaSincronizacion v-if="fechasVisibles.length" class="actualizacion-cartera"
+        :fechas="fechasVisibles" etiqueta="Datos de esta página sincronizados" />
 
       <p v-if="filtros.agruparPor" class="nota-agrupacion">
         Agrupado por documento. Los totales corresponden a las deudas que cumplen los filtros.
@@ -134,6 +141,8 @@ async function exportarExcel(filtrosExportacion: FiltrosCarteraApi) {
   color: var(--color-text-secondary);
   font-size: 13px;
 }
+
+.actualizacion-cartera { padding: 0 21px 12px; }
 
 .nota-agrupacion {
   padding: 0 21px 12px;

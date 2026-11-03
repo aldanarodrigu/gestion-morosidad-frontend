@@ -3,7 +3,9 @@ import type { DeudaApi } from '@/modules/cartera/types/cartera'
 
 export interface ContribuyenteResumenResponse {
   contribuyenteId: number
+  fechaSincronizacion?: string | null
   cm: string | null
+  origen?: DeudaApi['padron']['origen'] | null
   nombre: string
   documento: string | null
   deudaTotal: number
@@ -58,6 +60,8 @@ export function obtenerResumenDesdeDeudas(
   return {
     contribuyenteId: primeraDeuda.contribuyenteId,
     cm: deudaParaMostrar?.padron.cm ?? null,
+    fechaSincronizacion: deudaParaMostrar?.fechaSincronizacion ?? null,
+    origen: deudaParaMostrar ? deudaParaMostrar.padron.origen ?? 'INTENDENCIA' : null,
     nombre: primeraDeuda.contribuyente.nombre,
     documento: primeraDeuda.contribuyente.documento,
     deudaTotal: Math.round(deudaTotal * 100) / 100,

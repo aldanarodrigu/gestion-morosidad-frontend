@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import FechaSincronizacion from '@/shared/components/FechaSincronizacion.vue'
 import type { ContribuyenteResumenResponse } from '../services/contribuyenteService'
 
 defineProps<{
@@ -37,11 +38,17 @@ function claseSegmento(segmento?: string | null): string {
   <section class="resumen">
     <header class="cabecera">
       <div class="identidad">
-        <p v-if="contribuyente.cm" class="meta">CM {{ contribuyente.cm }}</p>
+        <p v-if="contribuyente.cm" class="meta" aria-label="Cuenta seleccionada">
+          <span class="cuenta-origen">{{ contribuyente.origen === 'SUCIVE' ? 'SUCIVE' : 'Intendencia' }}</span>
+          <span aria-hidden="true" class="separador">·</span>
+          <span class="cuenta-cm">CM {{ contribuyente.cm }}</span>
+        </p>
 
         <h1>{{ contribuyente.nombre }}</h1>
 
         <p class="documento">Documento: {{ contribuyente.documento || 'Sin documento' }}</p>
+        <FechaSincronizacion v-if="contribuyente.cm" class="actualizacion-padron"
+          :fechas="[contribuyente.fechaSincronizacion]" etiqueta="Padrón sincronizado" />
       </div>
 
       <div class="deuda">
@@ -107,12 +114,18 @@ function claseSegmento(segmento?: string | null): string {
 }
 
 .meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
   margin-bottom: 6px;
   color: var(--color-primary);
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.03em;
 }
+
+.separador { color: var(--color-text-light); }
 
 .identidad h1 {
   margin-bottom: 6px;
@@ -122,6 +135,8 @@ function claseSegmento(segmento?: string | null): string {
   line-height: 1.3;
   overflow-wrap: anywhere;
 }
+
+.actualizacion-padron { margin-top: 7px; }
 
 .documento {
   color: var(--color-text-secondary);

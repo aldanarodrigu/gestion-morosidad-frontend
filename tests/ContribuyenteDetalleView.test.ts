@@ -12,7 +12,8 @@ import type { DeudaApi } from '../src/modules/cartera/types/cartera'
 
 enableAutoUnmount(afterEach)
 const route = reactive({ params: { contribuyenteId: '405' }, query: {} as Record<string, string> })
-vi.mock('vue-router', () => ({ useRoute: () => route }))
+const navegar = vi.fn()
+vi.mock('vue-router', () => ({ useRoute: () => route, useRouter: () => ({ push: navegar }) }))
 vi.mock('../src/modules/contribuyentes/services/contribuyenteService', async (importOriginal) => ({
   ...(await importOriginal<
     typeof import('../src/modules/contribuyentes/services/contribuyenteService')
@@ -33,7 +34,6 @@ function montar() {
       plugins: [createPinia()],
       stubs: {
         RouterLink: RouterLinkStub,
-        DeudasTab: true,
         DatosContactoTab: { props: ['cm'], template: '<div>Contactos</div>' },
       },
     },
@@ -41,6 +41,7 @@ function montar() {
 }
 beforeEach(() => {
   vi.resetAllMocks()
+  navegar.mockImplementation(async ({ query }) => { route.query = query })
   localStorage.clear()
   localStorage.setItem(
     'user',
@@ -59,7 +60,7 @@ describe('CM de la deuda seleccionada en el detalle', () => {
   it('la cabecera y Gestiones usan la deuda de cartera aunque no sea la primera, conservando el total del contribuyente', async () => {
     const w = montar()
     await flushPromises()
-    expect(w.get('.resumen .meta').text()).toBe('CM 81613')
+    expect(w.get('.resumen .cuenta-cm').text()).toBe('CM 81613')
     expect(w.get('.contexto-deuda').text()).toContain('CM 81613')
     expect(w.get('.resumen').text()).not.toContain('82461')
     expect(gestiones.obtenerGestiones).toHaveBeenCalledWith(20, expect.any(AbortSignal))
@@ -73,7 +74,7 @@ describe('CM de la deuda seleccionada en el detalle', () => {
     await flushPromises()
     route.query = { deuda: '30' }
     await flushPromises()
-    expect(w.get('.resumen .meta').text()).toBe('CM 81619')
+    expect(w.get('.resumen .cuenta-cm').text()).toBe('CM 81619')
     expect(w.get('.contexto-deuda').text()).toContain('CM 81619')
     expect(gestiones.obtenerGestiones).toHaveBeenLastCalledWith(30, expect.any(AbortSignal))
     expect(contribuyentes.obtenerDeudasPorContribuyenteId).toHaveBeenCalledTimes(1)
@@ -83,7 +84,7 @@ describe('CM de la deuda seleccionada en el detalle', () => {
     route.query = { deudaId: '20' }
     const w = montar()
     await flushPromises()
-    expect(w.get('.resumen .meta').text()).toBe('CM 81613')
+    expect(w.get('.resumen .cuenta-cm').text()).toBe('CM 81613')
     expect(w.get('.contexto-deuda').text()).toContain('CM 81613')
     expect(gestiones.obtenerGestiones).toHaveBeenCalledWith(20, expect.any(AbortSignal))
     w.unmount()
@@ -92,7 +93,7 @@ describe('CM de la deuda seleccionada en el detalle', () => {
     route.query = { deuda: '20', deudaId: '10' }
     const w = montar()
     await flushPromises()
-    expect(w.get('.resumen .meta').text()).toBe('CM 81613')
+    expect(w.get('.resumen .cuenta-cm').text()).toBe('CM 81613')
     expect(w.get('.contexto-deuda').text()).toContain('CM 81613')
     expect(gestiones.obtenerGestiones).not.toHaveBeenCalledWith(10, expect.anything())
     w.unmount()
@@ -116,7 +117,7 @@ describe('CM de la deuda seleccionada en el detalle', () => {
     vi.mocked(contribuyentes.obtenerDeudasPorContribuyenteId).mockResolvedValue([deudas[1]!])
     const w = montar()
     await flushPromises()
-    expect(w.get('.resumen .meta').text()).toBe('CM 81613')
+    expect(w.get('.resumen .cuenta-cm').text()).toBe('CM 81613')
     expect(w.get('.contexto-deuda').text()).toContain('CM 81613')
     expect(gestiones.obtenerGestiones).toHaveBeenCalledWith(20, expect.any(AbortSignal))
     w.unmount()
@@ -144,7 +145,7 @@ describe('CM de la deuda seleccionada en el detalle', () => {
     await tab.get('form').trigger('submit')
     await flushPromises()
     expect(gestiones.guardarGestion).toHaveBeenCalledWith(expect.objectContaining({ deudaId: 20 }))
-    expect(w.get('.resumen .meta').text()).toBe('CM 81613')
+    expect(w.get('.resumen .cuenta-cm').text()).toBe('CM 81613')
     expect(w.get('.contexto-deuda').text()).toContain('CM 81613')
     w.unmount()
   })
@@ -172,13 +173,13 @@ describe('segmento del resumen con distintos PadTipo', () => {
     expect(w.findAll('.resumen .stat dd')[0]!.text()).toBe('100 días')
     expect(w.findAll('.resumen .stat dd')[1]!.text()).toBe('08/07/2026')
     expect(w.get('.deuda-monto').text()).toContain('600,00')
-    expect(w.get('.resumen .meta').text()).toBe('CM 82461')
+    expect(w.get('.resumen .cuenta-cm').text()).toBe('CM 82461')
     expect(w.get('.contexto-deuda').text()).toContain('CM 82461')
     expect(gestiones.obtenerGestiones).toHaveBeenCalledWith(10, expect.any(AbortSignal))
     route.query = { deuda: '30' }
     await flushPromises()
     expect(w.get('.resumen .segmento-badge').text()).toBe('Mora Tardía')
-    expect(w.get('.resumen .meta').text()).toBe('CM 81619')
+    expect(w.get('.resumen .cuenta-cm').text()).toBe('CM 81619')
     w.unmount()
   })
   it.each([true, false])(
@@ -204,4 +205,97 @@ describe('segmento del resumen con distintos PadTipo', () => {
       w.unmount()
     },
   )
+})
+
+
+describe('navegación entre padrones del contribuyente', () => {
+  async function abrirTabla(w: ReturnType<typeof montar>) {
+    await w.findAll('.pestanas button').find(b => b.text().startsWith('Padrones'))!.trigger('click')
+  }
+
+  it('marca solo el padrón que se está gestionando', async () => {
+    const w = montar()
+    await flushPromises()
+    await abrirTabla(w)
+    expect(w.findAll('tr.seleccionada')).toHaveLength(1)
+    expect(w.get('tr.seleccionada').text()).toContain('CM: 81613')
+    expect(w.get('tr.seleccionada button').attributes('aria-current')).toBe('true')
+  })
+
+  it('abre otro padrón y actualiza URL, CM e historial sin recargar las deudas', async () => {
+    route.query = { deuda: '20', deudaId: '10', referencia: 'cartera' }
+    const w = montar()
+    await flushPromises()
+    await abrirTabla(w)
+    await w.get('button[aria-label*="CM 81619"]').trigger('click')
+    await flushPromises()
+    expect(navegar).toHaveBeenCalledWith({ query: { deuda: '30', referencia: 'cartera' } })
+    expect(w.get('.resumen .cuenta-cm').text()).toBe('CM 81619')
+    expect(w.get('.contexto-deuda').text()).toContain('CM 81619')
+    expect(gestiones.obtenerGestiones).toHaveBeenLastCalledWith(30, expect.any(AbortSignal))
+    expect(contribuyentes.obtenerDeudasPorContribuyenteId).toHaveBeenCalledTimes(1)
+    await abrirTabla(w)
+    expect(w.findAll('tr.seleccionada')).toHaveLength(1)
+    expect(w.get('tr.seleccionada').text()).toContain('CM: 81619')
+    // Atrás en el navegador conserva el padrón indicado en la URL.
+    route.query = { deuda: '20' }
+    await flushPromises()
+    expect(w.get('tr.seleccionada').text()).toContain('CM: 81613')
+  })
+
+  it('distingue padrones con el mismo CM y número en distintos orígenes', async () => {
+    vi.mocked(contribuyentes.obtenerDeudasPorContribuyenteId).mockResolvedValue([
+      { ...deudas[0]!, padron: { ...deudas[0]!.padron, origen: 'INTENDENCIA' } },
+      { ...deudas[1]!, padron: { ...deudas[0]!.padron, origen: 'SUCIVE' } },
+    ])
+    const w = montar()
+    await flushPromises()
+    await abrirTabla(w)
+    expect(w.findAll('tr.seleccionada')).toHaveLength(1)
+    expect(w.get('tr.seleccionada').text()).toContain('SUCIVE')
+    await w.get('button[aria-label*="Intendencia"]').trigger('click')
+    await flushPromises()
+    expect(route.query.deuda).toBe('10')
+    expect(w.get('.contexto-deuda').text()).toContain('CM 82461')
+    await abrirTabla(w)
+    expect(w.findAll('tr.seleccionada')).toHaveLength(1)
+    expect(w.get('tr.seleccionada').text()).toContain('Intendencia')
+  })
+})
+
+
+describe('identificación de la cuenta en el encabezado', () => {
+  it('muestra origen y CM de la deuda seleccionada y los actualiza juntos', async () => {
+    const datos = deudas.map(d => ({ ...d, padron: { ...d.padron } }))
+    datos[1]!.padron.origen = 'SUCIVE'
+    datos[1]!.padron.numeroPadron = '000987'
+    vi.mocked(contribuyentes.obtenerDeudasPorContribuyenteId).mockResolvedValue(datos)
+    const w = montar()
+    await flushPromises()
+    expect(w.get('.cuenta-origen').text()).toBe('SUCIVE')
+    expect(w.get('.cuenta-cm').text()).toBe('CM 81613')
+    route.query = { deuda: '30' }
+    await flushPromises()
+    expect(w.get('.cuenta-origen').text()).toBe('Intendencia')
+    expect(w.get('.cuenta-cm').text()).toBe('CM 81619')
+    expect(w.get('.deuda-monto').text()).toContain('600,00')
+  })
+  it('sin selección válida entre varios padrones no muestra una cuenta arbitraria', async () => {
+    route.query = {}
+    const w = montar()
+    await flushPromises()
+    expect(w.find('.resumen .meta').exists()).toBe(false)
+  })
+})
+
+
+it('muestra la fecha de sincronización del padrón seleccionado y la cambia al navegar', async () => {
+  const datos = deudas.map((d, i) => ({ ...d, fechaSincronizacion: i === 1 ? '2026-10-27T17:05:35' : '2026-10-30T18:30:00' }))
+  vi.mocked(contribuyentes.obtenerDeudasPorContribuyenteId).mockResolvedValue(datos)
+  const w = montar()
+  await flushPromises()
+  expect(w.get('.actualizacion-padron').text()).toBe('Padrón sincronizado: 27/10/2026 17:05')
+  route.query = { deuda: '30' }
+  await flushPromises()
+  expect(w.get('.actualizacion-padron').text()).toBe('Padrón sincronizado: 30/10/2026 18:30')
 })

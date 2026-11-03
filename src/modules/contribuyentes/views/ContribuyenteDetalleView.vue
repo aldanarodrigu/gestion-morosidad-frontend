@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ArrowLeftIcon } from '@heroicons/vue/24/outline'
 import {
   obtenerDeudasPorContribuyenteId,
@@ -15,6 +15,7 @@ import GestionesTab from '../components/GestionesTab.vue'
 import DatosContactoTab from '../components/DatosContactoTab.vue'
 
 const route = useRoute()
+const router = useRouter()
 
 const deudaSolicitadaId = computed(() => {
   const valor = route.query.deuda ?? route.query.deudaId
@@ -41,6 +42,14 @@ const contribuyenteId = computed(() => Number(route.params.contribuyenteId))
 const contribuyente = computed<ContribuyenteResumenResponse | null>(() =>
   obtenerResumenDesdeDeudas(deudas.value, deudaSeleccionadaId.value),
 )
+
+async function abrirPadron(deudaId: number) {
+  if (!deudas.value.some(d => d.id === deudaId)) return
+  const { deudaId: _anterior, ...query } = route.query
+  await router.push({ query: { ...query, deuda: String(deudaId) } })
+  cantidadGestiones.value = null
+  pestanaActiva.value = 'gestiones'
+}
 
 function gestionRegistrada(deudaId: number) {
   const deuda = deudas.value.find((d) => d.id === deudaId)
@@ -128,6 +137,7 @@ watch(contribuyenteId, () => {
               v-else-if="pestanaActiva === 'deudas'"
               :deudas="deudas"
               :deuda-seleccionada-id="deudaSeleccionadaId"
+              @seleccionar="abrirPadron"
             />
 
             <DatosContactoTab v-else :cm="padronContacto?.cm ?? ''" :origen="padronContacto?.origen" />

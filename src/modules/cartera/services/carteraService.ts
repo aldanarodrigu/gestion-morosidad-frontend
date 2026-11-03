@@ -82,6 +82,7 @@ function mapearDeuda(deuda: DeudaApi): CarteraItem {
     contacto: deuda.conContacto ? 'Con datos' : 'Sin datos',
     accionesSugeridas: deuda.accionesSugeridas?.map((accion) => accion.nombre) ?? [],
     gestiones: deuda.cantidadGestiones,
+    fechaSincronizacion: deuda.fechaSincronizacion,
   }
 }
 

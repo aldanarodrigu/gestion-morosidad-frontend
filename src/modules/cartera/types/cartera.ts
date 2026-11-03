@@ -61,6 +61,7 @@ export interface PaginaResponse<T> {
 }
 
 export interface CarteraItem {
+  fechaSincronizacion?: string | null
   id: number
   contribuyenteId: number
   cm: string
