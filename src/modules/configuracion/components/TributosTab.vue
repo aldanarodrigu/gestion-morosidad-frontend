@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onScopeDispose, ref } from 'vue'
+import { computed, nextTick, onMounted, onScopeDispose, ref, watch } from 'vue'
 import { isAxiosError } from 'axios'
 import { useAuthStore } from '@/modules/autenticacion/stores/auth.store'
 import {
   actualizarTributo,
   crearTributo,
   eliminarTributo,
-  obtenerTributos,
+  obtenerTributosPaginados,
 } from '../services/tributoService'
 import type { Tributo } from '../services/tributoService'
 
@@ -22,6 +22,26 @@ const dialogoEliminar = ref<HTMLDialogElement | null>(null)
 const tributos = ref<Tributo[]>([])
 const cargando = ref(true)
 const errorCarga = ref('')
+const busqueda = ref('')
+const origen = ref('')
+const pagina = ref(0)
+const totalElementos = ref(0)
+const totalPaginas = ref(0)
+let timer: ReturnType<typeof setTimeout> | undefined
+function cambiarPagina(nueva: number) {
+  if (guardando.value || cargando.value || nueva < 0 || nueva >= totalPaginas.value) return
+  pagina.value = nueva
+  cargar()
+}
+function limpiarFiltros() { busqueda.value = ''; origen.value = '' }
+function programarCarga(demora: number) {
+  clearTimeout(timer)
+  controller?.abort()
+  pagina.value = 0
+  timer = setTimeout(cargar, demora)
+}
+watch(busqueda, () => programarCarga(300))
+watch(origen, () => programarCarga(0))
 let controller: AbortController | null = null
 async function cargar() {
   controller?.abort()
@@ -30,8 +50,15 @@ async function cargar() {
   cargando.value = true
   errorCarga.value = ''
   try {
-    const datos = await obtenerTributos(ctrl.signal)
-    if (!ctrl.signal.aborted) tributos.value = datos
+    const datos = await obtenerTributosPaginados(pagina.value, { busqueda: busqueda.value, origen: origen.value }, ctrl.signal)
+    if (ctrl.signal.aborted) return
+    totalElementos.value = datos.totalElementos
+    totalPaginas.value = datos.totalPaginas
+    if (pagina.value > 0 && pagina.value >= datos.totalPaginas) {
+      pagina.value = Math.max(0, datos.totalPaginas - 1)
+      return cargar()
+    }
+    tributos.value = datos.contenido
   } catch (e) {
     if (!ctrl.signal.aborted)
       errorCarga.value = isAxiosError<{ mensaje?: string }>(e)
@@ -60,15 +87,16 @@ function cancelarEliminacion() {
 async function confirmarEliminar() {
   if (!pendienteEliminar.value || guardando.value || !puedeEditar.value) return
   const tributo = pendienteEliminar.value
+  clearTimeout(timer)
   const contexto = controller
   guardando.value = true
   try {
     await eliminarTributo(tributo.id)
     if (contexto?.signal.aborted) return
-    tributos.value = tributos.value.filter((t) => t.id !== tributo.id)
     dialogoEliminar.value?.close()
     pendienteEliminar.value = null
     mensaje.value = 'Tributo eliminado correctamente.'
+    await cargar()
   } catch (e) {
     if (!contexto?.signal.aborted)
       errorEliminar.value = isAxiosError<{ mensaje?: string }>(e)
@@ -97,18 +125,16 @@ async function guardar() {
     errorFormulario.value = 'Completá el código (hasta 20 caracteres) y la descripción (hasta 200).'
     return
   }
+  clearTimeout(timer)
   const contexto = controller
   guardando.value = true
   try {
-    const actualizado = formulario.value.id
-      ? await actualizarTributo(formulario.value.id, descripcion)
-      : await crearTributo(codigo, descripcion)
+    if (formulario.value.id) await actualizarTributo(formulario.value.id, descripcion)
+    else await crearTributo(codigo, descripcion)
     if (contexto?.signal.aborted) return
-    const indice = tributos.value.findIndex((t) => t.id === actualizado.id)
-    if (indice >= 0) tributos.value[indice] = actualizado
-    else tributos.value.push(actualizado)
     cancelar()
     mensaje.value = 'Tributo guardado correctamente.'
+    await cargar()
   } catch (e) {
     if (!contexto?.signal.aborted)
       errorFormulario.value = isAxiosError<{ mensaje?: string }>(e)
@@ -119,7 +145,7 @@ async function guardar() {
   }
 }
 onMounted(cargar)
-onScopeDispose(() => controller?.abort())
+onScopeDispose(() => { clearTimeout(timer); controller?.abort() })
 </script>
 
 <template>
@@ -136,6 +162,11 @@ onScopeDispose(() => controller?.abort())
         + Agregar tributo
       </button>
     </header>
+    <div class="filtros-catalogo" role="search" aria-label="Buscar tributos">
+      <label>Buscar por código o descripción<input v-model="busqueda" type="search" placeholder="Ej.: 2800 o contribución" :disabled="guardando" /></label>
+      <label>Origen<select v-model="origen" :disabled="guardando"><option value="">Todos los orígenes</option><option value="INTENDENCIA">Intendencia</option><option value="SUCIVE">SUCIVE</option></select></label>
+      <button type="button" class="secundario" :disabled="guardando || (!busqueda && !origen)" @click="limpiarFiltros">Limpiar filtros</button>
+    </div>
     <p v-if="cargando" role="status" class="ayuda">Cargando tributos...</p>
     <div v-else-if="errorCarga" role="alert" class="error">
       <p>{{ errorCarga }}</p>
@@ -171,24 +202,25 @@ onScopeDispose(() => controller?.abort())
           </button>
         </div>
       </form>
+      <p class="ayuda resultados-catalogo" aria-live="polite">{{ totalElementos }} {{ totalElementos === 1 ? 'tributo encontrado' : 'tributos encontrados' }}</p>
       <div v-if="tributos.length" class="tabla-contenedor">
         <table>
           <thead>
             <tr>
-              <th scope="col">Código</th>
               <th scope="col">Origen</th>
+              <th scope="col">Código</th>
               <th scope="col">Descripción</th>
               <th v-if="puedeEditar" scope="col"><span class="sr-only">Opciones</span></th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="tributo in tributos" :key="tributo.id">
+              <td class="origen-tributo">{{ tributo.origen === 'SUCIVE' ? 'SUCIVE' : 'Intendencia' }}</td>
               <td class="codigo">{{ tributo.codigo }}</td>
-              <td>{{ tributo.origen === 'SUCIVE' ? 'SUCIVE' : 'Intendencia' }}</td>
               <td :class="{ 'sin-descripcion': !tributo.descripcion }">
-                {{ tributo.descripcion || 'Sin descripción' }}
+                <span class="descripcion-tributo" :title="tributo.descripcion || 'Sin descripción'">{{ tributo.descripcion || 'Sin descripción' }}</span>
               </td>
-              <td v-if="puedeEditar">
+              <td v-if="puedeEditar" class="acciones-tributo">
                 <button
                   type="button"
                   class="enlace editar"
@@ -212,7 +244,12 @@ onScopeDispose(() => controller?.abort())
           </tbody>
         </table>
       </div>
-      <p v-else class="ayuda">No hay tributos registrados.</p>
+      <p v-else class="ayuda">{{ busqueda || origen ? 'No hay tributos que coincidan con estos filtros.' : 'No hay tributos registrados.' }}</p>
+      <nav v-if="totalElementos" class="paginacion-catalogo" aria-label="Paginación de tributos">
+        <span>20 por página · Página {{ pagina + 1 }} de {{ totalPaginas }}</span>
+        <div><button type="button" class="secundario" :disabled="pagina === 0 || guardando" @click="cambiarPagina(pagina - 1)">Anterior</button>
+        <button type="button" class="secundario" :disabled="pagina + 1 >= totalPaginas || guardando" @click="cambiarPagina(pagina + 1)">Siguiente</button></div>
+      </nav>
       <dialog
         ref="dialogoEliminar"
         class="modal-eliminar"
@@ -254,6 +291,14 @@ onScopeDispose(() => controller?.abort())
 </template>
 
 <style scoped>
+.filtros-catalogo { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto; gap: 14px; align-items: end; }
+.filtros-catalogo label { margin: 0; }
+.filtros-catalogo input, .filtros-catalogo select { margin-top: 6px; }
+.filtros-catalogo select { width: 100%; padding: 10px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-surface); color: var(--color-text); font: inherit; }
+.descripcion-tributo { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; max-width: 55ch; }
+.origen-tributo, .acciones-tributo { white-space: nowrap; }
+.paginacion-catalogo { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; color: var(--color-text-secondary); font-size: 12px; }
+.paginacion-catalogo > div { display: flex; gap: 8px; }
 .cabecera {
   display: flex;
   align-items: center;
@@ -418,11 +463,13 @@ button:disabled {
   clip-path: inset(50%);
 }
 button:focus-visible,
-input:focus-visible {
+input:focus-visible,
+select:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
 @media (max-width: 600px) {
+  .filtros-catalogo { grid-template-columns: 1fr; }
   th,
   td {
     padding: 10px 12px;

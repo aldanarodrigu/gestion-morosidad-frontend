@@ -5,26 +5,22 @@ import { useAuthStore } from '../src/modules/autenticacion/stores/auth.store'
 import TributosTab from '../src/modules/configuracion/components/TributosTab.vue'
 import * as api from '../src/modules/configuracion/services/tributoService'
 vi.mock('../src/modules/configuracion/services/tributoService')
+let catalogo: api.Tributo[]
 beforeEach(() => {
   vi.resetAllMocks()
-  vi.mocked(api.crearTributo).mockImplementation(async (codigo, descripcion) => ({
-    id: 3,
-    codigo,
-    descripcion,
-  }))
-  vi.mocked(api.eliminarTributo).mockResolvedValue(undefined)
+  catalogo = [{ id: 1, codigo: '00101', descripcion: null }, { id: 2, codigo: '201', descripcion: 'Urbana' }]
+  vi.mocked(api.crearTributo).mockImplementation(async (codigo, descripcion) => {
+    const nuevo = { id: 3, codigo, descripcion }; catalogo.push(nuevo); return nuevo
+  })
+  vi.mocked(api.eliminarTributo).mockImplementation(async id => { catalogo = catalogo.filter(t => t.id !== id) })
   setActivePinia(createPinia())
   useAuthStore().user = { id: 1, username: 'admin', roles: ['ADMINISTRADOR'] }
-  vi.mocked(api.obtenerTributos).mockResolvedValue([
-    { id: 1, codigo: '00101', descripcion: null },
-    { id: 2, codigo: '201', descripcion: 'Urbana' },
-  ])
-  vi.mocked(api.actualizarTributo).mockImplementation(async (id, descripcion) => ({
-    id,
-    codigo: '00101',
-    descripcion,
-  }))
+  vi.mocked(api.obtenerTributosPaginados).mockImplementation(async () => ({contenido: [...catalogo], pagina:0, tamanio:20, totalElementos:catalogo.length,totalPaginas:catalogo.length ? 1 : 0}))
+  vi.mocked(api.actualizarTributo).mockImplementation(async (id, descripcion) => {
+    const nuevo = { id, codigo:'00101',descripcion }; catalogo = catalogo.map(t => t.id === id ? nuevo : t); return nuevo
+  })
 })
+
 describe('catalogo de tributos', () => {
   it('muestra todos los codigos como texto y las descripciones disponibles', async () => {
     const w = mount(TributosTab)
@@ -82,7 +78,7 @@ describe('catalogo de tributos', () => {
     w.unmount()
   })
   it('un fallo de carga permite reintentar sin mostrar un vacio falso', async () => {
-    vi.mocked(api.obtenerTributos).mockRejectedValueOnce(new Error('Sin conexion'))
+    vi.mocked(api.obtenerTributosPaginados).mockRejectedValueOnce(new Error('Sin conexion'))
     const w = mount(TributosTab)
     await flushPromises()
     expect(w.text()).toContain('No se pudieron cargar')
@@ -168,6 +164,42 @@ describe('catalogo de tributos', () => {
     resolver()
     await flushPromises()
     expect(w.get<HTMLDialogElement>('dialog').element.open).toBe(false)
+    w.unmount()
+  })
+})
+
+
+describe('paginación y filtros del catálogo', () => {
+  it('consulta la página siguiente en el servidor manteniendo los filtros',async()=>{
+    vi.mocked(api.obtenerTributosPaginados).mockImplementation(async pagina => ({contenido:catalogo,pagina:pagina ?? 0,tamanio:20,totalElementos:42,totalPaginas:3}))
+    const w=mount(TributosTab);await flushPromises()
+    await w.findAll('.paginacion-catalogo button')[1]!.trigger('click');await flushPromises()
+    expect(api.obtenerTributosPaginados).toHaveBeenLastCalledWith(1,{busqueda:'',origen:''},expect.any(AbortSignal))
+    expect(w.get('.paginacion-catalogo').text()).toContain('Página 2 de 3')
+    w.unmount()
+  })
+  it('reinicia la página y aplica búsqueda y origen a todo el catálogo',async()=>{
+    vi.useFakeTimers()
+    try {
+      vi.mocked(api.obtenerTributosPaginados).mockImplementation(async pagina => ({contenido:catalogo,pagina:pagina ?? 0,tamanio:20,totalElementos:42,totalPaginas:3}))
+      const w=mount(TributosTab);await flushPromises()
+      await w.findAll('.paginacion-catalogo button')[1]!.trigger('click');await flushPromises()
+      await w.get('input[type="search"]').setValue('rural')
+      await w.get('select').setValue('SUCIVE')
+      await vi.advanceTimersByTimeAsync(300);await flushPromises()
+      expect(api.obtenerTributosPaginados).toHaveBeenLastCalledWith(0,{busqueda:'rural',origen:'SUCIVE'},expect.any(AbortSignal))
+      w.unmount()
+    } finally {vi.useRealTimers()}
+  })
+  it('si se elimina la única fila de la última página retrocede a una válida',async()=>{
+    vi.mocked(api.obtenerTributosPaginados).mockImplementation(async pagina => ({contenido:catalogo,pagina:pagina ?? 0,tamanio:20,totalElementos:21,totalPaginas:2}))
+    const w=mount(TributosTab);await flushPromises()
+    await w.findAll('.paginacion-catalogo button')[1]!.trigger('click');await flushPromises()
+    vi.mocked(api.obtenerTributosPaginados).mockResolvedValueOnce({contenido:[],pagina:1,tamanio:20,totalElementos:20,totalPaginas:1}).mockResolvedValueOnce({contenido:catalogo,pagina:0,tamanio:20,totalElementos:20,totalPaginas:1})
+    await w.findAll('.eliminar')[0]!.trigger('click')
+    await w.get('.confirmar-eliminar').trigger('click');await flushPromises()
+    expect(api.obtenerTributosPaginados).toHaveBeenLastCalledWith(0,expect.anything(),expect.any(AbortSignal))
+    expect(w.get('.paginacion-catalogo').text()).toContain('Página 1 de 1')
     w.unmount()
   })
 })
