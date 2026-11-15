@@ -147,7 +147,7 @@ function cambio(a: number,b: number) {
   return a === 0 && b > 0 ? 'Deuda pendiente nueva' : a > 0 && b === 0 ? 'Sin deuda pendiente' : b < a ? 'Saldo disminuyó' : b > a ? 'Saldo aumentó' : 'Saldo sin cambios'
 }
 function estadoTexto(valor: string) {
-  const etiquetas: Record<string, string> = { PENDIENTE: 'Pendiente', CANCELADA: 'Cancelada', EN_CONVENIO: 'En convenio', SIN_DEUDA_PENDIENTE: 'Sin deuda pendiente' }
+  const etiquetas: Record<string, string> = { PENDIENTE: 'Pendiente', CANCELADA: 'Cancelada', EN_CONVENIO: 'En convenio', FUERA_PERIODO: 'Fuera del período de gestión', SIN_DEUDA_PENDIENTE: 'Sin deuda pendiente' }
   return etiquetas[valor] ?? valor
 }
 function limpiar() { origen.value = ''; cm.value = ''; soloCambios.value = false }
@@ -203,7 +203,7 @@ function limpiar() { origen.value = ''; cm.value = ''; soloCambios.value = false
               <th scope="col" class="numero">Posterior</th>
               <th scope="col" class="numero">Variación</th>
               <th scope="col">Cambio observado</th>
-              <th scope="col">Último cobro informado</th>
+              <th scope="col">Último movimiento informado</th>
             </tr></thead>
             <tbody>
               <tr v-for="c in visibles" :key="claveCuenta(c.antes)">
@@ -217,7 +217,7 @@ function limpiar() { origen.value = ''; cm.value = ''; soloCambios.value = false
                   <small v-if="c.antes.estado !== c.despues.estado">{{ estadoTexto(c.antes.estado) }} → {{ estadoTexto(c.despues.estado) }}</small>
                   <small v-if="c.antes.segmento !== c.despues.segmento">{{ c.antes.segmento || 'Sin segmento' }} → {{ c.despues.segmento || 'Sin segmento' }}</small>
                 </td>
-                <td class="cobro-detalle"><template v-if="c.despues.fechaUltimoCobro"><span>{{ c.despues.importeUltimoCobro != null ? dinero(Number(c.despues.importeUltimoCobro)) : 'Importe sin informar' }}</span><small>{{ c.despues.fechaUltimoCobro.split('-').reverse().join('/') }}</small></template><span v-else class="sin-cobro">Sin información</span></td>
+                <td class="cobro-detalle"><template v-if="c.despues.fechaUltimoCobro"><span>{{ c.despues.importeUltimoCobro != null ? dinero(Number(c.despues.importeUltimoCobro)) : 'Importe sin informar' }}</span><small>{{ c.despues.fechaUltimoCobro.split('-').reverse().join('/') }}</small><small>Motivo: {{ c.despues.motivoUltimoCobro || 'Sin informar' }}</small></template><span v-else class="sin-cobro">Sin información</span></td>
               </tr>
               <tr v-if="!visibles.length"><td colspan="7" class="vacio">{{ comunes.length ? 'No hay cambios para la selección.' : 'No hay CM incluidos en ambas capturas para estos filtros.' }}</td></tr>
             </tbody>

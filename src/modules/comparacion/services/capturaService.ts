@@ -4,7 +4,10 @@ export interface CuentaCaptura { cm: string; origen: OrigenCaptura }
 export interface EstadoCuenta extends CuentaCaptura {
   numeroPadron: string | null; tipoPadron: string | null; nombre: string | null; documento: string | null;
   importe: number; estado: string; segmento: string | null; fechaSincronizacion: string | null;
-  fechaUltimoCobro: string | null; importeUltimoCobro: number | null;
+  fechaUltimoCobro: string | null; motivoUltimoCobro?: string | null; importeUltimoCobro: number | null;
+  aniosDeuda?: string | null;
+  cantidadFacturasVencidas?: number | null; cantidadFacturasConDeuda?: number | null; anioDesde?: number | null; anioHasta?: number | null; cantidadAniosDeuda?: number | null; 
+  deudaFacturas?: number | null; saldoAFavor?: number | null; creditoDescontado?: number | null;
 }
 export interface CapturaResumen { id: number; nombre: string; fecha: string; usuario: string; cantidadCuentas: number }
 export interface CapturaDetalle extends Omit<CapturaResumen, 'cantidadCuentas'> { cuentas: EstadoCuenta[] }

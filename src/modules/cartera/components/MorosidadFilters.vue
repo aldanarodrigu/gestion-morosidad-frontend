@@ -54,8 +54,8 @@ const opcionesOrden = [
         <input
           v-model="filters.search"
           type="text"
-          placeholder="Buscar por CM, documento o contribuyente..."
-          aria-label="Buscar por CM, documento o contribuyente"
+          placeholder="Buscar por CM, documento, contribuyente o matrícula..."
+          aria-label="Buscar por CM, documento, contribuyente o matrícula"
           autocomplete="off"
         />
       </div>

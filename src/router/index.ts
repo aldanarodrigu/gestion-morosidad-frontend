@@ -24,8 +24,7 @@ const router = createRouter({
           path: 'convenios',
           name: 'convenios',
           meta: { requiereCartera: true },
-          component: () => import('@/shared/views/SeccionEnDesarrolloView.vue'),
-          props: { titulo: 'Convenios' },
+          component: () => import('@/modules/convenios/views/ConveniosView.vue'),
         },
         {
           path: 'reportes',

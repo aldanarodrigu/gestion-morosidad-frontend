@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import FacturasPadronPanel from './FacturasPadronPanel.vue'
+import HistorialPadronPanel from './HistorialPadronPanel.vue'
 import type { DeudaApi } from '@/modules/cartera/types/cartera'
 
 defineProps<{
@@ -8,7 +9,13 @@ defineProps<{
   deudaSeleccionadaId?: number
 }>()
 
-const facturasAbiertasId = ref<number>()
+type VistaDetalle = 'saldo' | 'resumen' | 'facturas' | 'historial'
+const detalleAbiertoId = ref<number>()
+const vistaDetalle = ref<VistaDetalle>('saldo')
+function alternarDetalle(id: number) {
+  if (detalleAbiertoId.value === id) detalleAbiertoId.value = undefined
+  else { detalleAbiertoId.value = id; vistaDetalle.value = 'saldo' }
+}
 
 const emit = defineEmits<{ seleccionar: [deudaId: number] }>()
 
@@ -30,6 +37,8 @@ const formatoImporte = (importe: number) =>
     style: 'currency',
     currency: 'UYU',
   }).format(importe)
+
+const formatoDesglose = (valor: number | null | undefined) => valor == null ? 'Sin informar' : new Intl.NumberFormat('es-UY', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(valor)
 
 const formatoFecha = (fecha: string | null) => {
   if (!fecha) return '—'
@@ -73,6 +82,7 @@ const formatoFecha = (fecha: string | null) => {
                 @click="emit('seleccionar', deuda.id)"
               >{{ deuda.padron.numeroPadron || '—' }}</button>
               <span class="secundario">CM: {{ deuda.padron.cm }}</span>
+              <span v-if="deuda.padron.matricula" class="secundario">Matrícula: {{ deuda.padron.matricula }}</span>
             </td>
 
             <td class="col-left">{{ deuda.padron.origen === 'SUCIVE' ? 'SUCIVE' : 'Intendencia' }}</td>
@@ -97,20 +107,56 @@ const formatoFecha = (fecha: string | null) => {
             <td class="col-right num importe">
               {{ formatoImporte(deuda.importe) }}
             </td>
-            <td><button type="button" class="enlace-facturas"
-              :aria-label="`${facturasAbiertasId === deuda.id ? 'Ocultar' : 'Ver'} facturas del padrón ${deuda.padron.numeroPadron}, CM ${deuda.padron.cm}`"
-              :aria-expanded="facturasAbiertasId === deuda.id"
-              :aria-controls="`facturas-${deuda.id}`"
-              @click="facturasAbiertasId = facturasAbiertasId === deuda.id ? undefined : deuda.id"
-            >{{ facturasAbiertasId === deuda.id ? 'Ocultar facturas' : 'Ver facturas' }}</button>
+            <td class="col-detalle"><button type="button" class="boton-detalle"
+              :aria-label="`${detalleAbiertoId === deuda.id ? 'Ocultar' : 'Ver'} detalle del padrón ${deuda.padron.numeroPadron}, CM ${deuda.padron.cm}`"
+              :aria-expanded="detalleAbiertoId === deuda.id" :aria-controls="`detalle-${deuda.id}`"
+              @click="alternarDetalle(deuda.id)"
+            >{{ detalleAbiertoId === deuda.id ? 'Ocultar detalle' : 'Ver detalle' }}<span aria-hidden="true">{{ detalleAbiertoId === deuda.id ? '⌃' : '⌄' }}</span></button></td>
+          </tr>
+          <tr v-if="detalleAbiertoId === deuda.id" :id="`detalle-${deuda.id}`" class="fila-detalle">
+            <td colspan="9">
+              <section class="panel-detalle" :aria-label="`Detalle del CM ${deuda.padron.cm}`">
+                <header class="cabecera-detalle"><div><h3>Detalle del padrón {{ deuda.padron.numeroPadron || '—' }}</h3>
+                  <p>{{ deuda.padron.origen === 'SUCIVE' ? 'SUCIVE' : 'Intendencia' }} · CM {{ deuda.padron.cm }}<template v-if="deuda.padron.matricula"> · {{ deuda.padron.matricula }}</template></p>
+                </div>
               <RouterLink class="enlace-evolucion"
                 :to="{ name: 'comparar-cartera', query: { cm: deuda.padron.cm, origen: deuda.padron.origen ?? 'INTENDENCIA' } }"
                 :aria-label="`Ver evolución del CM ${deuda.padron.cm}, ${deuda.padron.origen === 'SUCIVE' ? 'SUCIVE' : 'Intendencia'}`"
               >Ver evolución</RouterLink>
+                </header>
+                <div class="opciones-detalle" role="group" aria-label="Información del padrón">
+                  <button type="button" class="opcion-saldo" :aria-pressed="vistaDetalle === 'saldo'" @click="vistaDetalle = 'saldo'">Desglose del saldo</button>
+                  <button type="button" class="opcion-resumen" :aria-pressed="vistaDetalle === 'resumen'" @click="vistaDetalle = 'resumen'">Facturas y años de deuda</button>
+                  <button type="button" class="enlace-facturas" :aria-pressed="vistaDetalle === 'facturas'" @click="vistaDetalle = 'facturas'">Facturas individuales</button>
+                  <button type="button" class="enlace-historial" :aria-pressed="vistaDetalle === 'historial'" @click="vistaDetalle = 'historial'">Personas vinculadas</button>
+                </div>
+                <div v-if="vistaDetalle === 'saldo'" class="contenido-detalle desglose-saldo">
+                  <h4>Desglose del saldo</h4>
+                <dl>
+                  <div><dt>Deuda de facturas</dt><dd>{{ formatoDesglose(deuda.deudaFacturas) }}</dd></div>
+                  <div><dt>Saldo a favor</dt><dd>{{ formatoDesglose(deuda.saldoAFavor) }}</dd></div>
+                  <div><dt>Crédito descontado</dt><dd>{{ formatoDesglose(deuda.creditoDescontado) }}</dd></div>
+                  <div><dt>Deuda neta</dt><dd>{{ formatoDesglose(deuda.importe) }}</dd></div>
+                </dl>
+
+                </div>
+                <div v-else-if="vistaDetalle === 'resumen'" class="contenido-detalle facturas-anios">
+                  <h4>Facturas y años de deuda</h4>
+                <dl>
+                  <div><dt>Facturas vencidas consideradas</dt><dd>{{ deuda.cantidadFacturasVencidas ?? 'Sin informar' }}</dd></div>
+                  <div><dt>Facturas con importe positivo</dt><dd>{{ deuda.cantidadFacturasConDeuda ?? 'Sin informar' }}</dd></div>
+                  <div><dt>Año de facturación desde</dt><dd>{{ deuda.anioDesde ?? 'Sin informar' }}</dd></div>
+                  <div><dt>Año de facturación hasta</dt><dd>{{ deuda.anioHasta ?? 'Sin informar' }}</dd></div>
+                  <div><dt>Cantidad de años con deuda</dt><dd>{{ deuda.cantidadAniosDeuda ?? 'Sin informar' }}</dd></div>
+                  <div><dt>Años con deuda</dt><dd>{{ deuda.aniosDeuda || 'Sin informar' }}</dd></div>
+                </dl>
+                <p class="aclaracion-facturas">Los contadores corresponden a facturas pendientes y vencidas. El importe positivo se considera antes de aplicar el saldo a favor.</p>
+
+                </div>
+                <div v-else-if="vistaDetalle === 'facturas'" class="contenido-externo"><FacturasPadronPanel :key="deuda.id" :deuda-id="deuda.id" :numero-padron="deuda.padron.numeroPadron" :cm="deuda.padron.cm" :origen="deuda.padron.origen" /></div>
+                <div v-else class="contenido-externo"><HistorialPadronPanel :key="deuda.id" :deuda-id="deuda.id" :cm="deuda.padron.cm" :origen="deuda.padron.origen" /></div>
+              </section>
             </td>
-          </tr>
-          <tr v-if="facturasAbiertasId === deuda.id" :id="`facturas-${deuda.id}`" class="fila-facturas">
-            <td colspan="9"><FacturasPadronPanel :key="deuda.id" :deuda-id="deuda.id" :numero-padron="deuda.padron.numeroPadron" :cm="deuda.padron.cm" :origen="deuda.padron.origen" /></td>
           </tr>
           </template>
         </tbody>
@@ -120,6 +166,25 @@ const formatoFecha = (fecha: string | null) => {
 </template>
 
 <style scoped>
+.col-detalle { text-align: center; }
+.boton-detalle { display: inline-flex; align-items: center; gap: 10px; padding: 7px 10px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-sm); color: var(--color-primary); font: inherit; font-size: 12px; white-space: nowrap; }
+.boton-detalle[aria-expanded="true"] { border-color: var(--color-primary); }
+.fila-detalle > td { padding: 16px; background: var(--color-background); white-space: normal; }
+.panel-detalle { border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); overflow: hidden; }
+.cabecera-detalle { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; padding: 18px 20px; }
+.cabecera-detalle h3 { font-size: 14px; }
+.cabecera-detalle p { margin-top: 5px; color: var(--color-text-secondary); font-size: 11px; }
+.opciones-detalle { display: flex; flex-wrap: wrap; gap: 4px 16px; padding: 0 20px; border-bottom: 1px solid var(--color-border); }
+.opciones-detalle button { padding: 12px 0; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--color-text-secondary); font: inherit; font-size: 12px; }
+.opciones-detalle button[aria-pressed="true"] { color: var(--color-primary); border-bottom-color: var(--color-primary); }
+.boton-detalle:focus-visible,.opciones-detalle button:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 3px; }
+.contenido-detalle { padding: 20px; }
+.contenido-detalle h4 { font-size: 13px; margin-bottom: 18px; }
+.contenido-detalle dl { display: grid; grid-template-columns: repeat(auto-fit,minmax(180px,1fr)); gap: 20px; margin: 0; }
+.contenido-detalle dt { color: var(--color-text-secondary); font-size: 12px; }
+.contenido-detalle dd { margin: 6px 0 0; font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.contenido-externo { padding: 16px; }
+.aclaracion-facturas { margin-top: 18px; color: var(--color-text-secondary); font-size: 11px; }
 .deudas {
   width: 100%;
   min-width: 0;
@@ -193,13 +258,9 @@ tbody tr.seleccionada td:first-child {
   border-radius: 2px;
 }
 
-.enlace-facturas { padding: 0; border: 0; background: transparent; color: var(--color-primary); font: inherit; font-size: 12px; }
-.enlace-evolucion { display: block; margin-top: 7px; color: var(--color-primary); font-size: 12px; }
+.enlace-evolucion { color: var(--color-primary); font-size: 12px; }
 .enlace-evolucion:hover { text-decoration: underline; }
 .enlace-evolucion:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 3px; }
-.enlace-facturas:hover { text-decoration: underline; }
-.enlace-facturas:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 4px; }
-.fila-facturas > td { padding: 14px; background: var(--color-background); white-space: normal; }
 
 .col-left {
   text-align: left;

@@ -17,16 +17,65 @@ function panel() { return mount(FacturasPanel, { props: { deudaId: 10, cm: '10',
 beforeEach(() => { vi.resetAllMocks(); vi.mocked(obtenerFacturas).mockResolvedValue(resultado) })
 
 describe('detalle de facturas bajo demanda', () => {
+  it('muestra el desglose sin volver a descontar crédito y distingue cero de dato ausente', async () => {
+    const d = {...deuda(10), importe:80, deudaFacturas:100, saldoAFavor:200, creditoDescontado:20}
+    const w = mount(DeudasTab, { props:{deudas:[d]}, global:{stubs:{RouterLink:RouterLinkStub}} })
+    expect(w.find('.panel-detalle').exists()).toBe(false)
+    await w.get('.boton-detalle').trigger('click')
+    const detalle = w.get('.desglose-saldo')
+    expect(detalle.element.closest('tr')?.classList.contains('fila-detalle')).toBe(true)
+    expect(detalle.element.closest('td')?.getAttribute('colspan')).toBe('9')
+    expect(detalle.text()).toContain('100,00'); expect(detalle.text()).toContain('200,00')
+    expect(detalle.text()).toContain('20,00'); expect(detalle.text()).toContain('80,00')
+    expect(obtenerFacturas).not.toHaveBeenCalled()
+    w.unmount()
+    const vacio = mount(DeudasTab, {props:{deudas:[{...deuda(20),saldoAFavor:0}]},global:{stubs:{RouterLink:RouterLinkStub}}})
+    await vacio.get('.boton-detalle').trigger('click')
+    expect(vacio.get('.desglose-saldo').text()).toContain('Sin informar')
+    expect(vacio.get('.desglose-saldo').text()).toContain('0,00')
+  })
+  it('muestra matrícula en el detalle y la tabla de cartera sin cambiar el enlace', async () => {
+    const d = {...deuda(10),padron:{...deuda(10).padron,matricula:'SAA0123',origen:'SUCIVE' as const}}
+    const w = mount(DeudasTab,{props:{deudas:[d]},global:{stubs:{RouterLink:RouterLinkStub}}})
+    expect(w.text()).toContain('Matrícula: SAA0123')
+    const { default:CarteraTable } = await import('../src/modules/cartera/components/CarteraTable.vue')
+    const { obtenerCartera } = await import('../src/modules/cartera/services/carteraService')
+    const { http } = await import('../src/shared/api/http')
+    const consulta = vi.spyOn(http, 'get').mockResolvedValue({data:{contenido:[d],pagina:0,tamanio:20,totalElementos:1,totalPaginas:1}})
+    const item = (await obtenerCartera()).contenido[0]!
+    consulta.mockRestore()
+    expect(item.matricula).toBe('SAA0123')
+    const table = mount(CarteraTable,{props:{cartera:[item]},global:{stubs:{RouterLink:RouterLinkStub}}})
+    expect(table.text()).toContain('Matrícula: SAA0123')
+  })
+  it('muestra contadores distintos y años no consecutivos sin inferir valores faltantes', async () => {
+    const d={...deuda(10),cantidadFacturasVencidas:5,cantidadFacturasConDeuda:3,anioDesde:2021,anioHasta:2026,cantidadAniosDeuda:2,aniosDeuda:'2021, 2026'}
+    const w=mount(DeudasTab,{props:{deudas:[d]},global:{stubs:{RouterLink:RouterLinkStub}}})
+    await w.get('.boton-detalle').trigger('click')
+    await w.get('.opcion-resumen').trigger('click')
+    const datos=w.get('.facturas-anios')
+    expect(w.find('.desglose-saldo').exists()).toBe(false)
+    expect(datos.findAll('dd').map(c=>c.text())).toEqual(['5','3','2021','2026','2','2021, 2026'])
+    expect(obtenerFacturas).not.toHaveBeenCalled()
+    w.unmount()
+    const vacio=mount(DeudasTab,{props:{deudas:[{...deuda(20),cantidadFacturasVencidas:0,aniosDeuda:null}]},global:{stubs:{RouterLink:RouterLinkStub}}})
+    await vacio.get('.boton-detalle').trigger('click')
+    await vacio.get('.opcion-resumen').trigger('click')
+    expect(vacio.get('.facturas-anios').findAll('dd').map(c=>c.text())).toEqual(['0','Sin informar','Sin informar','Sin informar','Sin informar','Sin informar'])
+  })
   it('no consulta hasta expandir; usa el ID de la fila sin cambiar la gestión seleccionada', async () => {
     const w = mount(DeudasTab, { props: { deudas: [deuda(10), deuda(20)], deudaSeleccionadaId: 10 }, global: { stubs: { RouterLink: RouterLinkStub } } })
     expect(obtenerFacturas).not.toHaveBeenCalled()
-    const botones = w.findAll('.enlace-facturas')
-    await botones[1]!.trigger('click'); await flushPromises()
+    const botones = w.findAll('.boton-detalle')
+    await botones[1]!.trigger('click')
+    expect(obtenerFacturas).not.toHaveBeenCalled()
+    await w.get('.enlace-facturas').trigger('click'); await flushPromises()
     expect(obtenerFacturas).toHaveBeenCalledExactlyOnceWith(20, { estado: '', vencida: '', incluirConvenios: true }, expect.any(AbortSignal))
     expect(w.emitted('seleccionar')).toBeUndefined()
     expect(w.get('tr.seleccionada').text()).toContain('CM: 10')
     expect(botones[1]!.attributes('aria-expanded')).toBe('true')
-    await botones[0]!.trigger('click'); await flushPromises()
+    await botones[0]!.trigger('click')
+    await w.get('.enlace-facturas').trigger('click'); await flushPromises()
     expect(w.findAllComponents(FacturasPanel)).toHaveLength(1)
     expect(obtenerFacturas).toHaveBeenLastCalledWith(10, expect.anything(), expect.any(AbortSignal))
   })
@@ -80,12 +129,16 @@ describe('detalle de facturas bajo demanda', () => {
 })
 
 
-it('el enlace de evolución conserva el CM y el origen del padrón de la fila', () => {
+it('el enlace de evolución conserva el CM y el origen del padrón de la fila', async () => {
   const sucive = deuda(20)
   sucive.padron.cm = '001001'
   sucive.padron.origen = 'SUCIVE'
   const w = mount(DeudasTab, { props: { deudas: [deuda(10), sucive] }, global: { stubs: { RouterLink: RouterLinkStub } } })
-  const enlaces = w.findAllComponents(RouterLinkStub)
-  expect(enlaces[0]!.props('to')).toEqual({ name: 'comparar-cartera', query: { cm: '10', origen: 'INTENDENCIA' } })
-  expect(enlaces[1]!.props('to')).toEqual({ name: 'comparar-cartera', query: { cm: '001001', origen: 'SUCIVE' } })
+  await w.findAll('.boton-detalle')[0]!.trigger('click')
+  expect(w.getComponent(RouterLinkStub).props('to')).toEqual({ name: 'comparar-cartera', query: { cm: '10', origen: 'INTENDENCIA' } })
+  await w.findAll('.boton-detalle')[1]!.trigger('click')
+  expect(w.findAll('.panel-detalle')).toHaveLength(1)
+  expect(w.getComponent(RouterLinkStub).props('to')).toEqual({ name: 'comparar-cartera', query: { cm: '001001', origen: 'SUCIVE' } })
+  await w.findAll('.boton-detalle')[1]!.trigger('click')
+  expect(w.find('.panel-detalle').exists()).toBe(false)
 })

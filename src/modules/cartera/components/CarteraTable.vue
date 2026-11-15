@@ -82,7 +82,7 @@ function mostrarAcciones(acciones: string[]) {
             </RouterLink>
           </td>
 
-          <td class="col-left">{{ item.numeroPadron || '—' }}</td>
+          <td class="col-left">{{ item.numeroPadron || '—' }}<span v-if="item.matricula" class="documento">Matrícula: {{ item.matricula }}</span></td>
 
           <td class="col-left contribuyente">
             {{ item.contribuyente }}

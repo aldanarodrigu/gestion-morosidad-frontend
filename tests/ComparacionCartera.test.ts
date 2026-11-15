@@ -22,6 +22,12 @@ beforeEach(() => {
  vi.mocked(api.obtenerCaptura).mockImplementation(async id => id===1 ? antes : despues)
 })
 describe('capturas reales', () => {
+ it.each(['PAGO', 'ANULADO POR ERROR', 'NO INFORMADO', null])('muestra el motivo del movimiento sin deducir pago: %s', async motivo => {
+  Object.assign(despues.cuentas[0]!, {fechaUltimoCobro:'2026-11-02',importeUltimoCobro:50,motivoUltimoCobro:motivo})
+  const w=mount(Comparacion); await flushPromises()
+  expect(w.text()).toContain('Último movimiento informado')
+  expect(w.get('tbody').text()).toContain('Motivo: '+(motivo || 'Sin informar'))
+ })
  it('carga capturas persistentes y separa cuentas del mismo CM por origen', async () => {
   route.query={cm:'1001',origen:'SUCIVE'}
   const w=mount(Comparacion); await flushPromises()

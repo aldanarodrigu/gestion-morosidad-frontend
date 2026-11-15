@@ -69,6 +69,7 @@ function mapearDeuda(deuda: DeudaApi): CarteraItem {
     contribuyenteId: deuda.contribuyenteId,
     cm: deuda.padron.cm,
     numeroPadron: deuda.padron.numeroPadron,
+    matricula: deuda.padron.matricula,
     tipoPadron: deuda.padron.tipoPadron ?? null,
     origen: deuda.padron.origen === 'SUCIVE' ? 'SUCIVE' : 'Intendencia',
     contribuyente: deuda.contribuyente.nombre,

@@ -7,6 +7,7 @@ export interface DeudaApi {
   padron: {
     origen?: OrigenDatos
     cm: string
+    matricula?: string | null
     numeroPadron: string
     tipoPadron?: string | null
     localidad?: string | null
@@ -35,10 +36,19 @@ export interface DeudaApi {
   }[]
   cantidadGestiones: number
   importe: number
+  deudaFacturas?: number | null
+  saldoAFavor?: number | null
+  creditoDescontado?: number | null
   deudaDesde: string
   ultimoVencimiento: string | null
   diasAtraso: number | null
   aniosDeuda: string | null
+  cantidadFacturasVencidas?: number | null
+  cantidadFacturasConDeuda?: number | null
+  anioDesde?: number | null
+  anioHasta?: number | null
+  cantidadAniosDeuda?: number | null
+
   convenio: boolean
   segmentoMora: {
     id: number
@@ -47,7 +57,7 @@ export interface DeudaApi {
     orden: number
   } | null
   fechaUltimoCobro: string | null
-  importeUltimoCobro: number | null
+  motivoUltimoCobro?: string | null; importeUltimoCobro: number | null
   estado: string
   fechaSincronizacion: string | null
 }
@@ -61,6 +71,7 @@ export interface PaginaResponse<T> {
 }
 
 export interface CarteraItem {
+  matricula?: string | null
   fechaSincronizacion?: string | null
   id: number
   contribuyenteId: number

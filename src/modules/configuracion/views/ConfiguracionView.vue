@@ -4,8 +4,10 @@ import AccionesTab from '../components/AccionesTab.vue'
 import UsuariosTab from '../components/UsuariosTab.vue'
 import TributosTab from '../components/TributosTab.vue'
 import PeriodosMoraTab from '../components/PeriodosMoraTab.vue'
+import SincronizacionTab from '../components/SincronizacionTab.vue'
 
 const secciones = [
+  { id: 'sincronizacion', nombre: 'Sincronización', descripcion: 'Período de gestión e importación manual.' },
   {
     id: 'tributos',
     nombre: 'Tipos de Tributo',
@@ -94,7 +96,8 @@ async function navegar(event: KeyboardEvent, indice: number) {
           tabindex="0"
           class="contenido-pestana"
         >
-          <AccionesTab v-if="seccion.id === 'acciones' && activa === 'acciones'" />
+          <SincronizacionTab v-if="seccion.id === 'sincronizacion' && activa === 'sincronizacion'" />
+          <AccionesTab v-else-if="seccion.id === 'acciones' && activa === 'acciones'" />
           <UsuariosTab v-else-if="seccion.id === 'usuarios' && activa === 'usuarios'" />
           <TributosTab v-else-if="seccion.id === 'tributos' && activa === 'tributos'" />
           <PeriodosMoraTab v-else-if="seccion.id === 'mora' && activa === 'mora'" />
@@ -135,6 +138,7 @@ h1 {
   overflow: hidden;
 }
 .pestanas {
+  overflow-x: auto;
   display: flex;
   border-bottom: 1px solid var(--color-border);
 }

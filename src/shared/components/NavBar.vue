@@ -40,11 +40,11 @@ function cerrarSesion() {
         <RouterLink v-if="auth.puedeVerCartera" to="/convenios" class="nav-link"
           >Convenios</RouterLink
         >
-        <RouterLink to="/configuracion" class="nav-link">Configuración</RouterLink>
         <RouterLink v-if="auth.puedeVerCartera" to="/reportes" class="nav-link"
           >Reportes</RouterLink
         >
         <RouterLink v-if="auth.puedeVerCartera" to="/comparar-cartera" class="nav-link">Comparar cartera</RouterLink>
+        <RouterLink to="/configuracion" class="nav-link">Configuración</RouterLink>
       </nav>
 
       <div class="user-session">
