@@ -52,3 +52,13 @@ it('deshabilita cancelar al comenzar a guardar',async()=>{
  vi.mocked(api.obtenerEjecucion).mockResolvedValue({...trabajo,progreso:{etapa:'GUARDANDO',paginasDescargadas:0,paginaActual:null,registrosDescargados:22081,totalRegistros:null,totalPaginas:null,intento:1,detalle:'Guardando'}})
  const w=mount(Tab);await flushPromises();expect(w.get('button.cancelar').attributes('disabled')).toBeDefined();expect(w.text()).toContain('la cancelación está deshabilitada')
 })
+
+it('permite vaciar el año, guardarlo y volver a abrir sin límite',async()=>{
+ vi.mocked(api.guardarPeriodo).mockResolvedValue({anioMinimo:null})
+ const w=mount(Tab);await flushPromises();await w.get('input').setValue('');await w.get('form').trigger('submit');await flushPromises()
+ expect(api.guardarPeriodo).toHaveBeenCalledWith(null);expect(w.text()).toContain('sin año mínimo')
+ expect(w.findAll('button').find(b=>b.text()==='Sincronizar ahora')!.attributes('disabled')).toBeUndefined()
+ w.unmount();vi.mocked(api.obtenerPeriodo).mockResolvedValue({anioMinimo:null})
+ const otro=mount(Tab);await flushPromises();expect(otro.find('form').exists()).toBe(true);expect(otro.text()).toContain('sin año mínimo')
+ expect((otro.get('input').element as HTMLInputElement).value).toBe('')
+})

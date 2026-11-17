@@ -5,12 +5,13 @@ import { useAuthStore } from '@/modules/autenticacion/stores/auth.store'
 import { obtenerPeriodo, guardarPeriodo, obtenerEjecucion, iniciarSincronizacion, cancelarSincronizacion, type EjecucionSincronizacion } from '../services/sincronizacionService'
 const auth=useAuthStore()
 const admin=computed(()=>auth.tieneRol('ADMINISTRADOR'))
-const anio=ref(2013), guardado=ref<number>(), cargando=ref(true), guardando=ref(false), iniciando=ref(false)
+const anio=ref<number | string | null>(2013), guardado=ref<number | null>(), cargando=ref(true), guardando=ref(false), iniciando=ref(false)
 const origen=ref('INTENDENCIA'), error=ref(''), mensaje=ref(''), ejecucion=ref<EjecucionSincronizacion|null>(null)
 const cancelando=ref(false)
 const ocupada=computed(()=>['EN_CURSO','CANCELANDO'].includes(ejecucion.value?.estado || '')||iniciando.value)
 const puedeCancelar=computed(()=>ejecucion.value?.estado==='EN_CURSO' && !['GUARDANDO','FINALIZADA'].includes(ejecucion.value.progreso?.etapa || '') && !cancelando.value)
 const maxAnio=new Date().getFullYear()
+const anioSeleccionado=computed(()=>anio.value==='' || anio.value==null ? null : Number(anio.value))
 let timer:ReturnType<typeof setTimeout>|undefined
 let revision=0
 const controller=new AbortController()
@@ -27,7 +28,7 @@ async function actualizar(){const version=revision
  catch{if(!controller.signal.aborted)error.value='No se pudo actualizar el progreso. La sincronización puede seguir en segundo plano; se reintentará la consulta.'}finally{programar()}
 }
 async function guardar(){error.value='';mensaje.value='';guardando.value=true
- try{const p=await guardarPeriodo(anio.value);if(controller.signal.aborted)return;guardado.value=p.anioMinimo;mensaje.value='Año mínimo guardado. Se aplicará en la próxima sincronización de cada origen.'}catch(e){if(!controller.signal.aborted)error.value=detalleError(e)}finally{guardando.value=false}
+ try{const p=await guardarPeriodo(anioSeleccionado.value);if(controller.signal.aborted)return;guardado.value=p.anioMinimo;mensaje.value='Período guardado. Se aplicará en la próxima sincronización de cada origen.'}catch(e){if(!controller.signal.aborted)error.value=detalleError(e)}finally{guardando.value=false}
 }
 async function iniciar(){error.value='';mensaje.value='';iniciando.value=true
  try{const e=await iniciarSincronizacion(origen.value);if(controller.signal.aborted)return;ejecucion.value=e;programar()}catch(e){if(!controller.signal.aborted)error.value=detalleError(e)}finally{iniciando.value=false}
@@ -48,21 +49,21 @@ onScopeDispose(()=>{controller.abort();clearTimeout(timer)})
   <h2>Sincronización de cartera</h2>
   <p v-if="!admin">Esta configuración está disponible para Administrador.</p>
   <template v-else>
-   <p>Importar deudas pendientes con vencimiento desde el 1 de enero del año seleccionado, incluido, hasta la fecha actual.</p>
+   <p>Importar deudas pendientes con vencimiento desde el 1 de enero del año seleccionado, incluido, hasta la fecha actual. Dejá el año vacío para incluir todos los años.</p>
    <p v-if="cargando">Cargando configuración…</p>
-   <template v-else-if="guardado!=null">
+   <template v-else-if="guardado!==undefined">
     <form class="bloque" @submit.prevent="guardar">
      <h3>Período de gestión</h3>
-     <div class="controles"><label>Año mínimo<input v-model.number="anio" type="number" min="1900" :max="maxAnio" step="1" required :disabled="ocupada||guardando" /></label><button type="submit" :disabled="ocupada||guardando||anio===guardado">{{guardando?'Guardando…':'Guardar período'}}</button></div>
+     <div class="controles"><label>Año mínimo (opcional)<input v-model.number="anio" type="number" min="1900" :max="maxAnio" step="1" placeholder="Sin límite" :disabled="ocupada||guardando" /></label><button type="submit" :disabled="ocupada||guardando||anioSeleccionado===guardado">{{guardando?'Guardando…':'Guardar período'}}</button></div>
      <p>Se utiliza en las sincronizaciones manuales y automáticas de ambos orígenes. Los registros fuera del período conservan sus gestiones y quedan excluidos de cartera, reportes y exportaciones.</p>
     </form>
     <div class="bloque">
      <h3>Sincronización manual</h3>
-     <p>Período guardado: desde el 01/01/{{guardado}}. Ejecutá cada origen para actualizar toda la cartera.</p>
-     <div class="controles"><label>Origen<select v-model="origen" :disabled="ocupada||guardando"><option value="INTENDENCIA">Intendencia</option><option value="SUCIVE">SUCIVE</option></select></label><button type="button" class="primario" @click="iniciar" :disabled="ocupada||guardando||anio!==guardado">{{ejecucion?.estado==='CANCELANDO'?'Cancelando…':ocupada?'Sincronización en curso…':'Sincronizar ahora'}}</button></div>
-     <p v-if="anio!==guardado">Guardá el período antes de iniciar.</p>
+     <p>Período guardado: {{guardado==null?'sin año mínimo':'desde el 01/01/'+guardado}}. Ejecutá cada origen para actualizar toda la cartera.</p>
+     <div class="controles"><label>Origen<select v-model="origen" :disabled="ocupada||guardando"><option value="INTENDENCIA">Intendencia</option><option value="SUCIVE">SUCIVE</option></select></label><button type="button" class="primario" @click="iniciar" :disabled="ocupada||guardando||anioSeleccionado!==guardado">{{ejecucion?.estado==='CANCELANDO'?'Cancelando…':ocupada?'Sincronización en curso…':'Sincronizar ahora'}}</button></div>
+     <p v-if="anioSeleccionado!==guardado">Guardá el período antes de iniciar.</p>
      <div v-if="ejecucion" class="resultado" :class="{fallo:ejecucion.estado==='ERROR'}" :role="ejecucion.estado==='ERROR'?'alert':'status'">
-      <strong>{{ejecucion.origen==='SUCIVE'?'SUCIVE':'Intendencia'}} · Desde {{ejecucion.anioMinimo}} · {{ejecucion.estado==='EN_CURSO'?'En curso':ejecucion.estado==='CANCELANDO'?'Cancelando…':ejecucion.estado==='CANCELADA'?'Cancelada':ejecucion.estado==='COMPLETADA'?'Completada':'Error'}}</strong>
+      <strong>{{ejecucion.origen==='SUCIVE'?'SUCIVE':'Intendencia'}} · {{ejecucion.anioMinimo==null?'Sin año mínimo':'Desde '+ejecucion.anioMinimo}} · {{ejecucion.estado==='EN_CURSO'?'En curso':ejecucion.estado==='CANCELANDO'?'Cancelando…':ejecucion.estado==='CANCELADA'?'Cancelada':ejecucion.estado==='COMPLETADA'?'Completada':'Error'}}</strong>
       <p>{{ejecucion.mensaje}}</p>
       <button v-if="ocupada && !iniciando" type="button" class="cancelar" :disabled="!puedeCancelar" @click="cancelar">{{cancelando || ejecucion.estado==='CANCELANDO'?'Cancelando…':'Cancelar sincronización'}}</button>
       <p v-if="ejecucion.estado==='EN_CURSO' && ['GUARDANDO','FINALIZADA'].includes(ejecucion.progreso?.etapa || '')">El guardado ya comenzó; la cancelación está deshabilitada durante esta etapa.</p>
@@ -73,7 +74,7 @@ onScopeDispose(()=>{controller.abort();clearTimeout(timer)})
     </div>
    </template>
    <p v-if="mensaje" role="status" class="exito">{{mensaje}}</p>
-   <div v-if="error" role="alert" class="error">{{error}} <button v-if="guardado==null" @click="cargar">Reintentar</button></div>
+   <div v-if="error" role="alert" class="error">{{error}} <button v-if="guardado===undefined" @click="cargar">Reintentar</button></div>
   </template>
  </section>
 </template>
