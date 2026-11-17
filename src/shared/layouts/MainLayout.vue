@@ -27,6 +27,6 @@ import NavBar from '../components/NavBar.vue'
   display: flex;
   flex-direction: column;
   overflow: auto;
-  background-color: var(--color-surface);
+  background-color: var(--color-background);
 }
 </style>
