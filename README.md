@@ -170,8 +170,15 @@ Los filtros de nombre/documento/CM, segmento, tributo y contacto se envían al b
 agrupar. Los totales corresponden a las deudas filtradas. La paginación cuenta contribuyentes
 y nunca divide sus deudas entre páginas. El orden por importe usa el total del grupo.
 Al desmarcar el checkbox se recupera el listado individual. La URL conserva el modo
-(`agrupar=true` para el agrupado; sin parámetro para el individual), filtros y página. La exportación de la página visible
-respeta el modo agrupado o individual.
+(`agrupar=true` para el agrupado; sin parámetro para el individual), filtros y página.
+La exportación incluye todas las páginas que cumplen los filtros elegidos en su panel.
+
+El panel de exportación permite elegir **Excel (.xlsx)** (predeterminado) o **CSV (.csv)**
+con los mismos filtros opcionales de segmento, PadTipo y origen. Se exportan todas las
+páginas desde `GET /api/deudas/exportar?formato=XLSX|CSV`, sin limitarse a la página visible.
+CSV contiene una sola tabla con todos los padrones filtrados; el resumen por contribuyente
+en una segunda hoja se ofrece en XLSX. CSV usa UTF-8 con BOM y separador `;`; XLSX conserva
+tipos de celdas y ceros iniciales al abrir el archivo en Excel.
 
 Las pruebas de cartera verifican las consultas, el cambio de modo, el reinicio de página,
 la restauración desde URL, respuestas tardías y enlaces al historial de cada deuda.
