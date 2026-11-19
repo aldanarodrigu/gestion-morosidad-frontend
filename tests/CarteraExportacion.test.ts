@@ -31,6 +31,24 @@ beforeEach(() => {
 afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers() })
 
 describe('descarga Excel de cartera', () => {
+  it('ofrece XLSX por defecto y permite descargar CSV con los mismos filtros y extensión correcta', async () => {
+    vi.mocked(exportarCartera).mockResolvedValue(new Blob(['csv']))
+    const w = montar()
+    await w.get('button').trigger('click')
+    await flushPromises()
+    const formato = w.get('[aria-label="Formato de exportación"]')
+    expect((formato.element as HTMLSelectElement).value).toBe('xlsx')
+    await formato.setValue('csv')
+    expect(w.get('button[type="submit"]').text()).toBe('Descargar CSV')
+    expect(w.text()).toContain('sin hoja de resumen')
+    await w.get('[aria-label="PadTipo a exportar"]').setValue('CIR')
+    await w.get('[aria-label="Origen a exportar"]').setValue('sucive')
+    await w.get('form').trigger('submit')
+    await flushPromises()
+    expect(exportarCartera).toHaveBeenCalledExactlyOnceWith({ segmento: '', tipoPadron: 'CIR', origen: 'sucive', ordenarPor: 'nombre' }, true, 'csv')
+    expect(vi.mocked(HTMLAnchorElement.prototype.click).mock.instances[0]?.download).toBe('cartera-morosidad.csv')
+    w.unmount()
+  })
   it('descarga XLSX con filtros actuales, bloquea duplicados y libera el archivo', async () => {
     vi.useFakeTimers()
     let completar!: (b: Blob) => void
@@ -46,7 +64,7 @@ describe('descarga Excel de cartera', () => {
     expect(w.get('[role="status"]').text()).toContain('todas las filas')
     expect(exportarCartera).toHaveBeenCalledExactlyOnceWith({
       segmento: 'inicial', tipoPadron: 'CIU', origen: 'intendencia', ordenarPor: 'nombre',
-    }, true)
+    }, true, 'xlsx')
     const archivo = new Blob(['excel'])
     completar(archivo)
     await flushPromises()
@@ -91,7 +109,7 @@ describe('filtros opcionales del Excel', () => {
     await w.get('[aria-label="Origen a exportar"]').setValue(origen)
     await w.get('form').trigger('submit')
     await flushPromises()
-    expect(exportarCartera).toHaveBeenCalledExactlyOnceWith({ segmento, tipoPadron, origen, ordenarPor: 'nombre' }, true)
+    expect(exportarCartera).toHaveBeenCalledExactlyOnceWith({ segmento, tipoPadron, origen, ordenarPor: 'nombre' }, true, 'xlsx')
     expect(w.find('form').exists()).toBe(false)
     w.unmount()
   })
@@ -105,7 +123,7 @@ describe('filtros opcionales del Excel', () => {
     }
     const limpiar = w.findAll('button').find(b => b.text() === 'Limpiar filtros')!
     await limpiar.trigger('click')
-    for (const select of w.findAll('select')) expect((select.element as HTMLSelectElement).value).toBe('')
+    for (const select of w.findAll('select').filter(s => s.attributes('aria-label') !== 'Formato de exportación')) expect((select.element as HTMLSelectElement).value).toBe('')
     await w.findAll('button').find(b => b.text() === 'Cancelar')!.trigger('click')
     expect(w.find('form').exists()).toBe(false)
     expect(exportarCartera).not.toHaveBeenCalled()

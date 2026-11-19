@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 import FechaSincronizacion from '@/shared/components/FechaSincronizacion.vue'
 import { exportarCartera } from '../services/carteraService'
-import type { FiltrosCarteraApi } from '../services/carteraService'
+import type { FiltrosCarteraApi, FormatoExportacion } from '../services/carteraService'
 import ExportacionCarteraPanel from '../components/ExportacionCarteraPanel.vue'
 import MorosidadFilters from '../components/MorosidadFilters.vue'
 import CarteraTable from '../components/CarteraTable.vue'
@@ -35,7 +35,7 @@ function abrirExportacion() {
   panelExportacion.value = true
 }
 
-async function exportarExcel(filtrosExportacion: FiltrosCarteraApi) {
+async function exportarArchivo(filtrosExportacion: FiltrosCarteraApi, formato: FormatoExportacion) {
   if (exportando.value) return
   exportando.value = true
   errorExportacion.value = ''
@@ -44,11 +44,11 @@ async function exportarExcel(filtrosExportacion: FiltrosCarteraApi) {
     const archivo = await exportarCartera({
       ...filtrosExportacion,
       ordenarPor: f.ordenarPor,
-    }, f.agruparPor)
+    }, f.agruparPor, formato)
     const url = URL.createObjectURL(archivo)
     const enlace = document.createElement('a')
     enlace.href = url
-    enlace.download = 'cartera-morosidad.xlsx'
+    enlace.download = `cartera-morosidad.${formato}`
     document.body.appendChild(enlace)
     try {
       enlace.click()
@@ -74,9 +74,9 @@ async function exportarExcel(filtrosExportacion: FiltrosCarteraApi) {
       :exportando="exportando"
       :agrupada="filtros.agruparPor"
       @cancelar="panelExportacion = false"
-      @confirmar="exportarExcel"
+      @confirmar="exportarArchivo"
     />
-    <p v-if="exportando" class="mensaje" role="status">Preparando Excel con todas las filas filtradas...</p>
+    <p v-if="exportando" class="mensaje" role="status">Preparando archivo con todas las filas filtradas...</p>
     <p v-if="errorExportacion" class="mensaje error" role="alert">{{ errorExportacion }}</p>
 
     <p v-if="cargando" class="mensaje">Cargando cartera...</p>

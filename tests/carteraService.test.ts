@@ -127,6 +127,15 @@ describe('consulta de cartera', () => {
 })
 
 describe('exportación Excel', () => {
+  it('envía CSV al mismo endpoint con filtros y sin límite de página', async () => {
+    const archivo = new Blob(['csv'])
+    vi.mocked(http.get).mockResolvedValue({ data: archivo })
+    expect(await exportarCartera({ origen: 'sucive', tipoPadron: 'PAT', segmento: 'tardia' }, true, 'csv')).toBe(archivo)
+    expect(http.get).toHaveBeenCalledWith('/deudas/exportar', {
+      responseType: 'blob',
+      params: { contribuyente: undefined, segmento: 3, tipoPadron: 'PAT', origen: 'SUCIVE', conContacto: undefined, sort: 'deudaDesde,asc', agrupar: true, formato: 'CSV' },
+    })
+  })
   it('solicita un archivo con todos los filtros y agrupación, sin página ni tamaño', async () => {
     const archivo = new Blob(['xlsx'])
     vi.mocked(http.get).mockResolvedValue({ data: archivo })
@@ -137,7 +146,7 @@ describe('exportación Excel', () => {
     expect(http.get).toHaveBeenCalledWith('/deudas/exportar', {
       responseType: 'blob',
       params: { contribuyente: '00123', segmento: 3, tipoPadron: 'CIU', origen: 'SUCIVE',
-        conContacto: true, sort: 'importe,desc', agrupar: true },
+        conContacto: true, sort: 'importe,desc', agrupar: true, formato: 'XLSX' },
     })
   })
   it('sin filtros solicita toda la cartera sin agrupar', async () => {
@@ -146,7 +155,7 @@ describe('exportación Excel', () => {
     expect(http.get).toHaveBeenCalledWith('/deudas/exportar', {
       responseType: 'blob',
       params: { contribuyente: undefined, segmento: undefined, tipoPadron: undefined,
-        origen: undefined, conContacto: undefined, sort: 'deudaDesde,asc', agrupar: false },
+        origen: undefined, conContacto: undefined, sort: 'deudaDesde,asc', agrupar: false, formato: 'XLSX' },
     })
   })
 })

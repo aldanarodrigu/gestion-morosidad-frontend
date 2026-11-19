@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { onMounted, onScopeDispose, reactive, ref } from 'vue'
 import { obtenerTiposPadron } from '../services/carteraService'
-import type { FiltrosCarteraApi } from '../services/carteraService'
+import type { FiltrosCarteraApi, FormatoExportacion } from '../services/carteraService'
 
 defineProps<{ exportando: boolean; agrupada: boolean }>()
-const emit = defineEmits<{ cancelar: []; confirmar: [filtros: FiltrosCarteraApi] }>()
+const emit = defineEmits<{ cancelar: []; confirmar: [filtros: FiltrosCarteraApi, formato: FormatoExportacion] }>()
+const formato = ref<FormatoExportacion>('xlsx')
 const filtros = reactive({ segmento: '', tipoPadron: '', origen: '' })
 const tiposPadron = ref<string[]>([])
 const cargandoTipos = ref(false)
@@ -34,11 +35,18 @@ onScopeDispose(() => controller.abort())
 </script>
 
 <template>
-  <form class="exportacion-panel" aria-labelledby="titulo-exportacion" @submit.prevent="emit('confirmar', { ...filtros })">
-    <h2 id="titulo-exportacion">Exportar cartera a Excel</h2>
+  <form class="exportacion-panel" aria-labelledby="titulo-exportacion" @submit.prevent="emit('confirmar', { ...filtros }, formato)">
+    <h2 id="titulo-exportacion">Exportar cartera</h2>
     <p>Elegí uno o varios filtros opcionales. Sin filtros se exporta toda la cartera.</p>
     <p>Estos filtros son independientes de los del listado. Se incluyen todas las páginas.</p>
     <fieldset :disabled="exportando" class="campos-exportacion">
+      <label>
+        Formato
+        <select v-model="formato" aria-label="Formato de exportación">
+          <option value="xlsx">Excel (.xlsx)</option>
+          <option value="csv">CSV (.csv)</option>
+        </select>
+      </label>
       <label>
         Segmento de mora
         <select v-model="filtros.segmento" aria-label="Segmento de mora a exportar">
@@ -68,13 +76,14 @@ onScopeDispose(() => controller.abort())
         </select>
       </label>
     </fieldset>
-    <p v-if="agrupada">El archivo incluirá el resumen por contribuyente y el detalle de sus deudas.</p>
+    <p v-if="formato === 'csv'">CSV incluye una sola tabla con el detalle de todos los padrones filtrados, sin hoja de resumen por contribuyente.</p>
+    <p v-else-if="agrupada">El archivo incluirá el resumen por contribuyente y el detalle de sus deudas.</p>
     <div class="botones-exportacion">
       <button type="button" :disabled="exportando" @click="limpiar">Limpiar filtros</button>
       <div>
         <button type="button" :disabled="exportando" @click="emit('cancelar')">Cancelar</button>
         <button type="submit" class="boton-descargar" :disabled="exportando">
-          {{ exportando ? 'Exportando...' : 'Descargar Excel' }}
+          {{ exportando ? 'Exportando...' : formato === 'csv' ? 'Descargar CSV' : 'Descargar Excel' }}
         </button>
       </div>
     </div>
