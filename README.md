@@ -210,3 +210,5 @@ Los contactos siguen siendo consultables por pertenecer al contribuyente.
 
 `ContribuyenteDetalleView.test.ts` verifica coincidencia entre cabecera e historial,
 cambio de deuda, enlaces anteriores, ausencia de selección y el ID usado al guardar una gestión.
+
+La exportación de Cartera (XLSX/CSV) y Reportes requiere el rol **Analista**. Los demás roles conservan la consulta. Un usuario con varios roles puede exportar si uno de ellos es Analista; esta base de permisos queda pendiente de validación con el cliente.

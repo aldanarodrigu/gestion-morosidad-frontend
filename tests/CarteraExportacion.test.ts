@@ -1,3 +1,5 @@
+import { createPinia, setActivePinia } from 'pinia'
+import { useAuthStore } from '../src/modules/autenticacion/stores/auth.store'
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { ref } from 'vue'
@@ -15,14 +17,16 @@ vi.mock('../src/modules/cartera/composables/useCartera', () => ({
 }))
 function montar() {
   return mount(CarteraView, { global: { stubs: {
-    MorosidadFilters: { props: ['exportando'], emits: ['export'],
-      template: `<button :disabled="exportando" @click="$emit('export')">Exportar</button>` },
+    MorosidadFilters: { name: 'MorosidadFilters', props: ['exportando', 'puedeExportar'], emits: ['export'],
+      template: `<button v-if="puedeExportar" :disabled="exportando" @click="$emit('export')">Exportar</button>` },
     CarteraTable: true, CarteraAgrupadaTable: true,
   } } })
 }
 
 beforeEach(() => {
   vi.resetAllMocks()
+ setActivePinia(createPinia())
+ useAuthStore().user = {id:1,username:'analista',roles:['ANALISTA']}
   vi.mocked(obtenerTiposPadron).mockResolvedValue(['CIU', 'CIR'])
   vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:archivo')
   vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
@@ -143,4 +147,23 @@ describe('filtros opcionales del Excel', () => {
     expect(w.findAll('option').some(o => o.text() === 'CIU')).toBe(true)
     w.unmount()
   })
+})
+
+describe('permisos de exportación', () => {
+ it.each(['ADMINISTRADOR','NOTIFICADOR'])('oculta exportar para %s y rechaza eventos del panel', async rol => {
+  useAuthStore().user!.roles=[rol]
+  const w=montar(); await flushPromises()
+  expect(w.findAll('button').some(b => b.text() === 'Exportar')).toBe(false)
+  w.findComponent({name:'MorosidadFilters'}).vm.$emit('export')
+  await flushPromises()
+  expect(w.find('form').exists()).toBe(false)
+  expect(exportarCartera).not.toHaveBeenCalled()
+  w.unmount()
+ })
+ it('permite exportar teniendo Analista junto con otros roles', async () => {
+  useAuthStore().user!.roles=['ADMINISTRADOR','NOTIFICADOR','ANALISTA']
+  const w=montar(); await w.get('button').trigger('click'); await flushPromises()
+  expect(w.find('form').exists()).toBe(true)
+  w.unmount()
+ })
 })

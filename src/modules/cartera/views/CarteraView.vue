@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { useAuthStore } from '@/modules/autenticacion/stores/auth.store'
+const auth = useAuthStore()
 import FechaSincronizacion from '@/shared/components/FechaSincronizacion.vue'
 import { exportarCartera } from '../services/carteraService'
 import type { FiltrosCarteraApi, FormatoExportacion } from '../services/carteraService'
@@ -31,12 +33,13 @@ const exportando = ref(false)
 const errorExportacion = ref('')
 
 function abrirExportacion() {
+  if (!auth.puedeExportar) return
   errorExportacion.value = ''
   panelExportacion.value = true
 }
 
 async function exportarArchivo(filtrosExportacion: FiltrosCarteraApi, formato: FormatoExportacion) {
-  if (exportando.value) return
+  if (!auth.puedeExportar || exportando.value) return
   exportando.value = true
   errorExportacion.value = ''
   const f = filtros.value
@@ -68,9 +71,9 @@ async function exportarArchivo(filtrosExportacion: FiltrosCarteraApi, formato: F
 
 <template>
   <section class="cartera-view">
-    <MorosidadFilters v-model="filtros" :exportando="exportando" @export="abrirExportacion" />
+    <MorosidadFilters :puede-exportar="auth.puedeExportar" v-model="filtros" :exportando="exportando" @export="abrirExportacion" />
     <ExportacionCarteraPanel
-      v-if="panelExportacion"
+      v-if="auth.puedeExportar && panelExportacion"
       :exportando="exportando"
       :agrupada="filtros.agruparPor"
       @cancelar="panelExportacion = false"

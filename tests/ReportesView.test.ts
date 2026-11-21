@@ -1,3 +1,5 @@
+import { createPinia, setActivePinia } from 'pinia'
+import { useAuthStore } from '../src/modules/autenticacion/stores/auth.store'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount, flushPromises, enableAutoUnmount } from '@vue/test-utils'
 import Reportes from '../src/modules/reportes/views/ReportesView.vue'
@@ -14,6 +16,8 @@ const reporte: ReporteCartera = {
 function montar(){return mount(Reportes,{global:{stubs:{RouterLink:true}}})}
 beforeEach(()=>{
  vi.resetAllMocks()
+ setActivePinia(createPinia())
+ useAuthStore().user = {id:1,username:'analista',roles:['ANALISTA']}
  vi.mocked(api.obtenerReporte).mockResolvedValue(reporte)
  vi.mocked(api.obtenerCatalogosReporte).mockResolvedValue({tipos:['CIU','CIR'],segmentos:[{id:87,nombre:'Mora Tardía',orden:3}]})
 })
@@ -106,4 +110,19 @@ it('con un solo origen muestra únicamente ese origen y su participación real',
  expect(filas).toHaveLength(1)
  expect(filas[0]!.text()).toContain('SUCIVE')
  expect(filas[0]!.text()).toContain('100 %')
+})
+
+describe('permisos de exportación', () => {
+ it.each(['ADMINISTRADOR','NOTIFICADOR'])('permite consultar pero oculta exportar para %s', async rol => {
+  useAuthStore().user!.roles=[rol]
+  const w=montar(); await flushPromises()
+  expect(w.find('.indicadores').exists()).toBe(true)
+  expect(w.find('.acciones-reporte button').exists()).toBe(false)
+  expect(api.exportarReporte).not.toHaveBeenCalled()
+ })
+ it('muestra exportar con varios roles que incluyen Analista', async () => {
+  useAuthStore().user!.roles=['ADMINISTRADOR','NOTIFICADOR','ANALISTA']
+  const w=montar(); await flushPromises()
+  expect(w.find('.acciones-reporte button').exists()).toBe(true)
+ })
 })

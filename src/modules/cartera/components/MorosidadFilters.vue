@@ -15,7 +15,7 @@ export interface CarteraFilters {
 
 const filters = defineModel<CarteraFilters>({ required: true })
 
-defineProps<{ exportando?: boolean }>()
+defineProps<{ exportando?: boolean; puedeExportar?: boolean }>()
 
 const emit = defineEmits<{ export: [] }>()
 
@@ -134,7 +134,7 @@ const opcionesOrden = [
           </button>
         </div>
 
-        <button type="button" class="export-button" :disabled="exportando" @click="emit('export')">
+        <button v-if="puedeExportar" type="button" class="export-button" :disabled="exportando" @click="emit('export')">
           {{ exportando ? 'Exportando...' : 'Exportar Excel' }}
         </button>
       </div>

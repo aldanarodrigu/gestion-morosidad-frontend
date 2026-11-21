@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, onScopeDispose, reactive, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
+import { useAuthStore } from '@/modules/autenticacion/stores/auth.store'
+const auth = useAuthStore()
 import { ChartBarIcon, BanknotesIcon, UsersIcon, HomeModernIcon } from '@heroicons/vue/24/outline'
 import { obtenerReporte, obtenerCatalogosReporte, exportarReporte } from '../services/reporteService'
 import type { FiltrosReporte, ReporteCartera, SegmentoReporte } from '../services/reporteService'
@@ -35,7 +37,7 @@ async function cargarCatalogos() {
  finally { cargandoCatalogos.value = false }
 }
 async function descargar() {
- if (exportando.value || cargando.value || !datos.value) return
+ if (!auth.puedeExportar || exportando.value || cargando.value || !datos.value) return
  exportando.value = true; errorExportacion.value = ''
  try {
   const archivo = await exportarReporte({...filtros},exportController.signal)
@@ -111,7 +113,7 @@ function limpiar() {filtros.origen='';filtros.tipoPadron='';filtros.segmento=''}
       <p v-if="cargando" role="status" class="mensaje-reporte">Calculando reporte...</p>
       <div v-else-if="error" role="alert" class="mensaje-reporte"><p>{{ error }}</p><button type="button" @click="cargar">Reintentar</button></div>
       <template v-else-if="datos">
-      <div class="acciones-reporte"><span>Reporte generado: {{ fechaGeneracion }}</span><button type="button" :disabled="exportando" @click="descargar">{{ exportando ? 'Exportando...' : 'Exportar Excel' }}</button></div>
+      <div class="acciones-reporte"><span>Reporte generado: {{ fechaGeneracion }}</span><button v-if="auth.puedeExportar" type="button" :disabled="exportando" @click="descargar">{{ exportando ? 'Exportando...' : 'Exportar Excel' }}</button></div>
       <p v-if="errorExportacion" role="alert" class="error-exportacion">{{ errorExportacion }}</p>
       <div class="indicadores" aria-live="polite" aria-atomic="true">
         <article v-for="indicador in indicadores" :key="indicador.titulo" class="panel indicador">
