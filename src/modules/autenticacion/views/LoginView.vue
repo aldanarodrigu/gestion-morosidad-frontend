@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, onScopeDispose, reactive, ref, watch } from 'vue'
+import { isAxiosError } from 'axios'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/modules/autenticacion/stores/auth.store'
 
@@ -14,14 +15,62 @@ const password = ref('')
 const error = ref('')
 const cargando = ref(false)
 
+const bloqueos = reactive(new Map<string, number>())
+const ahora = ref(Date.now())
+let reloj: ReturnType<typeof setInterval> | undefined
+const normalizar = (nombre: string) => nombre.trim().toLowerCase()
+
+const segundosRestantes = computed(() => {
+  const vence = bloqueos.get(normalizar(username.value)) ?? 0
+  return Math.max(0, Math.ceil((vence - ahora.value) / 1000))
+})
+
+const esperaFormateada = computed(() => {
+  const minutos = Math.floor(segundosRestantes.value / 60)
+  const segundos = segundosRestantes.value % 60
+  if (minutos === 0) return segundos + ' s'
+  return minutos + ' min ' + String(segundos).padStart(2, '0') + ' s'
+})
+
+function detenerReloj() {
+  clearInterval(reloj)
+  reloj = undefined
+}
+
+function actualizarReloj() {
+  ahora.value = Date.now()
+  for (const [cuenta, vence] of bloqueos) {
+    if (vence <= ahora.value) bloqueos.delete(cuenta)
+  }
+  if (!bloqueos.size) detenerReloj()
+}
+
+watch(username, () => { error.value = '' })
+onScopeDispose(detenerReloj)
+
 async function onSubmit() {
+  actualizarReloj()
+  if (cargando.value || segundosRestantes.value > 0) return
+  const cuenta = normalizar(username.value)
   error.value = ''
   cargando.value = true
   try {
     await auth.login({ username: username.value, password: password.value })
     router.push(auth.inicio)
-  } catch (e: any) {
-    error.value = e.response?.data?.mensaje ?? 'No se pudo iniciar sesión'
+  } catch (e) {
+    const respuesta = isAxiosError<{ mensaje?: string }>(e) ? e.response : undefined
+    if (respuesta?.status === 429) {
+      const espera = Number(respuesta.headers?.['retry-after'])
+      if (Number.isFinite(espera) && espera > 0) {
+        ahora.value = Date.now()
+        bloqueos.set(cuenta, ahora.value + espera * 1000)
+        reloj ??= setInterval(actualizarReloj, 250)
+        return
+      }
+    }
+    if (cuenta === normalizar(username.value)) {
+      error.value = respuesta?.data?.mensaje ?? 'No se pudo iniciar sesión'
+    }
   } finally {
     cargando.value = false
   }
@@ -56,9 +105,13 @@ async function onSubmit() {
           <input v-model="password" type="password" autocomplete="current-password" required />
         </label>
 
-        <p v-if="error" class="login__error" role="alert">{{ error }}</p>
+        <p v-if="segundosRestantes > 0" class="login__error">
+          Demasiados intentos de inicio de sesión. Volvé a intentarlo en
+          <span role="timer">{{ esperaFormateada }}</span>.
+        </p>
+        <p v-else-if="error" class="login__error" role="alert">{{ error }}</p>
 
-        <button class="login__button" type="submit" :disabled="cargando">
+        <button class="login__button" type="submit" :disabled="cargando || segundosRestantes > 0">
           {{ cargando ? 'Ingresando...' : 'Ingresar' }}
         </button>
       </form>
