@@ -9,6 +9,7 @@ vi.mock('../src/modules/configuracion/services/usuarioService', async (importOri
   obtenerUsuarios: vi.fn(),
   crearUsuario: vi.fn(),
   actualizarUsuario: vi.fn(),
+  restablecerPassword: vi.fn(),
 }))
 const usuario: api.Usuario = { id: 2, username: 'operador', roles: ['NOTIFICADOR'], activo: true }
 beforeEach(() => {
@@ -127,4 +128,28 @@ describe('administracion de usuarios', () => {
     expect(w.text()).toContain('operador')
     w.unmount()
   })
+})
+
+it('confirma el restablecimiento de otra cuenta y retira la clave temporal al cerrar', async () => {
+  vi.mocked(api.obtenerUsuarios).mockResolvedValue([
+    { id: 1, username: 'admin', roles: ['ADMINISTRADOR'], activo: true },
+    usuario,
+  ])
+  vi.mocked(api.restablecerPassword).mockResolvedValue({
+    passwordTemporal: 'clave-temporal-de-prueba',
+    venceEn: '2026-11-22T16:00:00Z',
+  })
+  const w = montar()
+  await flushPromises()
+  expect(w.find('[aria-label="Restablecer contraseña de admin"]').exists()).toBe(false)
+  await w.get('[aria-label="Restablecer contraseña de operador"]').trigger('click')
+  expect(api.restablecerPassword).not.toHaveBeenCalled()
+  const panel = w.get('section[aria-labelledby="titulo-reset-password"]')
+  await panel.get('button.primario').trigger('click')
+  await flushPromises()
+  expect(api.restablecerPassword).toHaveBeenCalledExactlyOnceWith(2, expect.any(AbortSignal))
+  expect((panel.get('input[readonly]').element as HTMLInputElement).value).toBe('clave-temporal-de-prueba')
+  await panel.get('button').trigger('click')
+  expect(w.find('section[aria-labelledby="titulo-reset-password"]').exists()).toBe(false)
+  w.unmount()
 })

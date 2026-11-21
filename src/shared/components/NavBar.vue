@@ -54,6 +54,9 @@ function cerrarSesion() {
         <div class="user-info">
           <span class="user-name">{{ auth.user?.username }}</span>
           <span class="user-role">{{ rolLabel }}</span>
+          <RouterLink :to="{ name: 'cambiar-contrasena' }" class="enlace-password">
+            Cambiar contraseña
+          </RouterLink>
         </div>
 
         <button
@@ -218,6 +221,12 @@ function cerrarSesion() {
   font-weight: 400;
 
   opacity: 0.7;
+}
+
+.enlace-password {
+  color: inherit;
+  margin-top: 3px;
+  font-size: 11px;
 }
 
 .logout-button {

@@ -8,4 +8,5 @@ export interface LoginResponse {
   id: number
   username: string
   roles: string[]
+  requiereCambioPassword: boolean
 }

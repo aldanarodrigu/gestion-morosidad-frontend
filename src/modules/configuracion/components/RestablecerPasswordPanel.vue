@@ -1,0 +1,78 @@
+<script setup lang="ts">
+import { onScopeDispose, ref } from 'vue'
+import { isAxiosError } from 'axios'
+import { restablecerPassword } from '../services/usuarioService'
+import type { Usuario } from '../services/usuarioService'
+
+const props = defineProps<{ usuario: Usuario }>()
+const emit = defineEmits<{ cerrar: [] }>()
+const cargando = ref(false)
+const password = ref('')
+const error = ref('')
+const controller = new AbortController()
+onScopeDispose(() => controller.abort())
+
+async function generar() {
+  if (cargando.value || password.value) return
+  cargando.value = true
+  error.value = ''
+  try {
+    const resultado = await restablecerPassword(props.usuario.id, controller.signal)
+    if (!controller.signal.aborted) password.value = resultado.passwordTemporal
+  } catch (e) {
+    if (!controller.signal.aborted) {
+      error.value = isAxiosError<{ mensaje?: string }>(e)
+        ? e.response?.data?.mensaje ?? 'No se pudo restablecer la contraseña.'
+        : 'No se pudo restablecer la contraseña.'
+    }
+  } finally {
+    cargando.value = false
+  }
+}
+
+function cerrar() {
+  password.value = ''
+  emit('cerrar')
+}
+</script>
+
+<template>
+  <section class="formulario" aria-labelledby="titulo-reset-password">
+    <h3 id="titulo-reset-password">Restablecer contraseña de {{ usuario.username }}</h3>
+    <template v-if="password">
+      <p>Entregá la contraseña temporal por un canal seguro. Vence en 24 horas y solo se muestra aquí.</p>
+      <label>
+        Contraseña temporal
+        <input :value="password" readonly autocomplete="off" spellcheck="false" />
+      </label>
+      <div class="botones"><button class="primario" type="button" @click="cerrar">Cerrar</button></div>
+    </template>
+    <template v-else>
+      <p>Se cerrarán las sesiones del usuario. Deberá cambiar la contraseña temporal al ingresar.</p>
+      <p v-if="error" class="error" role="alert">{{ error }}</p>
+      <div class="botones">
+        <button type="button" :disabled="cargando" @click="cerrar">Cancelar</button>
+        <button type="button" class="primario" :disabled="cargando" @click="generar">
+          {{ cargando ? 'Generando...' : 'Generar contraseña temporal' }}
+        </button>
+      </div>
+    </template>
+  </section>
+</template>
+
+<style scoped>
+.formulario { display: grid; gap: var(--spacing-sm); }
+.botones { display: flex; justify-content: flex-end; gap: var(--spacing-sm); }
+label { display: grid; gap: 4px; }
+input, button {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+}
+input { width: fit-content; max-width: 100%; font-family: monospace; }
+.primario { background: var(--color-primary); border-color: var(--color-primary); color: white; }
+.error { color: var(--color-tardia); }
+</style>

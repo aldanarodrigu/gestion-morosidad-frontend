@@ -8,6 +8,7 @@ interface UsuarioSesion {
   id: number
   username: string
   roles: string[]
+  requiereCambioPassword?: boolean
 }
 
 export const useAuthStore = defineStore('auth', () => {
@@ -19,11 +20,14 @@ export const useAuthStore = defineStore('auth', () => {
           id: almacenado.id,
           username: almacenado.username,
           roles: almacenado.roles ?? (almacenado.rol ? [almacenado.rol] : []),
+          requiereCambioPassword: almacenado.requiereCambioPassword === true,
         }
       : null,
   )
+  const requiereCambioPassword = computed(() => user.value?.requiereCambioPassword === true)
+
   function tieneRol(rol: string) {
-    return user.value?.roles.includes(rol) ?? false
+    return !requiereCambioPassword.value && (user.value?.roles.includes(rol) ?? false)
   }
   async function actualizarSesion() {
     const { data } = await http.get<UsuarioSesion>('/auth/me')
@@ -36,7 +40,10 @@ export const useAuthStore = defineStore('auth', () => {
   )
   const puedeConfigurar = computed(() => tieneRol('ADMINISTRADOR'))
   const puedeExportar = computed(() => tieneRol('ANALISTA'))
-  const inicio = computed(() => (puedeVerCartera.value ? '/cartera' : '/configuracion'))
+  const inicio = computed(() => {
+    if (requiereCambioPassword.value) return '/cambiar-contrasena'
+    return puedeVerCartera.value ? '/cartera' : '/configuracion'
+  })
   const isAuthenticated = computed(() => !!token.value)
 
   async function login(credentials: LoginRequest) {
@@ -65,6 +72,7 @@ export const useAuthStore = defineStore('auth', () => {
     puedeVerCartera,
     puedeExportar,
     puedeConfigurar,
+    requiereCambioPassword,
     inicio,
   }
 })

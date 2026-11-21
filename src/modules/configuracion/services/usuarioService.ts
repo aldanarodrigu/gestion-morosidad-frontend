@@ -29,3 +29,12 @@ export async function actualizarUsuario(id: number, request: UsuarioUpdateReques
   const { data } = await http.put<Usuario>(`/usuarios/${id}`, request)
   return data
 }
+
+export async function restablecerPassword(id: number, signal: AbortSignal) {
+  const { data } = await http.post<{ passwordTemporal: string; venceEn: string }>(
+    `/usuarios/${id}/password/reset`,
+    undefined,
+    { signal },
+  )
+  return data
+}

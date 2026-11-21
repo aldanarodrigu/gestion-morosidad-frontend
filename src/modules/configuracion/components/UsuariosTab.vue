@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onScopeDispose, ref } from 'vue'
 import { isAxiosError } from 'axios'
+import RestablecerPasswordPanel from './RestablecerPasswordPanel.vue'
 import { useAuthStore } from '@/modules/autenticacion/stores/auth.store'
 import {
   actualizarUsuario,
@@ -18,6 +19,7 @@ const guardando = ref(false)
 const errorCarga = ref('')
 const errorFormulario = ref('')
 const mensaje = ref('')
+const usuarioParaReset = ref<Usuario | null>(null)
 const formulario = ref<{
   id?: number
   username: string
@@ -116,7 +118,7 @@ function nombresRoles(roles: Rol[]) {
         <p class="ayuda">
           Usuarios del sistema y sus roles. Cada cuenta puede tener uno o varios roles.
         </p>
-        <button v-if="!formulario" type="button" class="primario" @click="abrir()">
+        <button v-if="!formulario && !usuarioParaReset" type="button" class="primario" @click="abrir()">
           + Crear usuario
         </button>
       </header>
@@ -180,6 +182,8 @@ function nombresRoles(roles: Rol[]) {
             </button>
           </div>
         </form>
+        <RestablecerPasswordPanel v-if="usuarioParaReset" :usuario="usuarioParaReset"
+          @cerrar="usuarioParaReset = null" />
         <div v-if="usuarios.length" class="tabla-contenedor">
           <table>
             <thead>
@@ -201,12 +205,21 @@ function nombresRoles(roles: Rol[]) {
                   <button
                     type="button"
                     class="enlace editar"
-                    :disabled="guardando"
+                    :disabled="guardando || !!usuarioParaReset"
                     :aria-label="`Editar ${usuario.username}`"
                     @click="abrir(usuario)"
                   >
                     Editar
                   </button>
+                  <template v-if="usuario.id !== auth.user?.id">
+                    <span class="separador-acciones" aria-hidden="true">·</span>
+                    <button type="button" class="enlace reset-password"
+                      :disabled="guardando || !!formulario || !!usuarioParaReset"
+                      :aria-label="`Restablecer contraseña de ${usuario.username}`"
+                      @click="usuarioParaReset = usuario">
+                      Restablecer contraseña
+                    </button>
+                  </template>
                 </td>
               </tr>
             </tbody>
@@ -359,6 +372,10 @@ button {
   background: var(--color-surface);
   color: var(--color-text);
   border: 1px solid var(--color-border);
+}
+.separador-acciones {
+  margin-inline: var(--spacing-xs);
+  color: var(--color-text-secondary);
 }
 .enlace {
   padding: 0;

@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/modules/autenticacion/stores/auth.store'
 
 import '@/assets/styles/main.css'
 
 const auth = useAuthStore()
 const router = useRouter()
+const route = useRoute()
 
 const username = ref('')
 const password = ref('')
@@ -41,6 +42,9 @@ async function onSubmit() {
 
       <form class="login__form" @submit.prevent="onSubmit">
         <h2>Iniciar sesión</h2>
+        <p v-if="route.query.password === 'actualizada'" role="status">
+          Contraseña actualizada. Ingresá con la nueva contraseña.
+        </p>
 
         <label class="login__field">
           <span>Usuario</span>

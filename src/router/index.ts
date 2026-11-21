@@ -12,6 +12,12 @@ const router = createRouter({
       component: () => import('@/modules/autenticacion/views/LoginView.vue'),
     },
     {
+      path: '/cambiar-contrasena',
+      name: 'cambiar-contrasena',
+      meta: { requiresAuth: true },
+      component: () => import('@/modules/autenticacion/views/CambiarPasswordView.vue'),
+    },
+    {
       path: '/',
       redirect: '/cartera',
     },
@@ -79,6 +85,9 @@ router.beforeEach(async (to) => {
   }
   if (to.meta.requiresAuth && !auth.isAuthenticated) {
     return { name: 'login' }
+  }
+  if (auth.isAuthenticated && auth.requiereCambioPassword && to.name !== 'cambiar-contrasena') {
+    return { name: 'cambiar-contrasena' }
   }
   if (to.meta.requiereAdministrador && !auth.puedeConfigurar) {
     return { path: '/cartera' }
