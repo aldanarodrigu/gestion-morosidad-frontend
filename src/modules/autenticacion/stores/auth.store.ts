@@ -34,6 +34,7 @@ export const useAuthStore = defineStore('auth', () => {
   const puedeVerCartera = computed(
     () => tieneRol('ADMINISTRADOR') || tieneRol('NOTIFICADOR') || tieneRol('ANALISTA'),
   )
+  const puedeConfigurar = computed(() => tieneRol('ADMINISTRADOR'))
   const puedeExportar = computed(() => tieneRol('ANALISTA'))
   const inicio = computed(() => (puedeVerCartera.value ? '/cartera' : '/configuracion'))
   const isAuthenticated = computed(() => !!token.value)
@@ -63,6 +64,7 @@ export const useAuthStore = defineStore('auth', () => {
     actualizarSesion,
     puedeVerCartera,
     puedeExportar,
+    puedeConfigurar,
     inicio,
   }
 })

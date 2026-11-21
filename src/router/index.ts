@@ -41,6 +41,7 @@ const router = createRouter({
         {
           path: 'configuracion',
           name: 'configuracion',
+          meta: { requiereAdministrador: true },
           component: () => import('@/modules/configuracion/views/ConfiguracionView.vue'),
         },
         {
@@ -73,8 +74,12 @@ router.beforeEach(async (to) => {
   if (to.meta.requiresAuth && !auth.isAuthenticated) {
     return { name: 'login' }
   }
+  if (to.meta.requiereAdministrador && !auth.puedeConfigurar) {
+    return { path: '/cartera' }
+  }
   if (to.meta.requiereCartera && auth.isAuthenticated && !auth.puedeVerCartera) {
-    return { name: 'configuracion' }
+    auth.logout()
+    return { name: 'login' }
   }
   if (to.name === 'login' && auth.isAuthenticated) {
     return { path: auth.inicio }

@@ -33,6 +33,7 @@ describe('navegacion segun roles', () => {
     expect(auth.puedeVerCartera).toBe(true)
     const w = mount(NavBar, { global: { stubs: { RouterLink: { template: '<a><slot /></a>' } } } })
     expect(w.get('nav').text()).toContain('Cartera')
+    expect(w.get('nav').text().includes('Configuración')).toBe(roles.includes('ADMINISTRADOR'))
     w.unmount()
   })
 })

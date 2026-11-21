@@ -44,7 +44,7 @@ function cerrarSesion() {
           >Reportes</RouterLink
         >
         <RouterLink v-if="auth.puedeVerCartera" to="/comparar-cartera" class="nav-link">Comparar cartera</RouterLink>
-        <RouterLink to="/configuracion" class="nav-link">Configuración</RouterLink>
+        <RouterLink v-if="auth.puedeConfigurar" to="/configuracion" class="nav-link">Configuración</RouterLink>
       </nav>
 
       <div class="user-session">
