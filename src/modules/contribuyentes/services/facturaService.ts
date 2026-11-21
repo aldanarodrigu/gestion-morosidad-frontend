@@ -17,3 +17,8 @@ export async function obtenerFacturas(deudaId: number, filtros: FiltrosFactura, 
   })
   return data
 }
+
+export async function obtenerFacturasCanceladas(cancelacionId: number, signal?: AbortSignal) {
+  const { data } = await http.get<FacturasResponse>(`/cancelaciones/${cancelacionId}/facturas`, { signal })
+  return data
+}

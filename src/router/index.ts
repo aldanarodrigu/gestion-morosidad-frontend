@@ -21,6 +21,12 @@ const router = createRouter({
       meta: { requiresAuth: true }, // los hijos heredan esto
       children: [
         {
+          path: 'cancelaciones',
+          name: 'cancelaciones',
+          meta: { requiereCartera: true },
+          component: () => import('@/modules/cancelaciones/views/CancelacionesView.vue'),
+        },
+        {
           path: 'convenios',
           name: 'convenios',
           meta: { requiereCartera: true },

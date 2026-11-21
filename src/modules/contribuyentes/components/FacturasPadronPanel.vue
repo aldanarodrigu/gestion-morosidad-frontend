@@ -1,10 +1,17 @@
 <script setup lang="ts">
-import { onScopeDispose, reactive, ref, watch } from 'vue'
-import { obtenerFacturas } from '../services/facturaService'
+import { computed, onScopeDispose, reactive, ref, shallowRef, watch } from 'vue'
+import { obtenerFacturas, obtenerFacturasCanceladas } from '../services/facturaService'
 import type { FacturaPadron, MontoUnidad } from '../services/facturaService'
-const props = defineProps<{ deudaId: number; numeroPadron: string; cm: string; origen?: string }>()
+const props = defineProps<
+  { numeroPadron: string; cm: string; origen?: string } &
+  ({ deudaId: number; cancelacionId?: never } | { deudaId?: never; cancelacionId: number })
+>()
 const filtros = reactive({ estado: '', vencida: '', incluirConvenios: true })
-const facturas = ref<FacturaPadron[]>([])
+const facturas = shallowRef<FacturaPadron[]>([])
+const pagina = ref(0)
+const porPagina = 50
+const totalPaginas = computed(() => Math.ceil(facturas.value.length / porPagina))
+const visibles = computed(() => facturas.value.slice(pagina.value * porPagina, (pagina.value + 1) * porPagina))
 const cargando = ref(false)
 const error = ref('')
 let controller: AbortController | undefined
@@ -15,8 +22,11 @@ async function cargar() {
   cargando.value = true
   error.value = ''
   facturas.value = []
+  pagina.value = 0
   try {
-    const respuesta = await obtenerFacturas(props.deudaId, { ...filtros }, actual.signal)
+    const respuesta = props.cancelacionId === undefined
+      ? await obtenerFacturas(props.deudaId!, { ...filtros }, actual.signal)
+      : await obtenerFacturasCanceladas(props.cancelacionId, actual.signal)
     if (!actual.signal.aborted) facturas.value = respuesta.data
   } catch {
     if (!actual.signal.aborted) error.value = 'No se pudieron consultar las facturas en la API externa. Intentá nuevamente.'
@@ -24,7 +34,7 @@ async function cargar() {
     if (controller === actual) cargando.value = false
   }
 }
-watch(() => [props.deudaId, filtros.estado, filtros.vencida, filtros.incluirConvenios], cargar, { immediate: true })
+watch(() => [props.deudaId, props.cancelacionId, filtros.estado, filtros.vencida, filtros.incluirConvenios], cargar, { immediate: true })
 onScopeDispose(() => controller?.abort())
 function monto(m: MontoUnidad) {
   if (m.monto === null) return 'Importe no disponible'
@@ -37,8 +47,8 @@ const fecha = (f: string | null) => f ? f.split('-').reverse().join('/') : '—'
 
 <template>
   <section class="facturas-panel" :aria-label="`Facturas del padrón ${numeroPadron}`">
-    <header><h3>Facturas del padrón {{ numeroPadron }}</h3><p>{{ origen === 'SUCIVE' ? 'SUCIVE' : 'Intendencia' }} · CM {{ cm }} · Consulta directa a la API</p></header>
-    <div class="filtros-facturas">
+    <header><h3>{{ cancelacionId === undefined ? "Facturas" : "Facturas canceladas" }} del padrón {{ numeroPadron }}</h3><p>{{ origen === 'SUCIVE' ? 'SUCIVE' : 'Intendencia' }} · CM {{ cm }} · Consulta directa a la API</p></header>
+    <div v-if="cancelacionId === undefined" class="filtros-facturas">
       <label>Estado<select v-model="filtros.estado"><option value="">Todos los estados</option><option value="PENDIENTE">Pendientes</option><option value="CANCELADA">Canceladas (pagadas, según la API)</option></select></label>
       <label>Vencimiento<select v-model="filtros.vencida"><option value="">Todos los vencimientos</option><option value="true">Pendientes vencidas</option><option value="false">No vencidas (incluye pagadas)</option></select></label>
       <label class="check-convenios"><input v-model="filtros.incluirConvenios" type="checkbox" />Incluir convenios vinculados</label>
@@ -50,7 +60,7 @@ const fecha = (f: string | null) => f ? f.split('-').reverse().join('/') : '—'
       <p v-if="!facturas.length" class="mensaje">No hay facturas para estos filtros.</p>
       <div v-else class="tabla-facturas"><table>
         <thead><tr><th scope="col">Factura</th><th scope="col">Tributo</th><th scope="col">Año / cuota</th><th scope="col">Importe / moneda</th><th scope="col">Estado</th><th scope="col">Vencimiento</th></tr></thead>
-        <tbody><tr v-for="(f, indice) in facturas" :key="`${f.factura_id}-${indice}`">
+        <tbody><tr v-for="(f, indice) in visibles" :key="`${f.factura_id}-${indice}`">
           <td>{{ f.factura_id }}<small v-if="f.convenio_cm != null">Convenio CM {{ f.convenio_cm }}</small></td>
           <td>{{ f.tributo || 'Sin tributo informado' }}<small v-if="f.periodo_desde || f.periodo_hasta">Período: {{ fecha(f.periodo_desde) }} – {{ fecha(f.periodo_hasta) }}</small></td>
           <td>{{ f.anio ?? '—' }}<small>Cuota {{ f.cuota ?? '—' }} / {{ f.total_cuotas ?? '—' }}</small></td>
@@ -59,8 +69,14 @@ const fecha = (f: string | null) => f ? f.split('-').reverse().join('/') : '—'
           <td>{{ fecha(f.fecha_vencimiento) }}<small>{{ f.vencida === true ? 'Vencida' : f.vencida === false ? 'No vencida / pagada' : 'Vencimiento sin determinar' }}</small></td>
         </tr></tbody>
       </table></div>
+      <div v-if="totalPaginas > 1" class="paginas">
+        <button type="button" :disabled="pagina === 0" @click="pagina--">Anterior</button>
+        <span>Página {{ pagina + 1 }} de {{ totalPaginas }}</span>
+        <button type="button" :disabled="pagina + 1 >= totalPaginas" @click="pagina++">Siguiente</button>
+      </div>
     </template>
-    <p class="nota">El detalle puede incluir facturas pagadas, aún no vencidas y de convenios. Sus importes no reemplazan el saldo de cartera. Las monedas y unidades se muestran por separado.</p>
+    <p v-if="cancelacionId !== undefined" class="nota">Facturas del CM que la fuente informa como canceladas al momento de la consulta. No hay una asociación con el número de cobro seleccionado.</p>
+    <p v-else class="nota">El detalle puede incluir facturas pagadas, aún no vencidas y de convenios. Sus importes no reemplazan el saldo de cartera. Las monedas y unidades se muestran por separado.</p>
   </section>
 </template>
 
@@ -83,5 +99,6 @@ small { display: block; margin-top: 4px; font-size: 10px; color: var(--color-tex
 .unidad { display: block; }
 .mensaje { padding: 15px 0; font-size: 12px; }
 .mensaje button { margin-top: 10px; }
+.paginas { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-top: 12px; font-size: 12px; }
 .nota { margin-top: 16px; line-height: 1.6; }
 </style>

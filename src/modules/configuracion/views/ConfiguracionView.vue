@@ -139,8 +139,12 @@ h1 {
 }
 .pestanas {
   overflow-x: auto;
+  scrollbar-width: none;
   display: flex;
   border-bottom: 1px solid var(--color-border);
+}
+.pestanas::-webkit-scrollbar {
+  display: none;
 }
 .pestanas button {
   flex-shrink: 0;

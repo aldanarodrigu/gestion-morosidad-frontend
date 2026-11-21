@@ -37,6 +37,7 @@ function cerrarSesion() {
     <div class="navbar-right">
       <nav class="navbar-nav" aria-label="Principal">
         <RouterLink v-if="auth.puedeVerCartera" to="/cartera" class="nav-link">Cartera</RouterLink>
+        <RouterLink v-if="auth.puedeVerCartera" to="/cancelaciones" class="nav-link">Cancelaciones</RouterLink>
         <RouterLink v-if="auth.puedeVerCartera" to="/convenios" class="nav-link"
           >Convenios</RouterLink
         >
