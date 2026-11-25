@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeftIcon } from '@heroicons/vue/24/outline'
 import {
   obtenerDeudasPorContribuyenteId,
   obtenerResumenDesdeDeudas,
@@ -195,11 +194,6 @@ watch(contribuyenteId, () => {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
   border-radius: 2px;
-}
-
-.icono-volver {
-  width: 16px;
-  height: 16px;
 }
 
 .panel {

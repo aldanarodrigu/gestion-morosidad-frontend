@@ -2,7 +2,6 @@
 import { vEnfocar } from '@/shared/directives/enfocar'
 import { computed, onMounted, onScopeDispose, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { CameraIcon, ArrowsRightLeftIcon } from '@heroicons/vue/24/outline'
 import {
   listarCapturas,
   obtenerCaptura,
@@ -318,7 +317,7 @@ function limpiar() {
                 {{ fecha(c.fecha) }} · {{ c.nombre }} · {{ c.cantidadCuentas }} CM · {{ c.usuario }}
               </option>
             </select></label
-          ><ArrowsRightLeftIcon class="flecha" aria-hidden="true" /><label
+          ><label
             >Captura posterior<select v-model="posterior">
               <option :value="undefined">Elegir captura</option>
               <option v-for="c in capturas" :key="c.id" :value="c.id">
@@ -347,9 +346,9 @@ function limpiar() {
       </section>
       <div class="acciones-captura">
         <p class="aviso">
-          <CameraIcon aria-hidden="true" />La captura copia el estado actual de la base local de los
-          CM que elegís seguir. No ejecuta una sincronización: su fecha de creación puede ser
-          distinta de la fecha de actualización de los datos.
+          La captura copia el estado actual de la base local de los CM que elegís seguir. No ejecuta
+          una sincronización: su fecha de creación puede ser distinta de la fecha de actualización
+          de los datos.
         </p>
         <button
           class="nueva boton"
@@ -740,14 +739,9 @@ h2 {
 }
 .fechas {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 24px minmax(0, 1fr) minmax(0, 1.5fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.5fr);
   gap: var(--spacing-md);
   align-items: end;
-}
-.flecha {
-  width: 20px;
-  height: 40px;
-  color: var(--color-primary);
 }
 .alcance {
   padding-bottom: 3px;
@@ -783,12 +777,6 @@ h2 {
   gap: 8px;
   color: var(--color-text-secondary);
   font-size: var(--texto-sm);
-}
-.aviso svg {
-  width: 18px;
-  height: 18px;
-  flex-shrink: 0;
-  color: var(--color-primary);
 }
 
 /* Crear captura */
@@ -981,7 +969,7 @@ h2 {
 
 @media (max-width: 1279px) {
   .fechas {
-    grid-template-columns: minmax(0, 1fr) 24px minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
   .alcance {
     grid-column: 1 / -1;

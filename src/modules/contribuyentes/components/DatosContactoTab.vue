@@ -6,7 +6,7 @@ import AvisoCarga from '@/shared/components/esqueleto/AvisoCarga.vue'
 import SkeletonBloque from '@/shared/components/esqueleto/SkeletonBloque.vue'
 import { useEsqueleto } from '@/shared/composables/useEsqueleto'
 import { useAuthStore } from '@/modules/autenticacion/stores/auth.store'
-import { EnvelopeIcon, PhoneIcon, MapPinIcon, PencilSquareIcon } from '@heroicons/vue/24/outline'
+import { EnvelopeIcon, PhoneIcon, MapPinIcon } from '@heroicons/vue/24/outline'
 import { guardarContacto, obtenerContactos } from '../services/contactoService'
 import type { Contacto, ContactoRequest, TipoContacto } from '../services/contactoService'
 import type { OrigenDatos } from '@/modules/cartera/types/cartera'
@@ -197,7 +197,6 @@ async function guardar() {
               :aria-label="`Editar contacto: ${contacto.valor}`"
               @click="abrir(contacto)"
             >
-              <PencilSquareIcon class="icono-editar" aria-hidden="true" />
               Editar
             </button>
           </div>
@@ -345,10 +344,6 @@ h3 {
   gap: 4px;
   flex-shrink: 0;
   min-height: 32px;
-}
-.icono-editar {
-  width: 15px;
-  height: 15px;
 }
 .detalle-contacto {
   display: grid;
