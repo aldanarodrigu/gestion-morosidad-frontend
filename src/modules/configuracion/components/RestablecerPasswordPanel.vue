@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onScopeDispose, ref } from 'vue'
+import { computed, onScopeDispose, ref } from 'vue'
 import { isAxiosError } from 'axios'
 import { restablecerPassword } from '../services/usuarioService'
 import type { Usuario } from '../services/usuarioService'
@@ -8,6 +8,8 @@ const props = defineProps<{ usuario: Usuario }>()
 const emit = defineEmits<{ cerrar: [] }>()
 const cargando = ref(false)
 const password = ref('')
+const venceEn = ref('')
+const copiado = ref('')
 const error = ref('')
 const controller = new AbortController()
 onScopeDispose(() => controller.abort())
@@ -18,7 +20,10 @@ async function generar() {
   error.value = ''
   try {
     const resultado = await restablecerPassword(props.usuario.id, controller.signal)
-    if (!controller.signal.aborted) password.value = resultado.passwordTemporal
+    if (!controller.signal.aborted) {
+      password.value = resultado.passwordTemporal
+      venceEn.value = resultado.venceEn
+    }
   } catch (e) {
     if (!controller.signal.aborted) {
       error.value = isAxiosError<{ mensaje?: string }>(e)
@@ -30,8 +35,25 @@ async function generar() {
   }
 }
 
+const vencimiento = computed(() => {
+  const fecha = new Date(venceEn.value)
+  if (!venceEn.value || Number.isNaN(fecha.getTime())) return ''
+  return new Intl.DateTimeFormat('es-UY', { dateStyle: 'short', timeStyle: 'short' }).format(fecha)
+})
+
+async function copiar() {
+  try {
+    await navigator.clipboard.writeText(password.value)
+    copiado.value = 'Copiada al portapapeles.'
+  } catch {
+    copiado.value = 'No se pudo copiar. Seleccioná el texto y copialo manualmente.'
+  }
+}
+
 function cerrar() {
   password.value = ''
+  venceEn.value = ''
+  copiado.value = ''
   emit('cerrar')
 }
 </script>
@@ -40,11 +62,19 @@ function cerrar() {
   <section class="formulario" aria-labelledby="titulo-reset-password">
     <h3 id="titulo-reset-password">Restablecer contraseña de {{ usuario.username }}</h3>
     <template v-if="password">
-      <p>Entregá la contraseña temporal por un canal seguro. Vence en 24 horas y solo se muestra aquí.</p>
+      <p>
+        Entregá la contraseña temporal por un canal seguro. Solo se muestra esta vez; al cerrar
+        no se puede volver a ver.
+      </p>
       <label>
         Contraseña temporal
-        <input :value="password" readonly autocomplete="off" spellcheck="false" />
+        <span class="fila-copiar">
+          <input :value="password" readonly autocomplete="off" spellcheck="false" @focus="($event.target as HTMLInputElement).select()" />
+          <button type="button" class="copiar" @click="copiar">Copiar</button>
+        </span>
       </label>
+      <p v-if="copiado" role="status" class="ayuda">{{ copiado }}</p>
+      <p v-if="vencimiento" class="vence">Vence el {{ vencimiento }}.</p>
       <div class="botones"><button class="primario" type="button" @click="cerrar">Cerrar</button></div>
     </template>
     <template v-else>
@@ -75,4 +105,6 @@ input, button {
 input { width: fit-content; max-width: 100%; font-family: monospace; }
 .primario { background: var(--color-primary); border-color: var(--color-primary); color: white; }
 .error { color: var(--color-tardia); }
+.fila-copiar { display: flex; flex-wrap: wrap; gap: var(--spacing-sm); }
+.ayuda { color: var(--color-text-secondary); font-size: 12px; }
 </style>

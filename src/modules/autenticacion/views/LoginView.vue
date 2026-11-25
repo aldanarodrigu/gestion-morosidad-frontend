@@ -69,7 +69,11 @@ async function onSubmit() {
       }
     }
     if (cuenta === normalizar(username.value)) {
-      error.value = respuesta?.data?.mensaje ?? 'No se pudo iniciar sesión'
+      // En un 401 no se distingue usuario inexistente, clave incorrecta o clave temporal vencida.
+      error.value =
+        respuesta?.status === 401
+          ? 'Usuario o contraseña incorrectos.'
+          : (respuesta?.data?.mensaje ?? 'No se pudo iniciar sesión')
     }
   } finally {
     cargando.value = false

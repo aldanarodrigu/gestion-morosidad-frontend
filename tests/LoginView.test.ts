@@ -52,3 +52,31 @@ it('actualiza la espera sin enviar peticiones y habilita ingresar al vencer', as
   expect(authService.login).toHaveBeenCalledTimes(1)
   vista.unmount()
 })
+
+it('en un 401 muestra un mensaje genérico sin repetir el del backend', async () => {
+  vi.mocked(authService.login).mockRejectedValueOnce({
+    isAxiosError: true,
+    response: { status: 401, headers: {}, data: { mensaje: 'El usuario no existe' } },
+  })
+  const vista = mount(LoginView)
+  await vista.get('input[autocomplete="username"]').setValue('inexistente')
+  await vista.get('input[type="password"]').setValue('clave-de-prueba')
+  await vista.get('form').trigger('submit')
+  await flushPromises()
+  expect(vista.get('[role="alert"]').text()).toBe('Usuario o contraseña incorrectos.')
+  vista.unmount()
+})
+
+it('en un 429 sin Retry-After muestra el mensaje del backend', async () => {
+  vi.mocked(authService.login).mockRejectedValueOnce({
+    isAxiosError: true,
+    response: { status: 429, headers: {}, data: { mensaje: 'Demasiados intentos. Esperá un momento.' } },
+  })
+  const vista = mount(LoginView)
+  await vista.get('input[autocomplete="username"]').setValue('operador')
+  await vista.get('input[type="password"]').setValue('clave-de-prueba')
+  await vista.get('form').trigger('submit')
+  await flushPromises()
+  expect(vista.get('[role="alert"]').text()).toBe('Demasiados intentos. Esperá un momento.')
+  vista.unmount()
+})

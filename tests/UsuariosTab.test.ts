@@ -52,20 +52,20 @@ describe('administracion de usuarios', () => {
     await flushPromises()
     await w.get('.cabecera button').trigger('click')
     await w.get('#usuario-nombre').setValue(' nuevo ')
-    await w.get('#usuario-password').setValue('prueba123')
+    await w.get('#usuario-password').setValue('clave-inicial-prueba')
     await w.get('[data-rol="NOTIFICADOR"]').setValue(true)
     await w.get('[data-rol="ADMINISTRADOR"]').setValue(true)
     await w.get('form').trigger('submit')
     await flushPromises()
     expect(api.crearUsuario).toHaveBeenCalledWith({
       username: 'nuevo',
-      password: 'prueba123',
+      password: 'clave-inicial-prueba',
       roles: ['NOTIFICADOR', 'ADMINISTRADOR'],
     })
     expect(w.text()).toContain('Usuario guardado correctamente')
     expect(w.find('form').exists()).toBe(false)
     expect(w.findAll('tbody tr')).toHaveLength(2)
-    expect(w.text()).not.toContain('prueba123')
+    expect(w.text()).not.toContain('clave-inicial-prueba')
     w.unmount()
   })
   it('guarda los roles y el estado sin enviar ni reemplazar la contrasena', async () => {
@@ -149,7 +149,63 @@ it('confirma el restablecimiento de otra cuenta y retira la clave temporal al ce
   await flushPromises()
   expect(api.restablecerPassword).toHaveBeenCalledExactlyOnceWith(2, expect.any(AbortSignal))
   expect((panel.get('input[readonly]').element as HTMLInputElement).value).toBe('clave-temporal-de-prueba')
-  await panel.get('button').trigger('click')
+  expect(panel.text()).toMatch(/Vence el \d{2}\/\d{2}\/\d{2,4}/)
+  const writeText = vi.fn().mockResolvedValue(undefined)
+  Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+  await panel.get('button.copiar').trigger('click')
+  await flushPromises()
+  expect(writeText).toHaveBeenCalledExactlyOnceWith('clave-temporal-de-prueba')
+  expect(panel.text()).toContain('Copiada al portapapeles')
+  await panel.get('button.primario').trigger('click')
   expect(w.find('section[aria-labelledby="titulo-reset-password"]').exists()).toBe(false)
+  expect(w.text()).not.toContain('clave-temporal-de-prueba')
+  expect(JSON.stringify(localStorage)).not.toContain('clave-temporal-de-prueba')
   w.unmount()
+})
+
+describe('contraseña inicial en el alta', () => {
+  async function abrirAlta(password: string) {
+    const w = montar()
+    await flushPromises()
+    await w.get('.cabecera button').trigger('click')
+    await w.get('#usuario-nombre').setValue('nuevo')
+    await w.get('#usuario-password').setValue(password)
+    await w.get('[data-rol="NOTIFICADOR"]').setValue(true)
+    return w
+  }
+
+  it('aclara que la contraseña es temporal y vence en 24 h', async () => {
+    const w = await abrirAlta('')
+    expect(w.get('#usuario-password-ayuda').text()).toContain('vence en 24 h')
+    w.unmount()
+  })
+
+  it.each([
+    ['menos de 15 caracteres', 'corta-1234567', 'al menos 15'],
+    ['14 emojis (cuentan como 14 caracteres)', '🔑'.repeat(14), 'al menos 15'],
+    ['más de 72 bytes', 'á'.repeat(37), '72 bytes'],
+  ])('rechaza en el cliente una contraseña con %s', async (_caso, password, texto) => {
+    const w = await abrirAlta(password)
+    await w.get('form').trigger('submit')
+    await flushPromises()
+    expect(api.crearUsuario).not.toHaveBeenCalled()
+    expect(w.get('[role="alert"]').text()).toContain(texto)
+    w.unmount()
+  })
+
+  it('muestra errores.password cuando el backend la rechaza', async () => {
+    vi.mocked(api.crearUsuario).mockRejectedValueOnce({
+      isAxiosError: true,
+      response: {
+        status: 400,
+        data: { mensaje: 'Datos inválidos', errores: { password: 'Contraseña demasiado común' } },
+      },
+    })
+    const w = await abrirAlta('clave-inicial-prueba')
+    await w.get('form').trigger('submit')
+    await flushPromises()
+    expect(w.get('[role="alert"]').text()).toBe('Contraseña demasiado común')
+    expect(w.find('form').exists()).toBe(true)
+    w.unmount()
+  })
 })

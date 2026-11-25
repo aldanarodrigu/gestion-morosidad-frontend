@@ -4,6 +4,10 @@ import { isAxiosError } from 'axios'
 import RestablecerPasswordPanel from './RestablecerPasswordPanel.vue'
 import { useAuthStore } from '@/modules/autenticacion/stores/auth.store'
 import {
+  PASSWORD_MIN_CARACTERES,
+  validarLongitudPassword,
+} from '@/modules/autenticacion/utils/password'
+import {
   actualizarUsuario,
   crearUsuario,
   obtenerUsuarios,
@@ -18,6 +22,7 @@ const cargando = ref(false)
 const guardando = ref(false)
 const errorCarga = ref('')
 const errorFormulario = ref('')
+const errorPassword = ref('')
 const mensaje = ref('')
 const usuarioParaReset = ref<Usuario | null>(null)
 const formulario = ref<{
@@ -54,24 +59,30 @@ function abrir(usuario?: Usuario) {
     ? { ...usuario, roles: [...usuario.roles], password: '' }
     : { username: '', password: '', roles: [], activo: true }
   errorFormulario.value = ''
+  errorPassword.value = ''
   mensaje.value = ''
 }
 function cancelar() {
   formulario.value = null
   errorFormulario.value = ''
+  errorPassword.value = ''
 }
 async function guardar() {
   if (guardando.value || !formulario.value || !puedeAdministrar.value) return
   const datos = formulario.value
   const username = datos.username.trim()
   errorFormulario.value = ''
+  errorPassword.value = ''
   if (!username || !datos.roles.length) {
     errorFormulario.value = 'Ingresá el nombre de usuario y seleccioná al menos un rol.'
     return
   }
-  if (!datos.id && (datos.password.length < 8 || datos.password.length > 72)) {
-    errorFormulario.value = 'La contraseña debe tener entre 8 y 72 caracteres.'
-    return
+  if (!datos.id) {
+    const errorLongitud = validarLongitudPassword(datos.password)
+    if (errorLongitud) {
+      errorPassword.value = errorLongitud
+      return
+    }
   }
   const contexto = controller
   guardando.value = true
@@ -94,8 +105,13 @@ async function guardar() {
       }
     }
   } catch (e) {
-    if (!contexto?.signal.aborted)
-      errorFormulario.value = errorApi(e, 'No se pudo guardar el usuario.')
+    if (!contexto?.signal.aborted) {
+      const errorCampo = isAxiosError<{ errores?: Record<string, string> }>(e)
+        ? e.response?.data?.errores?.password
+        : undefined
+      if (errorCampo) errorPassword.value = errorCampo
+      else errorFormulario.value = errorApi(e, 'No se pudo guardar el usuario.')
+    }
   } finally {
     guardando.value = false
   }
@@ -145,16 +161,25 @@ function nombresRoles(roles: Rol[]) {
                 />
               </div>
               <div v-if="!formulario.id">
-                <label for="usuario-password">Contraseña inicial</label
+                <label for="usuario-password">Contraseña temporal</label
                 ><input
                   id="usuario-password"
                   v-model="formulario.password"
                   type="password"
                   autocomplete="new-password"
                   required
-                  minlength="8"
+                  :minlength="PASSWORD_MIN_CARACTERES"
                   maxlength="72"
+                  aria-describedby="usuario-password-ayuda"
+                  :aria-invalid="!!errorPassword"
                 />
+                <p id="usuario-password-ayuda" class="ayuda-campo">
+                  Al menos {{ PASSWORD_MIN_CARACTERES }} caracteres. Es temporal: el usuario la cambia
+                  en su primer ingreso y vence en 24 h.
+                </p>
+                <p v-if="errorPassword" role="alert" class="error ayuda-campo">
+                  {{ errorPassword }}
+                </p>
               </div>
             </div>
             <fieldset class="roles">
@@ -384,6 +409,15 @@ button {
   background: none;
 }
 .error {
+  color: var(--color-tardia);
+}
+.ayuda-campo {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  max-width: 32ch;
+}
+.error.ayuda-campo {
   color: var(--color-tardia);
 }
 .confirmacion {

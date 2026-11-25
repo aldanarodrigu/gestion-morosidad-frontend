@@ -4,6 +4,7 @@ import { isAxiosError } from 'axios'
 import { useRouter } from 'vue-router'
 import { authService } from '../services/auth.service'
 import { useAuthStore } from '../stores/auth.store'
+import { validarLongitudPassword } from '../utils/password'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -16,12 +17,17 @@ const error = ref('')
 async function guardar() {
   if (guardando.value) return
   error.value = ''
+  const errorLongitud = validarLongitudPassword(nueva.value)
+  if (errorLongitud) {
+    error.value = errorLongitud
+    return
+  }
   if (nueva.value !== confirmar.value) {
     error.value = 'Las contraseñas nuevas no coinciden.'
     return
   }
-  if (Array.from(nueva.value).length < 15 || new TextEncoder().encode(nueva.value).length > 72) {
-    error.value = 'Ingresá al menos 15 caracteres y como máximo 72 bytes en UTF-8.'
+  if (nueva.value === actual.value) {
+    error.value = 'La nueva contraseña tiene que ser distinta de la actual.'
     return
   }
   guardando.value = true
