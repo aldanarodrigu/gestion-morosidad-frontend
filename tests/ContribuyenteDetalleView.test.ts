@@ -8,6 +8,7 @@ import DatosContactoTab from '../src/modules/contribuyentes/components/DatosCont
 import * as contribuyentes from '../src/modules/contribuyentes/services/contribuyenteService'
 import * as gestiones from '../src/modules/contribuyentes/services/gestionService'
 import { deuda } from './carteraFixtures'
+import { recordarRutaCartera } from '../src/modules/cartera/rutaCartera'
 import type { DeudaApi } from '../src/modules/cartera/types/cartera'
 
 enableAutoUnmount(afterEach)
@@ -298,4 +299,15 @@ it('muestra la fecha de sincronización del padrón seleccionado y la cambia al 
   route.query = { deuda: '30' }
   await flushPromises()
   expect(w.get('.actualizacion-padron').text()).toBe('Padrón sincronizado: 30/10/2026 18:30')
+})
+
+describe('volver a la cartera', () => {
+  it('«Volver» restaura la búsqueda, los filtros y la página de la cartera', async () => {
+    vi.mocked(contribuyentes.obtenerDeudasPorContribuyenteId).mockResolvedValue(deudas)
+    recordarRutaCartera('/cartera?q=luna&segmento=tardia&pagina=4')
+    const w = montar()
+    await flushPromises()
+    const volver = w.findAllComponents(RouterLinkStub).find((l) => l.text() === 'Volver')!
+    expect(volver.props('to')).toBe('/cartera?q=luna&segmento=tardia&pagina=4')
+  })
 })

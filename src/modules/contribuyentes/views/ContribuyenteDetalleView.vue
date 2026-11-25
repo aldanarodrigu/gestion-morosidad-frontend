@@ -9,6 +9,7 @@ import {
 import type { DeudaApi } from '@/modules/cartera/types/cartera'
 import type { ContribuyenteResumenResponse } from '../services/contribuyenteService'
 
+import { rutaCarteraGuardada } from '@/modules/cartera/rutaCartera'
 import ContribuyenteResumen from '../components/ContribuyenteResumen.vue'
 import DeudasTab from '../components/DeudasTab.vue'
 import GestionesTab from '../components/GestionesTab.vue'
@@ -19,6 +20,9 @@ import { useEsqueleto } from '@/shared/composables/useEsqueleto'
 
 const route = useRoute()
 const router = useRouter()
+
+// «Volver» lleva a la Cartera tal como se dejó: búsqueda, filtros, tamaño y página.
+const rutaVolver = rutaCarteraGuardada()
 
 const deudaSolicitadaId = computed(() => {
   const valor = route.query.deuda ?? route.query.deudaId
@@ -88,7 +92,7 @@ watch(contribuyenteId, () => {
 
 <template>
   <main class="detalle">
-    <RouterLink to="/cartera" class="volver">
+    <RouterLink :to="rutaVolver" class="volver">
       <ArrowLeftIcon class="icono-volver" />
       Volver
     </RouterLink>

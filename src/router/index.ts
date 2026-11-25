@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import CarteraView from '@/modules/cartera/views/CarteraView.vue'
 import { useAuthStore } from '@/modules/autenticacion/stores/auth.store'
+import { recordarRutaCartera } from '@/modules/cartera/rutaCartera'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -99,6 +100,12 @@ router.beforeEach(async (to) => {
   if (to.name === 'login' && auth.isAuthenticated) {
     return { path: auth.inicio }
   }
+})
+
+// La Cartera sincroniza búsqueda, filtros y página en la URL (con replace, que también pasa
+// por acá); se guarda la última para que «Volver» desde la ficha la restaure.
+router.afterEach((to) => {
+  if (to.path === '/cartera') recordarRutaCartera(to.fullPath)
 })
 
 export default router
