@@ -1,12 +1,18 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, onScopeDispose } from 'vue'
 import { obtenerConvenios, type FiltrosConvenio, type PaginaConvenios } from '../services/convenioService'
+import AvisoCarga from '@/shared/components/esqueleto/AvisoCarga.vue'
+import SkeletonBloque from '@/shared/components/esqueleto/SkeletonBloque.vue'
+import SkeletonFilas from '@/shared/components/esqueleto/SkeletonFilas.vue'
+import { useEsqueleto } from '@/shared/composables/useEsqueleto'
 const filtros = reactive<FiltrosConvenio>({ origen: 'INTENDENCIA', cm: '', documento: '', nombre: '', desde: '', hasta: '' })
 let aplicados = { ...filtros }
 const datos = ref<PaginaConvenios>()
 const cargando = ref(false)
 const error = ref('')
 const detalle = ref<number>()
+const esqueleto = useEsqueleto(() => cargando.value)
+const ENCABEZADOS = ['Convenio / CM', 'Contribuyente', 'Cuotas vencidas / totales', 'Deuda desde', 'Importe neto', 'Detalle']
 let controller: AbortController | undefined
 async function cargar(pagina = 1) {
  controller?.abort(); const actual = new AbortController(); controller = actual
@@ -34,7 +40,14 @@ const importe = (valor: string | null) => valor == null ? '—' : valor
    <div class="botones"><button class="primario" :disabled="cargando">Buscar</button><button type="button" @click="limpiar" :disabled="cargando">Limpiar</button></div>
   </form>
   <section class="panel" aria-live="polite" :aria-busy="cargando">
-   <p v-if="cargando">Consultando convenios…</p>
+   <AvisoCarga :activo="cargando" texto="Consultando convenios" />
+   <template v-if="esqueleto">
+    <p class="cantidad"><SkeletonBloque ancho="14em" /></p>
+    <div class="tabla"><table><thead><tr><th v-for="e in ENCABEZADOS" :key="e">{{ e }}</th></tr></thead>
+     <tbody><SkeletonFilas :columnas="6" :filas="20" :con-detalle="[0, 1]" :anchos="['6em', '12em', '4em', '6em', '6em', '6em']" /></tbody>
+    </table></div>
+   </template>
+   <template v-else-if="cargando" />
    <div v-else-if="error" role="alert" class="error">{{ error }} <button @click="cargar()">Reintentar</button></div>
    <template v-else-if="datos">
     <p class="cantidad">{{ datos.meta.total }} convenios · {{ aplicados.origen === 'SUCIVE' ? 'SUCIVE' : 'Intendencia' }}</p>
@@ -50,5 +63,5 @@ const importe = (valor: string | null) => valor == null ? '—' : valor
  </main>
 </template>
 <style scoped>
-.convenios{max-width:1440px;margin:auto;padding:28px;display:grid;gap:20px}header p,.nota,small,dt,.cantidad{color:var(--color-text-secondary)}header p{margin-top:6px}.panel{background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:24px;box-shadow:var(--shadow-sm)}.filtros{display:flex;flex-wrap:wrap;gap:16px;align-items:end}label{display:grid;gap:6px;font-size:13px;flex:1 1 170px}input,select,button{border:1px solid var(--color-border);border-radius:var(--radius-sm);padding:9px 12px;background:var(--color-surface);color:var(--color-text)}input,select{width:100%}button{color:var(--color-primary)}button:disabled{opacity:.5;cursor:default}.primario{background:var(--color-primary);color:white}.botones{display:flex;gap:8px}.tabla{overflow:auto}table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;background:var(--color-background);color:var(--color-text-secondary);font-weight:500}th,td{padding:16px;border-bottom:1px solid var(--color-border)}small{display:block;margin-top:5px}.numero{font-variant-numeric:tabular-nums;white-space:nowrap}.cantidad{margin-bottom:16px}dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px;margin:4px 0}dt{font-size:12px}dd{margin:4px 0;overflow-wrap:anywhere}footer{display:flex;justify-content:flex-end;align-items:center;gap:16px;margin-top:20px;font-size:13px}.error{color:var(--color-tardia)}.nota{font-size:12px}@media(max-width:650px){.convenios{padding:16px}.panel{padding:16px}footer{flex-wrap:wrap}}
+.convenios{max-width:1440px;margin:auto;padding:28px;display:grid;gap:20px}header p,.nota,small,dt,.cantidad{color:var(--color-text-secondary)}header p{margin-top:6px}.panel{background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:24px;box-shadow:var(--shadow-sm)}.filtros{display:flex;flex-wrap:wrap;gap:16px;align-items:end}label{display:grid;gap:6px;font-size:13px;flex:1 1 170px}input,select,button{border:1px solid var(--color-border);border-radius:var(--radius-sm);padding:9px 12px;background:var(--color-surface);color:var(--color-text)}input,select{width:100%}button{color:var(--color-primary)}button:disabled{opacity:.5;cursor:default}.primario{background:var(--color-primary);color:white}.botones{display:flex;gap:8px}.tabla{overflow:auto}table{width:100%;border-collapse:collapse;font-size:13px;--esqueleto-celda-padding:16px}th{text-align:left;background:var(--color-background);color:var(--color-text-secondary);font-weight:500}th,td{padding:16px;border-bottom:1px solid var(--color-border)}small{display:block;margin-top:5px}.numero{font-variant-numeric:tabular-nums;white-space:nowrap}.cantidad{margin-bottom:16px}dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px;margin:4px 0}dt{font-size:12px}dd{margin:4px 0;overflow-wrap:anywhere}footer{display:flex;justify-content:flex-end;align-items:center;gap:16px;margin-top:20px;font-size:13px}.error{color:var(--color-tardia)}.nota{font-size:12px}@media(max-width:650px){.convenios{padding:16px}.panel{padding:16px}footer{flex-wrap:wrap}}
 </style>

@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { computed, onScopeDispose, ref, watch } from 'vue'
 import { isAxiosError } from 'axios'
+import AvisoCarga from '@/shared/components/esqueleto/AvisoCarga.vue'
+import SkeletonBloque from '@/shared/components/esqueleto/SkeletonBloque.vue'
+import { useEsqueleto } from '@/shared/composables/useEsqueleto'
 import { useAuthStore } from '@/modules/autenticacion/stores/auth.store'
 import { EnvelopeIcon, PhoneIcon, MapPinIcon, PencilSquareIcon } from '@heroicons/vue/24/outline'
 import { guardarContacto, obtenerContactos } from '../services/contactoService'
@@ -14,6 +17,7 @@ const puedeEditar = computed(
 )
 const contactos = ref<Contacto[]>([])
 const cargando = ref(false)
+const esqueleto = useEsqueleto(() => cargando.value)
 const guardando = ref(false)
 const errorCarga = ref('')
 const errorFormulario = ref('')
@@ -127,7 +131,8 @@ async function guardar() {
 </script>
 
 <template>
-  <section class="contactos" aria-label="Datos de contacto">
+  <section class="contactos" aria-label="Datos de contacto" :aria-busy="cargando || undefined">
+    <AvisoCarga :activo="cargando" texto="Cargando contactos" />
     <header class="cabecera">
       <h3>Información de contacto</h3>
       <button
@@ -140,7 +145,23 @@ async function guardar() {
       </button>
     </header>
     <p v-if="!cm" class="ayuda">No se pudo identificar al contribuyente.</p>
-    <p v-else-if="cargando" role="status" class="ayuda">Cargando contactos...</p>
+    <template v-else-if="cargando">
+      <ul v-if="esqueleto" class="lista" aria-hidden="true">
+        <li v-for="n in 2" :key="n" class="contacto">
+          <div class="titulo-contacto">
+            <div class="tipo-contenedor">
+              <SkeletonBloque forma="circulo" class="icono-tipo" />
+              <span class="tipo"><SkeletonBloque ancho="5em" /></span>
+            </div>
+          </div>
+          <p class="valor"><SkeletonBloque :ancho="n === 1 ? '14em' : '10em'" /></p>
+          <div class="detalle-contacto">
+            <p class="ayuda"><SkeletonBloque ancho="9em" /></p>
+            <p class="ayuda"><SkeletonBloque ancho="11em" /></p>
+          </div>
+        </li>
+      </ul>
+    </template>
     <div v-else-if="errorCarga" role="alert" class="error">
       <p>{{ errorCarga }}</p>
       <button type="button" class="secundario" @click="cargar">Reintentar</button>

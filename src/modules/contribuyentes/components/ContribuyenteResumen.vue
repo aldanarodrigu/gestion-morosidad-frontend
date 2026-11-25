@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import FechaSincronizacion from '@/shared/components/FechaSincronizacion.vue'
+import SkeletonBloque from '@/shared/components/esqueleto/SkeletonBloque.vue'
 import type { ContribuyenteResumenResponse } from '../services/contribuyenteService'
 
+// Con contribuyente null se dibuja el esqueleto: mismas etiquetas, bloques en lugar de valores.
 defineProps<{
-  contribuyente: ContribuyenteResumenResponse
+  contribuyente: ContribuyenteResumenResponse | null
 }>()
 
 const formatoImporte = (importe: number) =>
@@ -35,7 +37,28 @@ function claseSegmento(segmento?: string | null): string {
 </script>
 
 <template>
-  <section class="resumen">
+  <section v-if="!contribuyente" class="resumen" aria-hidden="true">
+    <header class="cabecera">
+      <div class="identidad">
+        <p class="meta"><SkeletonBloque ancho="11em" /></p>
+        <h1><SkeletonBloque ancho="16em" /></h1>
+        <p class="documento"><SkeletonBloque ancho="12em" /></p>
+      </div>
+      <div class="deuda">
+        <span class="deuda-label">DEUDA TOTAL</span>
+        <span class="deuda-monto"><SkeletonBloque ancho="7em" /></span>
+        <span class="segmento-badge"><SkeletonBloque ancho="6em" /></span>
+      </div>
+    </header>
+    <dl class="stats">
+      <div v-for="etiqueta in ['Días máx. vencido', 'Deuda más antigua', 'Deudas', 'Padrones']" :key="etiqueta" class="stat">
+        <dt>{{ etiqueta }}</dt>
+        <dd><SkeletonBloque ancho="5em" /></dd>
+      </div>
+    </dl>
+  </section>
+
+  <section v-else class="resumen">
     <header class="cabecera">
       <div class="identidad">
         <p v-if="contribuyente.cm" class="meta" aria-label="Cuenta seleccionada">

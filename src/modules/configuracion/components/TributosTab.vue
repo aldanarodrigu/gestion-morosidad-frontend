@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onScopeDispose, ref, watch } from 'vue'
 import { isAxiosError } from 'axios'
+import AvisoCarga from '@/shared/components/esqueleto/AvisoCarga.vue'
+import SkeletonBloque from '@/shared/components/esqueleto/SkeletonBloque.vue'
+import SkeletonFilas from '@/shared/components/esqueleto/SkeletonFilas.vue'
+import { useEsqueleto } from '@/shared/composables/useEsqueleto'
 import { useAuthStore } from '@/modules/autenticacion/stores/auth.store'
 import {
   actualizarTributo,
@@ -21,6 +25,10 @@ const errorEliminar = ref('')
 const dialogoEliminar = ref<HTMLDialogElement | null>(null)
 const tributos = ref<Tributo[]>([])
 const cargando = ref(true)
+const esqueleto = useEsqueleto(() => cargando.value)
+// Hasta la primera respuesta no hay total que mostrar
+const primeraCarga = ref(true)
+watch(cargando, (activo) => { if (!activo) primeraCarga.value = false })
 const errorCarga = ref('')
 const busqueda = ref('')
 const origen = ref('')
@@ -167,8 +175,8 @@ onScopeDispose(() => { clearTimeout(timer); controller?.abort() })
       <label>Origen<select v-model="origen" :disabled="guardando"><option value="">Todos los orígenes</option><option value="INTENDENCIA">Intendencia</option><option value="SUCIVE">SUCIVE</option></select></label>
       <button type="button" class="secundario" :disabled="guardando || (!busqueda && !origen)" @click="limpiarFiltros">Limpiar filtros</button>
     </div>
-    <p v-if="cargando" role="status" class="ayuda">Cargando tributos...</p>
-    <div v-else-if="errorCarga" role="alert" class="error">
+    <AvisoCarga :activo="cargando" texto="Cargando tributos" />
+    <div v-if="errorCarga && !cargando" role="alert" class="error">
       <p>{{ errorCarga }}</p>
       <button type="button" class="secundario" @click="cargar">Reintentar</button>
     </div>
@@ -202,8 +210,8 @@ onScopeDispose(() => { clearTimeout(timer); controller?.abort() })
           </button>
         </div>
       </form>
-      <p class="ayuda resultados-catalogo" aria-live="polite">{{ totalElementos }} {{ totalElementos === 1 ? 'tributo encontrado' : 'tributos encontrados' }}</p>
-      <div v-if="tributos.length" class="tabla-contenedor">
+      <p class="ayuda resultados-catalogo" aria-live="polite"><SkeletonBloque v-if="primeraCarga" ancho="9em" /><template v-else>{{ totalElementos }} {{ totalElementos === 1 ? 'tributo encontrado' : 'tributos encontrados' }}</template></p>
+      <div v-if="tributos.length || esqueleto" class="tabla-contenedor" :aria-busy="cargando || undefined">
         <table>
           <thead>
             <tr>
@@ -214,6 +222,8 @@ onScopeDispose(() => { clearTimeout(timer); controller?.abort() })
             </tr>
           </thead>
           <tbody>
+            <SkeletonFilas v-if="esqueleto" :columnas="puedeEditar ? 4 : 3" :filas="20" :anchos="['6em', '4em', '16em', '8em']" />
+            <template v-else>
             <tr v-for="tributo in tributos" :key="tributo.id">
               <td class="origen-tributo">{{ tributo.origen === 'SUCIVE' ? 'SUCIVE' : 'Intendencia' }}</td>
               <td class="codigo">{{ tributo.codigo }}</td>
@@ -241,10 +251,11 @@ onScopeDispose(() => { clearTimeout(timer); controller?.abort() })
                 </button>
               </td>
             </tr>
+            </template>
           </tbody>
         </table>
       </div>
-      <p v-else class="ayuda">{{ busqueda || origen ? 'No hay tributos que coincidan con estos filtros.' : 'No hay tributos registrados.' }}</p>
+      <p v-else-if="!cargando" class="ayuda">{{ busqueda || origen ? 'No hay tributos que coincidan con estos filtros.' : 'No hay tributos registrados.' }}</p>
       <nav v-if="totalElementos" class="paginacion-catalogo" aria-label="Paginación de tributos">
         <span>20 por página · Página {{ pagina + 1 }} de {{ totalPaginas }}</span>
         <div><button type="button" class="secundario" :disabled="pagina === 0 || guardando" @click="cambiarPagina(pagina - 1)">Anterior</button>
@@ -332,6 +343,7 @@ table {
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
+  --esqueleto-celda-padding: 11px 14px;
 }
 th,
 td {

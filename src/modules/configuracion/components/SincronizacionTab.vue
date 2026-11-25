@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, onScopeDispose, ref } from 'vue'
 import SincronizacionProgreso from './SincronizacionProgreso.vue'
+import AvisoCarga from '@/shared/components/esqueleto/AvisoCarga.vue'
+import SkeletonBloque from '@/shared/components/esqueleto/SkeletonBloque.vue'
+import SkeletonDetalle from '@/shared/components/esqueleto/SkeletonDetalle.vue'
+import { useEsqueleto } from '@/shared/composables/useEsqueleto'
 import { useAuthStore } from '@/modules/autenticacion/stores/auth.store'
 import { obtenerPeriodo, guardarPeriodo, obtenerEjecucion, iniciarSincronizacion, cancelarSincronizacion, type EjecucionSincronizacion } from '../services/sincronizacionService'
 const auth=useAuthStore()
@@ -14,6 +18,7 @@ const maxAnio=new Date().getFullYear()
 const anioSeleccionado=computed(()=>anio.value==='' || anio.value==null ? null : Number(anio.value))
 let timer:ReturnType<typeof setTimeout>|undefined
 let revision=0
+const esqueleto=useEsqueleto(()=>cargando.value)
 const controller=new AbortController()
 function detalleError(e:unknown){return (e as {response?:{data?:{mensaje?:string}}})?.response?.data?.mensaje || 'No se pudo completar la solicitud. Intentá nuevamente.'}
 async function cargar(){
@@ -50,7 +55,20 @@ onScopeDispose(()=>{controller.abort();clearTimeout(timer)})
   <p v-if="!admin">Esta configuración está disponible para Administrador.</p>
   <template v-else>
    <p>Importar deudas pendientes con vencimiento desde el 1 de enero del año seleccionado, incluido, hasta la fecha actual. Dejá el año vacío para incluir todos los años.</p>
-   <p v-if="cargando">Cargando configuración…</p>
+   <AvisoCarga :activo="cargando" texto="Cargando configuración" />
+   <template v-if="esqueleto">
+    <div class="bloque" aria-hidden="true">
+     <h3>Período de gestión</h3>
+     <SkeletonDetalle class="campo-esqueleto" :etiquetas="['Año mínimo (opcional)']" tipo="campo" />
+     <SkeletonBloque ancho="80%" />
+    </div>
+    <div class="bloque" aria-hidden="true">
+     <h3>Sincronización manual</h3>
+     <SkeletonBloque ancho="60%" />
+     <SkeletonDetalle class="campo-esqueleto" :etiquetas="['Origen']" tipo="campo" />
+    </div>
+   </template>
+   <template v-else-if="cargando" />
    <template v-else-if="guardado!==undefined">
     <form class="bloque" @submit.prevent="guardar">
      <h3>Período de gestión</h3>
@@ -79,5 +97,6 @@ onScopeDispose(()=>{controller.abort();clearTimeout(timer)})
  </section>
 </template>
 <style scoped>
+.campo-esqueleto{max-width:240px;--esqueleto-etiqueta-tamano:12px}
 .sincronizacion{display:grid;gap:16px}h2{font-size:15px}h3{font-size:13px}.sincronizacion p{font-size:12px;color:var(--color-text-secondary);line-height:1.6}.bloque{padding:20px;border:1px solid var(--color-border);border-radius:var(--radius-md);display:grid;gap:14px}.controles{display:flex;flex-wrap:wrap;gap:16px;align-items:end}label{display:grid;gap:6px;font-size:12px;color:var(--color-text-secondary)}input,select,button{padding:9px 12px;border:1px solid var(--color-border);border-radius:var(--radius-sm);background:var(--color-surface);color:var(--color-text);font:inherit;font-size:12px}input{width:150px}button{color:var(--color-primary)}.cancelar{margin-top:12px;color:var(--color-tardia);border-color:var(--color-border)}.primario{background:var(--color-primary);color:white}button:disabled{opacity:.5;cursor:default}.resultado{padding:16px;background:var(--color-background);border-radius:var(--radius-sm);font-size:12px}.resultado strong{display:block;margin-bottom:6px}.error,.fallo,.fallo p{color:var(--color-tardia)}.sincronizacion p.exito{color:var(--color-temprana)}dl{display:flex;gap:24px;flex-wrap:wrap;margin:14px 0 0}dt{color:var(--color-text-secondary);font-size:11px}dd{margin:4px 0 0;font-weight:600}input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--color-primary);outline-offset:2px}
 </style>

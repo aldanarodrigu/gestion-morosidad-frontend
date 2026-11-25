@@ -2,6 +2,9 @@
 import { computed, onMounted, onScopeDispose, ref } from 'vue'
 import { useAuthStore } from '@/modules/autenticacion/stores/auth.store'
 import { isAxiosError } from 'axios'
+import AvisoCarga from '@/shared/components/esqueleto/AvisoCarga.vue'
+import SkeletonBloque from '@/shared/components/esqueleto/SkeletonBloque.vue'
+import { useEsqueleto } from '@/shared/composables/useEsqueleto'
 import {
   cambiarEstadoAccion,
   obtenerAcciones,
@@ -17,6 +20,7 @@ const guardando = ref(new Set<number>())
 const erroresEstado = ref<Record<number, string>>({})
 const acciones = ref<Accion[]>([])
 const cargando = ref(true)
+const esqueleto = useEsqueleto(() => cargando.value)
 const error = ref('')
 const formulario = ref(false)
 const nombreNuevo = ref('')
@@ -189,7 +193,17 @@ onScopeDispose(() => {
         </button>
       </div>
     </form>
-    <p v-if="cargando" role="status" class="ayuda">Cargando acciones...</p>
+    <AvisoCarga :activo="cargando" texto="Cargando acciones" />
+    <ul v-if="esqueleto" class="lista" aria-hidden="true">
+      <li v-for="n in 4" :key="n" class="accion">
+        <div class="informacion">
+          <div class="titulo"><SkeletonBloque class="nombre" :ancho="['12em', '9em', '14em', '10em'][n - 1]" /></div>
+          <p class="mora"><SkeletonBloque ancho="11em" /></p>
+        </div>
+        <SkeletonBloque forma="rect" ancho="34px" alto="18px" class="interruptor-esqueleto" />
+      </li>
+    </ul>
+    <template v-else-if="cargando" />
     <div v-else-if="error" role="alert" class="error">
       <p>{{ error }}</p>
       <button type="button" class="secundario" @click="cargar">Reintentar</button>
@@ -386,6 +400,10 @@ button:disabled {
   background: var(--color-surface);
   color: var(--color-text);
   font-size: 13px;
+}
+.interruptor-esqueleto {
+  flex-shrink: 0;
+  --radius-sm: 20px;
 }
 .interruptor {
   position: relative;

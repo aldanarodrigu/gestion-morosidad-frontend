@@ -13,6 +13,9 @@ import ContribuyenteResumen from '../components/ContribuyenteResumen.vue'
 import DeudasTab from '../components/DeudasTab.vue'
 import GestionesTab from '../components/GestionesTab.vue'
 import DatosContactoTab from '../components/DatosContactoTab.vue'
+import AvisoCarga from '@/shared/components/esqueleto/AvisoCarga.vue'
+import SkeletonBloque from '@/shared/components/esqueleto/SkeletonBloque.vue'
+import { useEsqueleto } from '@/shared/composables/useEsqueleto'
 
 const route = useRoute()
 const router = useRouter()
@@ -30,6 +33,7 @@ const padronContacto = computed(() =>
 const cargando = ref(false)
 const error = ref<string | null>(null)
 const pestanaActiva = ref('gestiones')
+const esqueleto = useEsqueleto(() => cargando.value)
 
 // Cabecera e historial comparten la misma deuda, independientemente del orden recibido.
 const deudaSeleccionadaId = computed(() => {
@@ -90,9 +94,25 @@ watch(contribuyenteId, () => {
     </RouterLink>
 
     <section class="contenido">
-      <p v-if="cargando" class="mensaje">Cargando datos del contribuyente...</p>
+      <AvisoCarga :activo="cargando" texto="Cargando datos del contribuyente" />
 
-      <div v-else-if="error" class="mensaje error">
+      <template v-if="esqueleto">
+        <ContribuyenteResumen :contribuyente="null" />
+        <section class="panel" aria-hidden="true">
+          <nav class="pestanas">
+            <button type="button" class="activa" tabindex="-1" disabled>Gestiones</button>
+            <button type="button" tabindex="-1" disabled>Padrones</button>
+            <button type="button" tabindex="-1" disabled>Datos de contacto</button>
+          </nav>
+          <div class="contenido-pestana esqueleto-pestana">
+            <SkeletonBloque ancho="22em" />
+            <SkeletonBloque forma="rect" alto="72px" />
+            <SkeletonBloque forma="rect" alto="72px" />
+          </div>
+        </section>
+      </template>
+
+      <div v-else-if="error && !cargando" class="mensaje error">
         <p>{{ error }}</p>
         <button type="button" @click="cargarDatos">Reintentar</button>
       </div>
@@ -227,6 +247,16 @@ watch(contribuyenteId, () => {
 
 .contenido-pestana {
   padding: 20px;
+}
+
+.esqueleto-pestana {
+  display: grid;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.pestanas button:disabled {
+  cursor: default;
 }
 
 .pestanas button:hover {

@@ -2,6 +2,10 @@
 import { onMounted, onScopeDispose, reactive, ref } from 'vue'
 import { useAuthStore } from '@/modules/autenticacion/stores/auth.store'
 import FacturasPadronPanel from '@/modules/contribuyentes/components/FacturasPadronPanel.vue'
+import AvisoCarga from '@/shared/components/esqueleto/AvisoCarga.vue'
+import SkeletonBloque from '@/shared/components/esqueleto/SkeletonBloque.vue'
+import SkeletonFilas from '@/shared/components/esqueleto/SkeletonFilas.vue'
+import { useEsqueleto } from '@/shared/composables/useEsqueleto'
 import ExportacionCancelacionesPanel from '../components/ExportacionCancelacionesPanel.vue'
 import { exportarCancelaciones, filtrosCancelacionesVacios, obtenerCancelaciones } from '../services/cancelacionService'
 import type { FiltrosCancelacion, FiltrosExportacionCancelaciones, FormatoCancelaciones, PaginaCancelaciones } from '../services/cancelacionService'
@@ -19,6 +23,7 @@ const cargando = ref(false)
 const error = ref('')
 const errorFechas = ref('')
 const detalle = ref<number>()
+const esqueleto = useEsqueleto(() => cargando.value)
 let controller: AbortController | undefined
 let ultimaPagina = 0
 
@@ -143,15 +148,18 @@ onScopeDispose(() => {
     <p v-if="errorExportacion" class="error" role="alert">{{ errorExportacion }}</p>
 
     <section class="panel" aria-label="Cancelaciones registradas" :aria-busy="cargando">
-      <p v-if="cargando" role="status">Cargando cancelaciones…</p>
-      <div v-else-if="error" class="error" role="alert">
+      <AvisoCarga :activo="cargando" texto="Cargando cancelaciones" />
+      <div v-if="error && !cargando" class="error" role="alert">
         {{ error }}
         <button type="button" @click="cargar(ultimaPagina)">Reintentar</button>
       </div>
-      <template v-else-if="resultados">
-        <p v-if="resultados.totalElementos === 0">No hay cancelaciones registradas para esta consulta.</p>
+      <template v-else-if="resultados || esqueleto">
+        <p v-if="resultados?.totalElementos === 0 && !esqueleto">No hay cancelaciones registradas para esta consulta.</p>
         <template v-else>
-          <p class="nota">{{ resultados.totalElementos }} registros. El importe corresponde al cobro completo, que puede estar asociado a más de un padrón.</p>
+          <p class="nota">
+            <SkeletonBloque v-if="!resultados" ancho="min(560px, 100%)" />
+            <template v-else>{{ resultados.totalElementos }} registros. El importe corresponde al cobro completo, que puede estar asociado a más de un padrón.</template>
+          </p>
           <div class="tabla">
             <table>
               <thead>
@@ -167,7 +175,16 @@ onScopeDispose(() => {
                 </tr>
               </thead>
               <tbody>
-                <template v-for="c in resultados.contenido" :key="c.id">
+                <SkeletonFilas
+                  v-if="esqueleto"
+                  :columnas="8"
+                  :filas="20"
+                  :con-detalle="[0, 2]"
+                  :derecha="[6]"
+                  :anchos="['6em', '6em', '11em', '6em', '6em', '5em', '7em', '7em']"
+                />
+                <template v-else>
+                <template v-for="c in resultados?.contenido ?? []" :key="c.id">
                   <tr>
                     <td><strong>{{ c.numeroPadron || '—' }}</strong><small>CM {{ c.cm }}</small></td>
                     <td>{{ c.origen === 'SUCIVE' ? 'SUCIVE' : 'Intendencia' }}</td>
@@ -190,10 +207,11 @@ onScopeDispose(() => {
                     </td>
                   </tr>
                 </template>
+                </template>
               </tbody>
             </table>
           </div>
-          <footer v-if="resultados.totalPaginas > 1">
+          <footer v-if="resultados && resultados.totalPaginas > 1">
             <button type="button" :disabled="resultados.pagina === 0" @click="cargar(resultados.pagina - 1)">Anterior</button>
             <span>Página {{ resultados.pagina + 1 }} de {{ resultados.totalPaginas }}</span>
             <button type="button" :disabled="resultados.pagina + 1 >= resultados.totalPaginas"
@@ -240,7 +258,7 @@ button:disabled { opacity: .5; cursor: default; }
 .primario { background: var(--color-primary); color: white; }
 .nota { font-size: 13px; margin-bottom: 12px; }
 .tabla { overflow-x: auto; }
-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; --esqueleto-celda-padding: 12px; }
 th, td { padding: 12px; text-align: left; border-bottom: 1px solid var(--color-border); }
 th { background: var(--color-background); color: var(--color-text-secondary); font-weight: 500; }
 small { display: block; margin-top: 4px; }

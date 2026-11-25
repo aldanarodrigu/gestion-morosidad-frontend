@@ -1,10 +1,17 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
+import SkeletonFilas from '@/shared/components/esqueleto/SkeletonFilas.vue'
+import { useEsqueleto } from '@/shared/composables/useEsqueleto'
 import type { CarteraItem } from '../types/cartera'
 
-defineProps<{
+const props = withDefaults(defineProps<{
   cartera: CarteraItem[]
-}>()
+  cargando?: boolean
+  filasEsqueleto?: number
+}>(), { cargando: false, filasEsqueleto: 20 })
+
+// Al paginar o filtrar, las filas anteriores quedan hasta que la carga supera la demora.
+const esqueleto = useEsqueleto(() => props.cargando)
 
 const router = useRouter()
 
@@ -41,7 +48,7 @@ function mostrarAcciones(acciones: string[]) {
 </script>
 
 <template>
-  <div class="table-container">
+  <div class="table-container" :aria-busy="cargando || undefined">
     <table class="cartera-table" aria-label="Cartera de morosidad">
       <thead>
         <tr>
@@ -64,6 +71,15 @@ function mostrarAcciones(acciones: string[]) {
       </thead>
 
       <tbody>
+        <SkeletonFilas
+          v-if="esqueleto"
+          :columnas="11"
+          :filas="filasEsqueleto"
+          :con-detalle="[1, 2]"
+          :derecha="[7, 8, 9]"
+          :anchos="['4em', '5em', '12em', '6em', '3em', '8em', '7em', '3em', '6em', '2em', '10em']"
+        />
+        <template v-else>
         <tr
           v-for="item in cartera"
           :key="item.id"
@@ -138,9 +154,10 @@ function mostrarAcciones(acciones: string[]) {
           </td>
         </tr>
 
-        <tr v-if="cartera.length === 0">
+        <tr v-if="cartera.length === 0 && !cargando">
           <td colspan="11" class="empty">No hay registros para mostrar.</td>
         </tr>
+        </template>
       </tbody>
     </table>
   </div>
@@ -157,6 +174,8 @@ function mostrarAcciones(acciones: string[]) {
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
+  --esqueleto-celda-padding: 14px 16px;
+  --esqueleto-celda-borde: 0;
 }
 
 /* Mismo padding horizontal en th y td para que encabezado y contenido coincidan */

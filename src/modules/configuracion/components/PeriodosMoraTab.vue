@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, onScopeDispose, ref, watch } from 'vue'
 import { isAxiosError } from 'axios'
+import AvisoCarga from '@/shared/components/esqueleto/AvisoCarga.vue'
+import SkeletonFilas from '@/shared/components/esqueleto/SkeletonFilas.vue'
+import { useEsqueleto } from '@/shared/composables/useEsqueleto'
 import { useAuthStore } from '@/modules/autenticacion/stores/auth.store'
 import {
   obtenerPeriodos,
@@ -28,6 +31,7 @@ const formulario = ref<{ segmentoId: number; nombre: string; hasta: number | nul
 )
 const cargando = ref(true),
   guardando = ref(false)
+const esqueleto = useEsqueleto(() => cargando.value)
 const errorCarga = ref(''),
   errorFormulario = ref(''),
   mensaje = ref('')
@@ -168,7 +172,14 @@ async function guardar() {
         Editar períodos
       </button>
     </header>
-    <p v-if="cargando" role="status" class="ayuda">Cargando períodos...</p>
+    <AvisoCarga :activo="cargando" texto="Cargando períodos" />
+    <div v-if="esqueleto" class="tabla-contenedor" aria-hidden="true">
+      <table>
+        <thead><tr><th scope="col">Segmento</th><th scope="col">Desde</th><th scope="col">Hasta</th></tr></thead>
+        <tbody><SkeletonFilas :columnas="3" :filas="3" :con-detalle="[0]" :anchos="['9em', '5em', '5em']" /></tbody>
+      </table>
+    </div>
+    <template v-else-if="cargando" />
     <div v-else-if="errorCarga" role="alert" class="error">
       <p>{{ errorCarga }}</p>
       <button type="button" class="secundario" @click="cargar">Reintentar</button>
@@ -300,6 +311,7 @@ table {
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
+  --esqueleto-celda-padding: 11px 14px;
 }
 th,
 td {

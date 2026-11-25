@@ -2,6 +2,10 @@
 import { computed, onScopeDispose, reactive, ref, shallowRef, watch } from 'vue'
 import { obtenerFacturas, obtenerFacturasCanceladas } from '../services/facturaService'
 import type { FacturaPadron, MontoUnidad } from '../services/facturaService'
+import AvisoCarga from '@/shared/components/esqueleto/AvisoCarga.vue'
+import SkeletonBloque from '@/shared/components/esqueleto/SkeletonBloque.vue'
+import SkeletonFilas from '@/shared/components/esqueleto/SkeletonFilas.vue'
+import { useEsqueleto } from '@/shared/composables/useEsqueleto'
 const props = defineProps<
   { numeroPadron: string; cm: string; origen?: string } &
   ({ deudaId: number; cancelacionId?: never } | { deudaId?: never; cancelacionId: number })
@@ -13,6 +17,7 @@ const porPagina = 50
 const totalPaginas = computed(() => Math.ceil(facturas.value.length / porPagina))
 const visibles = computed(() => facturas.value.slice(pagina.value * porPagina, (pagina.value + 1) * porPagina))
 const cargando = ref(false)
+const esqueleto = useEsqueleto(() => cargando.value)
 const error = ref('')
 let controller: AbortController | undefined
 async function cargar() {
@@ -53,7 +58,15 @@ const fecha = (f: string | null) => f ? f.split('-').reverse().join('/') : '—'
       <label>Vencimiento<select v-model="filtros.vencida"><option value="">Todos los vencimientos</option><option value="true">Pendientes vencidas</option><option value="false">No vencidas (incluye pagadas)</option></select></label>
       <label class="check-convenios"><input v-model="filtros.incluirConvenios" type="checkbox" />Incluir convenios vinculados</label>
     </div>
-    <p v-if="cargando" role="status" class="mensaje">Consultando facturas...</p>
+    <AvisoCarga :activo="cargando" texto="Consultando facturas" />
+    <template v-if="esqueleto">
+      <p class="cantidad" aria-hidden="true"><SkeletonBloque ancho="16em" /></p>
+      <div class="tabla-facturas" aria-hidden="true"><table>
+        <thead><tr><th scope="col">Factura</th><th scope="col">Tributo</th><th scope="col">Año / cuota</th><th scope="col">Importe / moneda</th><th scope="col">Estado</th><th scope="col">Vencimiento</th></tr></thead>
+        <tbody><SkeletonFilas :columnas="6" :filas="6" :con-detalle="[1, 2, 5]" :anchos="['5em', '10em', '4em', '7em', '6em', '6em']" /></tbody>
+      </table></div>
+    </template>
+    <template v-else-if="cargando" />
     <div v-else-if="error" role="alert" class="mensaje"><p>{{ error }}</p><button type="button" @click="cargar">Reintentar</button></div>
     <template v-else>
       <p class="cantidad">{{ facturas.length }} {{ facturas.length === 1 ? 'factura' : 'facturas' }} · Todas las filas de la consulta</p>
@@ -91,7 +104,7 @@ select, button { border: 1px solid var(--color-border); border-radius: var(--rad
 input { accent-color: var(--color-primary); }
 select:focus-visible, input:focus-visible, button:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 .tabla-facturas { overflow-x: auto; margin-top: 12px; max-height: 420px; }
-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+table { width: 100%; border-collapse: collapse; font-size: 12px; --esqueleto-celda-padding: 12px; }
 th, td { padding: 12px; text-align: left; border-bottom: 1px solid var(--color-border); vertical-align: top; }
 th { background: var(--color-background); font-size: 11px; color: var(--color-text-secondary); position: sticky; top: 0; }
 small { display: block; margin-top: 4px; font-size: 10px; color: var(--color-text-secondary); }

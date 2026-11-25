@@ -7,6 +7,12 @@ import type { CapturaResumen, CapturaDetalle, CuentaCaptura, OrigenCaptura } fro
 import { isAxiosError } from 'axios'
 import ResumenCambiosGrafico from '../components/ResumenCambiosGrafico.vue'
 import ComparacionSaldosGrafico from '../components/ComparacionSaldosGrafico.vue'
+import AvisoCarga from '@/shared/components/esqueleto/AvisoCarga.vue'
+import SkeletonBloque from '@/shared/components/esqueleto/SkeletonBloque.vue'
+import SkeletonDetalle from '@/shared/components/esqueleto/SkeletonDetalle.vue'
+import SkeletonFilas from '@/shared/components/esqueleto/SkeletonFilas.vue'
+import SkeletonTarjeta from '@/shared/components/esqueleto/SkeletonTarjeta.vue'
+import { useEsqueleto } from '@/shared/composables/useEsqueleto'
 const route = useRoute()
 const capturas = ref<CapturaResumen[]>([])
 const anterior = ref<number>()
@@ -18,6 +24,8 @@ const cm = ref('')
 const soloCambios = ref(false)
 const cargando = ref(false)
 const cargandoComparacion = ref(false)
+const esqueletoLista = useEsqueleto(() => cargando.value)
+const esqueletoComparacion = useEsqueleto(() => cargandoComparacion.value)
 const guardando = ref(false)
 const error = ref('')
 const errorComparacion = ref('')
@@ -171,7 +179,12 @@ function limpiar() { origen.value = ''; cm.value = ''; soloCambios.value = false
     <p v-if="errorCaptura" role="alert" class="error">{{ errorCaptura }}</p>
   </form>
   <p v-if="mensajeCaptura" role="status" class="confirmacion">{{ mensajeCaptura }}</p>
-  <p v-if="cargando" role="status">Cargando capturas...</p>
+  <AvisoCarga :activo="cargando || cargandoComparacion" :texto="cargando ? 'Cargando capturas' : 'Consultando capturas'" />
+  <section v-if="esqueletoLista" class="panel controles" aria-hidden="true">
+    <SkeletonDetalle class="esqueleto-fechas" :etiquetas="['Captura anterior', 'Captura posterior']" tipo="campo" :columnas="2" />
+    <SkeletonDetalle class="esqueleto-filtros" :etiquetas="['Origen', 'CM (opcional)']" tipo="campo" :columnas="2" />
+  </section>
+  <template v-else-if="cargando" />
   <div v-else-if="error" role="alert"><p>{{ error }}</p><button type="button" @click="cargarLista">Reintentar</button></div>
   <p v-else-if="!capturas.length" class="panel alcance-capturas">Todavía no hay capturas guardadas. Creá la primera seleccionando los CM que querés seguir.</p>
   <template v-else>
@@ -181,7 +194,20 @@ function limpiar() { origen.value = ''; cm.value = ''; soloCambios.value = false
       <p class="ayuda">Sin filtro de CM se comparan todas las cuentas incluidas en ambas capturas.</p>
     </section>
     <p v-if="capturas.length < 2" class="nota">Creá otra captura más adelante para comparar cómo cambió la deuda.</p>
-    <p v-if="cargandoComparacion" role="status">Consultando capturas...</p>
+    <div v-if="esqueletoComparacion" aria-hidden="true">
+      <section class="panel alcance-capturas"><SkeletonBloque ancho="70%" /><SkeletonBloque ancho="60%" /><SkeletonBloque ancho="14em" /></section>
+      <div class="indicadores">
+        <SkeletonTarjeta v-for="t in ['Saldo en captura anterior', 'Saldo en captura posterior', 'Variación de saldo']" :key="t" class="panel indicador esqueleto-indicador" :titulo="t" :nota="false" />
+      </div>
+      <section class="panel detalle">
+        <header><div><h2>Detalle de cambios por CM</h2><p>Comparación de saldos entre las capturas seleccionadas</p></div></header>
+        <div class="tabla-contenedor"><table>
+          <thead><tr><th scope="col">Cuenta / padrón</th><th scope="col">Contribuyente</th><th scope="col" class="numero">Anterior</th><th scope="col" class="numero">Posterior</th><th scope="col" class="numero">Variación</th><th scope="col">Cambio observado</th><th scope="col">Último movimiento informado</th></tr></thead>
+          <tbody><SkeletonFilas :columnas="7" :filas="6" :con-detalle="[0, 1]" :derecha="[2, 3, 4]" :anchos="['5em', '11em', '6em', '6em', '6em', '8em', '8em']" /></tbody>
+        </table></div>
+      </section>
+    </div>
+    <template v-else-if="cargandoComparacion" />
     <div v-else-if="errorComparacion" role="alert"><p>{{ errorComparacion }}</p><button type="button" @click="cargarComparacion">Reintentar</button></div>
     <p v-else-if="listas && !valida" class="error" role="alert">La captura posterior debe ser más reciente que la anterior.</p>
     <template v-else-if="valida">
@@ -296,7 +322,11 @@ small { display: block; color: var(--color-text-secondary); font-size: 11px; mar
 .checkbox { flex-direction: row; align-items: center; font-size: 12px; }
 .checkbox input { accent-color: var(--color-primary); }
 .tabla-contenedor { overflow-x: auto; }
-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+table { width: 100%; border-collapse: collapse; font-size: 12px; --esqueleto-celda-padding: 15px 18px; }
+.controles { --esqueleto-etiqueta-tamano: 12px; --esqueleto-campo-alto: 40px; }
+.esqueleto-fechas { padding-bottom: 20px; border-bottom: 1px solid var(--color-border); }
+.esqueleto-filtros { margin-top: 18px; }
+.esqueleto-indicador { --esqueleto-valor-tamano: clamp(20px, 2.4vw, 28px); gap: 10px; }
 th, td { padding: 15px 18px; text-align: left; border-bottom: 1px solid var(--color-border); }
 th { background: var(--color-background); font-weight: 500; font-size: 11px; color: var(--color-text-secondary); white-space: nowrap; }
 td { vertical-align: top; }

@@ -1,9 +1,14 @@
 <script setup lang="ts">
 import { computed, ref, watch, onScopeDispose } from 'vue'
 import { obtenerHistorial, type RelacionPadron } from '../services/historialService'
+import AvisoCarga from '@/shared/components/esqueleto/AvisoCarga.vue'
+import SkeletonBloque from '@/shared/components/esqueleto/SkeletonBloque.vue'
+import SkeletonFilas from '@/shared/components/esqueleto/SkeletonFilas.vue'
+import { useEsqueleto } from '@/shared/composables/useEsqueleto'
 const props = defineProps<{ deudaId: number; cm: string; origen?: string }>()
 const filas = ref<RelacionPadron[]>([])
 const cargando = ref(false)
+const esqueleto = useEsqueleto(() => cargando.value)
 const error = ref('')
 let controller: AbortController | undefined
 async function cargar() {
@@ -24,7 +29,14 @@ const grupos = computed(() => [
 <template>
  <section class="historial-panel" aria-live="polite" :aria-busy="cargando">
   <header><h3>Personas vinculadas al padrón</h3><p>{{ origen === 'SUCIVE' ? 'SUCIVE' : 'Intendencia' }} · CM {{ cm }}</p></header>
-  <p v-if="cargando" class="mensaje">Consultando historial…</p>
+  <AvisoCarga :activo="cargando" texto="Consultando historial" />
+  <section v-if="esqueleto" class="grupo" aria-hidden="true">
+   <h4><SkeletonBloque ancho="9em" /></h4>
+   <div class="tabla"><table><thead><tr><th>Padrón / CM</th><th>Persona</th><th>Relación</th><th>Situación</th><th>Contactos disponibles</th></tr></thead>
+    <tbody><SkeletonFilas :columnas="5" :filas="3" :con-detalle="[0, 1, 4]" :anchos="['6em', '11em', '7em', '6em', '9em']" /></tbody>
+   </table></div>
+  </section>
+  <template v-else-if="cargando" />
   <div v-else-if="error" role="alert" class="error">{{ error }} <button type="button" @click="cargar">Reintentar</button></div>
   <p v-else-if="!filas.length" class="mensaje">No hay relaciones registradas para este padrón.</p>
   <template v-else>
@@ -44,5 +56,5 @@ const grupos = computed(() => [
  </section>
 </template>
 <style scoped>
-.historial-panel{padding:18px;border:1px solid var(--color-border);border-radius:var(--radius-md);background:var(--color-surface);white-space:normal}h3{font-size:14px}header p,.nota,small{font-size:11px;color:var(--color-text-secondary);margin-top:6px}.grupo{margin-top:18px}h4{font-size:12px;margin-bottom:10px}.tabla{overflow:auto;max-height:360px}table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--color-border)}th{position:sticky;top:0;background:var(--color-background);color:var(--color-text-secondary);font-weight:500}small{display:block}.mensaje,.error{padding:16px 0;font-size:12px}.error{color:var(--color-tardia)}button{padding:8px 10px;border:1px solid var(--color-border);border-radius:var(--radius-sm);background:var(--color-surface);color:var(--color-primary);font:inherit}button:focus-visible{outline:2px solid var(--color-primary);outline-offset:2px}.nota{margin-top:16px}
+.historial-panel{padding:18px;border:1px solid var(--color-border);border-radius:var(--radius-md);background:var(--color-surface);white-space:normal}h3{font-size:14px}header p,.nota,small{font-size:11px;color:var(--color-text-secondary);margin-top:6px}.grupo{margin-top:18px}h4{font-size:12px;margin-bottom:10px}.tabla{overflow:auto;max-height:360px}table{width:100%;border-collapse:collapse;font-size:12px;--esqueleto-celda-padding:12px}th,td{padding:12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--color-border)}th{position:sticky;top:0;background:var(--color-background);color:var(--color-text-secondary);font-weight:500}small{display:block}.mensaje,.error{padding:16px 0;font-size:12px}.error{color:var(--color-tardia)}button{padding:8px 10px;border:1px solid var(--color-border);border-radius:var(--radius-sm);background:var(--color-surface);color:var(--color-primary);font:inherit}button:focus-visible{outline:2px solid var(--color-primary);outline-offset:2px}.nota{margin-top:16px}
 </style>

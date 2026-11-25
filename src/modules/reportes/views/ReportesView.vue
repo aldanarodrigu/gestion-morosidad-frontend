@@ -5,6 +5,10 @@ import { useAuthStore } from '@/modules/autenticacion/stores/auth.store'
 const auth = useAuthStore()
 import { ChartBarIcon, BanknotesIcon, UsersIcon, HomeModernIcon } from '@heroicons/vue/24/outline'
 import { obtenerReporte, obtenerCatalogosReporte, exportarReporte } from '../services/reporteService'
+import AvisoCarga from '@/shared/components/esqueleto/AvisoCarga.vue'
+import SkeletonBloque from '@/shared/components/esqueleto/SkeletonBloque.vue'
+import SkeletonFilas from '@/shared/components/esqueleto/SkeletonFilas.vue'
+import { useEsqueleto } from '@/shared/composables/useEsqueleto'
 import type { FiltrosReporte, ReporteCartera, SegmentoReporte } from '../services/reporteService'
 const filtros = reactive<FiltrosReporte>({ origen: '', tipoPadron: '', segmento: '' })
 const datos = ref<ReporteCartera>()
@@ -16,6 +20,7 @@ const cargandoCatalogos = ref(false)
 const errorCatalogos = ref(false)
 const exportando = ref(false)
 const errorExportacion = ref('')
+const esqueleto = useEsqueleto(() => cargando.value)
 let controller: AbortController | undefined
 const catalogosController = new AbortController()
 const exportController = new AbortController()
@@ -110,24 +115,26 @@ function limpiar() {filtros.origen='';filtros.tipoPadron='';filtros.segmento=''}
         <p v-if="errorCatalogos" role="alert" class="ayuda">No se pudieron cargar los filtros. <button type="button" @click="cargarCatalogos">Reintentar filtros</button></p>
       </section>
 
-      <p v-if="cargando" role="status" class="mensaje-reporte">Calculando reporte...</p>
-      <div v-else-if="error" role="alert" class="mensaje-reporte"><p>{{ error }}</p><button type="button" @click="cargar">Reintentar</button></div>
-      <template v-else-if="datos">
-      <div class="acciones-reporte"><span>Reporte generado: {{ fechaGeneracion }}</span><button v-if="auth.puedeExportar" type="button" :disabled="exportando" @click="descargar">{{ exportando ? 'Exportando...' : 'Exportar Excel' }}</button></div>
+      <AvisoCarga :activo="cargando" texto="Calculando reporte" />
+      <div v-if="error && !cargando" role="alert" class="mensaje-reporte"><p>{{ error }}</p><button type="button" @click="cargar">Reintentar</button></div>
+      <!-- Mientras carga se dibuja la misma estructura con bloques en lugar de los valores -->
+      <template v-else-if="datos || esqueleto">
+      <div class="acciones-reporte" :aria-busy="!datos || undefined"><span v-if="datos">Reporte generado: {{ fechaGeneracion }}</span><SkeletonBloque v-else ancho="14em" /><button v-if="auth.puedeExportar" type="button" :disabled="exportando || !datos" @click="descargar">{{ exportando ? 'Exportando...' : 'Exportar Excel' }}</button></div>
       <p v-if="errorExportacion" role="alert" class="error-exportacion">{{ errorExportacion }}</p>
       <div class="indicadores" aria-live="polite" aria-atomic="true">
         <article v-for="indicador in indicadores" :key="indicador.titulo" class="panel indicador">
           <div class="encabezado-indicador"><span>{{ indicador.titulo }}</span><component :is="indicador.icono" aria-hidden="true" /></div>
-          <strong>{{ indicador.valor }}</strong><p>{{ indicador.nota }}</p>
+          <strong><template v-if="datos">{{ indicador.valor }}</template><SkeletonBloque v-else ancho="60%" /></strong><p>{{ indicador.nota }}</p>
         </article>
       </div>
-      <p v-if="padrones === 0" class="sin-datos" role="status">No hay deuda pendiente para esta combinación de filtros.</p>
+      <p v-if="datos && padrones === 0" class="sin-datos" role="status">No hay deuda pendiente para esta combinación de filtros.</p>
 
       <div class="distribuciones">
         <div class="columna-distribuciones">
         <section class="panel grafico" aria-labelledby="segmento-titulo">
           <header><h2 id="segmento-titulo">Distribución por mora</h2><p>Participación en el importe total seleccionado</p></header>
           <div class="series-mora">
+          <template v-if="!datos"><div v-for="n in 3" :key="n" class="fila-barra" aria-hidden="true"><div class="rotulo"><SkeletonBloque ancho="8em" /><SkeletonBloque ancho="3em" /></div><div class="pista" /><div class="detalle-barra"><SkeletonBloque ancho="6em" /><SkeletonBloque ancho="7em" /></div></div></template>
           <div v-for="s in porSegmento" :key="s.id ?? 'sin-segmento'" class="fila-barra">
             <div class="rotulo"><span><i :style="{ background: s.color }" aria-hidden="true" />{{ s.nombre }}</span><strong>{{ porcentajeTexto(s.importe) }}</strong></div>
             <div class="pista" aria-hidden="true"><div :style="{ width: `${porcentaje(s.importe)}%`, background: s.color }" /></div>
@@ -138,19 +145,21 @@ function limpiar() {filtros.origen='';filtros.tipoPadron='';filtros.segmento=''}
         <section class="panel grafico grafico-origen" aria-labelledby="origen-titulo">
           <header><h2 id="origen-titulo">Distribución por origen</h2><p>Participación de cada origen en la deuda seleccionada</p></header>
           <div class="series-origen">
+            <template v-if="!datos"><div v-for="n in 2" :key="n" class="fila-barra" aria-hidden="true"><div class="rotulo"><SkeletonBloque ancho="7em" /><SkeletonBloque ancho="3em" /></div><div class="pista" /><div class="detalle-barra"><SkeletonBloque ancho="6em" /><SkeletonBloque ancho="7em" /></div></div></template>
             <div v-for="o in porOrigen" :key="o.codigo" class="fila-barra">
               <div class="rotulo"><span><i :style="{ background: o.color }" aria-hidden="true" />{{ o.nombre }}</span><strong>{{ porcentajeTexto(o.importe) }}</strong></div>
               <div class="pista" aria-hidden="true"><div :style="{ width: `${porcentaje(o.importe)}%`, background: o.color }" /></div>
               <div class="detalle-barra"><span>{{ o.cantidad }} padrones</span><span>{{ importe(o.importe) }}</span></div>
             </div>
           </div>
-          <p v-if="!porOrigen.length" class="nota-tipos">No hay deuda pendiente para estos filtros.</p>
+          <p v-if="datos && !porOrigen.length" class="nota-tipos">No hay deuda pendiente para estos filtros.</p>
         </section>
         </div>
         <div class="columna-tipos">
         <section class="panel grafico grafico-tipos" aria-labelledby="tipo-titulo">
           <header><h2 id="tipo-titulo">Deuda por PadTipo</h2><p>Tipos de padrón con mayor deuda en la selección</p></header>
           <div class="series-tipos" tabindex="0" role="region" aria-label="Tipos de padrón ordenados por deuda, lista desplazable">
+          <template v-if="!datos"><div v-for="n in 4" :key="n" class="fila-barra" aria-hidden="true"><div class="rotulo"><SkeletonBloque ancho="5em" /><SkeletonBloque ancho="7em" /></div><div class="pista" /><div class="detalle-barra"><SkeletonBloque ancho="6em" /><SkeletonBloque ancho="6em" /></div></div></template>
           <div v-for="tipo in porTipo" :key="tipo.tipo" class="fila-barra">
             <div class="rotulo"><span>{{ tipo.tipo }}</span><strong>{{ importe(tipo.importe) }}</strong></div>
             <div class="pista" aria-hidden="true"><div :style="{ width: `${porcentaje(tipo.importe)}%` }" /></div>
@@ -168,10 +177,10 @@ function limpiar() {filtros.origen='';filtros.tipoPadron='';filtros.segmento=''}
         <div class="tabla-contenedor">
           <table>
             <thead><tr><th scope="col">Origen</th><th scope="col">PadTipo</th><th scope="col" class="numero">Contribuyentes</th><th scope="col" class="numero">Padrones</th><th scope="col" class="numero">Deuda pendiente</th><th scope="col" class="numero">% del total</th></tr></thead>
-            <tbody><tr v-for="fila in resumen" :key="fila.clave"><td>{{ fila.origen }}</td><td>{{ fila.tipo }}</td><td class="numero">{{ fila.personas }}</td><td class="numero">{{ fila.cantidad }}</td><td class="numero monto">{{ importe(fila.importe) }}</td><td class="numero">{{ porcentajeTexto(fila.importe) }}</td></tr>
-              <tr v-if="!resumen.length"><td colspan="6" class="vacio">Sin resultados para esta combinación.</td></tr>
+            <tbody><SkeletonFilas v-if="!datos" :columnas="6" :filas="6" :derecha="[2, 3, 4, 5]" :anchos="['6em', '4em', '3em', '3em', '8em', '3em']" /><tr v-for="fila in resumen" :key="fila.clave"><td>{{ fila.origen }}</td><td>{{ fila.tipo }}</td><td class="numero">{{ fila.personas }}</td><td class="numero">{{ fila.cantidad }}</td><td class="numero monto">{{ importe(fila.importe) }}</td><td class="numero">{{ porcentajeTexto(fila.importe) }}</td></tr>
+              <tr v-if="datos && !resumen.length"><td colspan="6" class="vacio">Sin resultados para esta combinación.</td></tr>
             </tbody>
-            <tfoot><tr><th scope="row" colspan="2">Total de la selección</th><td class="numero">{{ personas }}</td><td class="numero">{{ padrones }}</td><td class="numero monto">{{ importe(total) }}</td><td class="numero">{{ total ? '100 %' : '0 %' }}</td></tr></tfoot>
+            <tfoot><tr><th scope="row" colspan="2">Total de la selección</th><template v-if="datos"><td class="numero">{{ personas }}</td><td class="numero">{{ padrones }}</td><td class="numero monto">{{ importe(total) }}</td><td class="numero">{{ total ? '100 %' : '0 %' }}</td></template><template v-else><td v-for="n in 4" :key="n" class="numero"><SkeletonBloque ancho="5em" class="derecha" /></td></template></tr></tfoot>
           </table>
         </div>
         <p class="nota-tabla">Una persona puede aparecer en más de una categoría. El total cuenta contribuyentes distintos.</p>
@@ -249,7 +258,8 @@ i { display: inline-block; height: 8px; width: 8px; border-radius: 50%; }
 .desglose { overflow: hidden; }
 .desglose header { padding: 20px 22px; }
 .tabla-contenedor { overflow-x: auto; }
-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+table { width: 100%; border-collapse: collapse; font-size: 12px; --esqueleto-celda-padding: 15px 22px; }
+.derecha { margin-inline-start: auto; }
 th, td { padding: 15px 22px; text-align: left; border-bottom: 1px solid var(--color-border); white-space: nowrap; }
 thead { background: var(--color-background); color: var(--color-text-secondary); }
 th { font-weight: 500; }

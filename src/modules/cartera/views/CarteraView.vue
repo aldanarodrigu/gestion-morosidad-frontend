@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useAuthStore } from '@/modules/autenticacion/stores/auth.store'
 const auth = useAuthStore()
 import FechaSincronizacion from '@/shared/components/FechaSincronizacion.vue'
+import AvisoCarga from '@/shared/components/esqueleto/AvisoCarga.vue'
+import SkeletonBloque from '@/shared/components/esqueleto/SkeletonBloque.vue'
 import { exportarCartera } from '../services/carteraService'
 import type { FormatoExportacion } from '../services/carteraService'
 import ExportacionCarteraPanel from '../components/ExportacionCarteraPanel.vue'
@@ -27,6 +29,10 @@ const {
 const fechasVisibles = computed(() => (filtros.value.agruparPor
   ? grupos.value.flatMap(g => g.deudas)
   : cartera.value).map(d => d.fechaSincronizacion))
+
+// Hasta la primera respuesta no hay total que mostrar: va un bloque en su lugar.
+const primeraCarga = ref(true)
+watch(cargando, (activo) => { if (!activo) primeraCarga.value = false })
 
 const panelExportacion = ref(false)
 const exportando = ref(false)
@@ -80,16 +86,19 @@ async function exportarArchivo(formato: FormatoExportacion) {
     <p v-if="exportando" class="mensaje" role="status">Preparando archivo con todas las filas filtradas...</p>
     <p v-if="errorExportacion" class="mensaje error" role="alert">{{ errorExportacion }}</p>
 
-    <p v-if="cargando" class="mensaje">Cargando cartera...</p>
+    <AvisoCarga :activo="cargando" texto="Cargando cartera" />
 
-    <div v-else-if="error" class="mensaje error">
+    <div v-if="error && !cargando" class="mensaje error">
       <p>{{ error }}</p>
       <button type="button" @click="cargar">Reintentar</button>
     </div>
 
     <template v-else>
       <p class="resumen">
-        {{ totalElementos }} {{ filtros.agruparPor ? 'contribuyentes' : 'deudas' }}
+        <SkeletonBloque v-if="primeraCarga" ancho="7em" />
+        <template v-else>
+          {{ totalElementos }} {{ filtros.agruparPor ? 'contribuyentes' : 'deudas' }}
+        </template>
       </p>
       <FechaSincronizacion v-if="fechasVisibles.length" class="actualizacion-cartera"
         :fechas="fechasVisibles" etiqueta="Datos de esta página sincronizados" />
@@ -97,8 +106,8 @@ async function exportarArchivo(formato: FormatoExportacion) {
       <p v-if="filtros.agruparPor" class="nota-agrupacion">
         Agrupado por documento. Los totales corresponden a las deudas que cumplen los filtros.
       </p>
-      <CarteraAgrupadaTable v-if="filtros.agruparPor" class="tabla" :grupos="grupos" />
-      <CarteraTable v-else class="tabla" :cartera="cartera" />
+      <CarteraAgrupadaTable v-if="filtros.agruparPor" class="tabla" :grupos="grupos" :cargando="cargando" />
+      <CarteraTable v-else class="tabla" :cartera="cartera" :cargando="cargando" />
 
       <div v-if="totalPaginas > 1" class="paginacion">
         <button

@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { computed, onScopeDispose, ref, watch } from 'vue'
 import { isAxiosError } from 'axios'
+import AvisoCarga from '@/shared/components/esqueleto/AvisoCarga.vue'
+import SkeletonBloque from '@/shared/components/esqueleto/SkeletonBloque.vue'
+import { useEsqueleto } from '@/shared/composables/useEsqueleto'
 import { useAuthStore } from '@/modules/autenticacion/stores/auth.store'
 import type { DeudaApi } from '@/modules/cartera/types/cartera'
 import {
@@ -23,6 +26,7 @@ const accionId = ref<number | null>(null)
 const resultado = ref<ResultadoGestion | ''>('')
 const observacion = ref('')
 const cargando = ref(false)
+const esqueleto = useEsqueleto(() => cargando.value)
 const guardando = ref(false)
 const formulario = ref(false)
 const errorCarga = ref('')
@@ -132,7 +136,8 @@ function tributos(deuda: DeudaApi) {
 </script>
 
 <template>
-  <section class="gestiones" aria-label="Gestiones de la deuda">
+  <section class="gestiones" aria-label="Gestiones de la deuda" :aria-busy="cargando || undefined">
+    <AvisoCarga :activo="cargando" texto="Cargando gestiones" />
     <div v-if="deudaSeleccionada" class="contexto-deuda">
       <p class="ayuda">Deuda / padrón</p>
       <p>
@@ -145,7 +150,18 @@ function tributos(deuda: DeudaApi) {
     <p v-else-if="!deudaSeleccionada" class="vacio">
       Volvé a la cartera y abrí la deuda que querés gestionar.
     </p>
-    <p v-else-if="cargando" role="status" class="vacio">Cargando gestiones...</p>
+    <template v-else-if="cargando">
+      <ol v-if="esqueleto" class="historial" aria-hidden="true">
+        <li v-for="n in 3" :key="n" class="gestion">
+          <div class="gestion-titulo">
+            <strong><SkeletonBloque ancho="10em" /></strong>
+            <span class="tributos"><SkeletonBloque ancho="7em" /></span>
+          </div>
+          <p class="observacion"><SkeletonBloque :ancho="['75%', '55%', '65%'][n - 1]" /></p>
+          <p class="autor"><SkeletonBloque ancho="12em" /></p>
+        </li>
+      </ol>
+    </template>
     <div v-else-if="errorCarga" role="alert" class="alerta">
       <p>{{ errorCarga }}</p>
       <button type="button" class="secundario" @click="cargar">Reintentar</button>

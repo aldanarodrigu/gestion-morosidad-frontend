@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, onScopeDispose, ref } from 'vue'
 import { isAxiosError } from 'axios'
+import AvisoCarga from '@/shared/components/esqueleto/AvisoCarga.vue'
+import SkeletonFilas from '@/shared/components/esqueleto/SkeletonFilas.vue'
+import { useEsqueleto } from '@/shared/composables/useEsqueleto'
 import RestablecerPasswordPanel from './RestablecerPasswordPanel.vue'
 import { useAuthStore } from '@/modules/autenticacion/stores/auth.store'
 import {
@@ -19,6 +22,7 @@ const auth = useAuthStore()
 const puedeAdministrar = computed(() => auth.tieneRol('ADMINISTRADOR'))
 const usuarios = ref<Usuario[]>([])
 const cargando = ref(false)
+const esqueleto = useEsqueleto(() => cargando.value)
 const guardando = ref(false)
 const errorCarga = ref('')
 const errorFormulario = ref('')
@@ -138,7 +142,14 @@ function nombresRoles(roles: Rol[]) {
           + Crear usuario
         </button>
       </header>
-      <p v-if="cargando" role="status" class="ayuda">Cargando usuarios...</p>
+      <AvisoCarga :activo="cargando" texto="Cargando usuarios" />
+      <div v-if="esqueleto" class="tabla-contenedor" aria-hidden="true">
+        <table>
+          <thead><tr><th>Usuario</th><th>Roles</th><th>Estado</th><th><span class="sr-only">Opciones</span></th></tr></thead>
+          <tbody><SkeletonFilas :columnas="4" :filas="5" :anchos="['7em', '10em', '4em', '12em']" /></tbody>
+        </table>
+      </div>
+      <template v-else-if="cargando" />
       <div v-else-if="errorCarga" role="alert" class="error">
         <p>{{ errorCarga }}</p>
         <button class="secundario" type="button" @click="cargar">Reintentar</button>
@@ -283,6 +294,7 @@ table {
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
+  --esqueleto-celda-padding: 11px 14px;
 }
 th,
 td {

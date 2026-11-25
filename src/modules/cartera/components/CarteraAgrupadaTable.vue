@@ -1,10 +1,15 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/vue/24/outline'
+import SkeletonFilas from '@/shared/components/esqueleto/SkeletonFilas.vue'
+import { useEsqueleto } from '@/shared/composables/useEsqueleto'
 import CarteraTable from './CarteraTable.vue'
 import type { CarteraGrupo } from '../types/cartera'
 
-const props = defineProps<{ grupos: CarteraGrupo[] }>()
+const props = withDefaults(defineProps<{ grupos: CarteraGrupo[]; cargando?: boolean }>(), {
+  cargando: false,
+})
+const esqueleto = useEsqueleto(() => props.cargando)
 const abiertos = ref(new Set<string>())
 watch(
   () => props.grupos,
@@ -23,7 +28,7 @@ function colorSegmento(orden?: number) {
 </script>
 
 <template>
-  <div class="tabla-contenedor">
+  <div class="tabla-contenedor" :aria-busy="cargando || undefined">
     <table class="tabla-agrupada" aria-label="Cartera agrupada por documento">
       <thead>
         <tr>
@@ -37,6 +42,14 @@ function colorSegmento(orden?: number) {
         </tr>
       </thead>
       <tbody>
+        <SkeletonFilas
+          v-if="esqueleto"
+          :columnas="7"
+          :filas="20"
+          :derecha="[2, 4, 5]"
+          :anchos="['7em', '12em', '2em', '8em', '3em', '7em', '6em']"
+        />
+        <template v-else>
         <template v-for="(grupo, indice) in grupos" :key="grupo.clave">
           <tr class="grupo">
             <td class="documento">{{ grupo.documento || 'Sin documento' }}</td>
@@ -74,7 +87,8 @@ function colorSegmento(orden?: number) {
             </td>
           </tr>
         </template>
-        <tr v-if="!grupos.length">
+        </template>
+        <tr v-if="!grupos.length && !cargando">
           <td colspan="7" class="vacio">No hay registros para mostrar.</td>
         </tr>
       </tbody>
@@ -91,6 +105,7 @@ function colorSegmento(orden?: number) {
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
+  --esqueleto-celda-padding: 14px 16px;
 }
 th,
 td {

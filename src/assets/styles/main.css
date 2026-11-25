@@ -20,6 +20,10 @@
   /* Bordes */
   --color-border: #e4e7ec;
 
+  /* Esqueletos de carga */
+  --color-esqueleto: #e6e9ee;
+  --color-esqueleto-brillo: #f3f4f7;
+
   /* Segmentos */
   --color-temprana: #15803d;
   --color-incial: #b45309;
@@ -157,4 +161,21 @@ p {
 
 ::-webkit-scrollbar-thumb:hover {
   background: #aeb3bb;
+}
+
+/* =========================
+   ACCESIBILIDAD
+   ========================= */
+
+/* Visible solo para lectores de pantalla */
+.solo-lector {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
