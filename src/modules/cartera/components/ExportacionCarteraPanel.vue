@@ -1,44 +1,37 @@
 <script setup lang="ts">
-import { onMounted, onScopeDispose, reactive, ref } from 'vue'
-import { obtenerTiposPadron } from '../services/carteraService'
-import type { FiltrosCarteraApi, FormatoExportacion } from '../services/carteraService'
+import { computed, ref } from 'vue'
+import type { FormatoExportacion } from '../services/carteraService'
+import type { CarteraFilters } from './MorosidadFilters.vue'
 
-defineProps<{ exportando: boolean; agrupada: boolean }>()
-const emit = defineEmits<{ cancelar: []; confirmar: [filtros: FiltrosCarteraApi, formato: FormatoExportacion] }>()
+const props = defineProps<{ exportando: boolean; filtros: CarteraFilters }>()
+const emit = defineEmits<{ cancelar: []; confirmar: [formato: FormatoExportacion] }>()
 const formato = ref<FormatoExportacion>('xlsx')
-const filtros = reactive({ segmento: '', tipoPadron: '', origen: '' })
-const tiposPadron = ref<string[]>([])
-const cargandoTipos = ref(false)
-const errorTipos = ref(false)
-const controller = new AbortController()
 
-async function cargarTipos() {
-  cargandoTipos.value = true
-  errorTipos.value = false
-  try {
-    const tipos = await obtenerTiposPadron(controller.signal)
-    if (!controller.signal.aborted) tiposPadron.value = tipos
-  } catch {
-    if (!controller.signal.aborted) errorTipos.value = true
-  } finally {
-    cargandoTipos.value = false
-  }
-}
+const segmentos: Record<string, string> = { temprana: 'Mora Temprana', inicial: 'Mora Inicial', tardia: 'Mora Tardía' }
+const origenes: Record<string, string> = { intendencia: 'Intendencia', sucive: 'SUCIVE' }
+const contactos: Record<string, string> = { con: 'Con contacto', sin: 'Sin contacto' }
 
-function limpiar() {
-  filtros.segmento = ''
-  filtros.tipoPadron = ''
-  filtros.origen = ''
-}
-onMounted(cargarTipos)
-onScopeDispose(() => controller.abort())
+// Resumen de lo que se va a exportar: exactamente los filtros activos del listado.
+const filtrosActivos = computed(() => {
+  const f = props.filtros
+  return [
+    f.search.trim() && { etiqueta: 'Búsqueda', valor: `«${f.search.trim()}»` },
+    f.segmento && { etiqueta: 'Segmento', valor: segmentos[f.segmento] ?? f.segmento },
+    f.tipoPadron && { etiqueta: 'PadTipo', valor: f.tipoPadron },
+    f.origen && { etiqueta: 'Origen', valor: origenes[f.origen] ?? f.origen },
+    f.contacto && { etiqueta: 'Contacto', valor: contactos[f.contacto] ?? f.contacto },
+  ].filter((x): x is { etiqueta: string; valor: string } => !!x)
+})
 </script>
 
 <template>
-  <form class="exportacion-panel" aria-labelledby="titulo-exportacion" @submit.prevent="emit('confirmar', { ...filtros }, formato)">
+  <form class="exportacion-panel" aria-labelledby="titulo-exportacion" @submit.prevent="emit('confirmar', formato)">
     <h2 id="titulo-exportacion">Exportar cartera</h2>
-    <p>Elegí uno o varios filtros opcionales. Sin filtros se exporta toda la cartera.</p>
-    <p>Estos filtros son independientes de los del listado. Se incluyen todas las páginas.</p>
+    <p>Se exporta lo que ves en el listado, con todas sus páginas.</p>
+    <ul v-if="filtrosActivos.length" class="filtros-activos" aria-label="Filtros aplicados">
+      <li v-for="f in filtrosActivos" :key="f.etiqueta"><strong>{{ f.etiqueta }}:</strong> {{ f.valor }}</li>
+    </ul>
+    <p v-else>Sin filtros: se exporta toda la cartera.</p>
     <fieldset :disabled="exportando" class="campos-exportacion">
       <label>
         Formato
@@ -47,45 +40,14 @@ onScopeDispose(() => controller.abort())
           <option value="csv">CSV (.csv)</option>
         </select>
       </label>
-      <label>
-        Segmento de mora
-        <select v-model="filtros.segmento" aria-label="Segmento de mora a exportar">
-          <option value="">Todos los segmentos</option>
-          <option value="temprana">Mora Temprana</option>
-          <option value="inicial">Mora Inicial</option>
-          <option value="tardia">Mora Tardía</option>
-        </select>
-      </label>
-      <label>
-        PadTipo
-        <select v-model="filtros.tipoPadron" aria-label="PadTipo a exportar" :disabled="cargandoTipos || errorTipos">
-          <option value="">{{ cargandoTipos ? 'Cargando PadTipo...' : 'Todos los PadTipo' }}</option>
-          <option v-for="tipo in tiposPadron" :key="tipo" :value="tipo">{{ tipo }}</option>
-        </select>
-        <span v-if="errorTipos" class="error-tipos" role="alert">
-          No se pudieron cargar los PadTipo.
-          <button type="button" @click="cargarTipos">Reintentar</button>
-        </span>
-      </label>
-      <label>
-        Origen
-        <select v-model="filtros.origen" aria-label="Origen a exportar">
-          <option value="">Todos los orígenes</option>
-          <option value="intendencia">Intendencia</option>
-          <option value="sucive">SUCIVE</option>
-        </select>
-      </label>
     </fieldset>
     <p v-if="formato === 'csv'">CSV incluye una sola tabla con el detalle de todos los padrones filtrados, sin hoja de resumen por contribuyente.</p>
-    <p v-else-if="agrupada">El archivo incluirá el resumen por contribuyente y el detalle de sus deudas.</p>
+    <p v-else-if="filtros.agruparPor">El archivo incluirá el resumen por contribuyente y el detalle de sus deudas.</p>
     <div class="botones-exportacion">
-      <button type="button" :disabled="exportando" @click="limpiar">Limpiar filtros</button>
-      <div>
-        <button type="button" :disabled="exportando" @click="emit('cancelar')">Cancelar</button>
-        <button type="submit" class="boton-descargar" :disabled="exportando">
-          {{ exportando ? 'Exportando...' : formato === 'csv' ? 'Descargar CSV' : 'Descargar Excel' }}
-        </button>
-      </div>
+      <button type="button" :disabled="exportando" @click="emit('cancelar')">Cancelar</button>
+      <button type="submit" class="boton-descargar" :disabled="exportando">
+        {{ exportando ? 'Exportando...' : formato === 'csv' ? 'Descargar CSV' : 'Descargar Excel' }}
+      </button>
     </div>
   </form>
 </template>
@@ -103,7 +65,7 @@ h2 { margin: 0 0 10px; font-size: 16px; }
 p { margin: 6px 0; font-size: 13px; color: var(--color-text-secondary); }
 .campos-exportacion {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 240px);
   gap: var(--spacing-md);
   padding: 0;
   margin: var(--spacing-md) 0;
@@ -119,12 +81,12 @@ select, button {
   padding: 9px 12px;
 }
 select { width: 100%; }
-.botones-exportacion, .botones-exportacion > div { display: flex; gap: 10px; }
-.botones-exportacion { justify-content: space-between; flex-wrap: wrap; margin-top: var(--spacing-md); font-size: 13px; }
+.botones-exportacion { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; margin-top: var(--spacing-md); font-size: 13px; }
+.filtros-activos { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 0; padding: 0; list-style: none; font-size: 12px; }
+.filtros-activos li { padding: 4px 10px; border: 1px solid var(--color-border); border-radius: 999px; background: var(--color-background); }
 .boton-descargar { color: var(--color-surface); background: var(--color-primary); border-color: var(--color-primary); }
 button { cursor: pointer; }
 button:disabled, select:disabled { opacity: 0.6; cursor: not-allowed; }
 button:focus-visible, select:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
-.error-tipos { font-size: 12px; }
 @media (max-width: 640px) { .campos-exportacion { grid-template-columns: 1fr; } }
 </style>

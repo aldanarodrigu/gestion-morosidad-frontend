@@ -2,6 +2,7 @@ import { onScopeDispose, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { LocationQuery, LocationQueryValue } from 'vue-router'
 import { obtenerCartera, obtenerCarteraAgrupada } from '../services/carteraService'
+import type { FiltrosCarteraApi } from '../services/carteraService'
 import type { CarteraFilters } from '../components/MorosidadFilters.vue'
 import type { CarteraItem, CarteraGrupo } from '../types/cartera'
 
@@ -34,6 +35,18 @@ function filtrosDesdeUrl(q: LocationQuery): CarteraFilters {
     ordenarPor: (ORDENES as readonly string[]).includes(orden)
       ? (orden as CarteraFilters['ordenarPor'])
       : 'antiguedad',
+  }
+}
+
+/** Filtros que se envían a la API: los mismos para el listado y la exportación. */
+export function filtrosApiDesde(f: CarteraFilters): FiltrosCarteraApi {
+  return {
+    busqueda: f.search,
+    segmento: f.segmento,
+    tipoPadron: f.tipoPadron,
+    origen: f.origen,
+    contacto: f.contacto,
+    ordenarPor: f.ordenarPor,
   }
 }
 
@@ -92,14 +105,7 @@ export function useCartera(tamanio = 20) {
     error.value = ''
 
     try {
-      const filtrosApi = {
-        busqueda: filtros.value.search,
-        segmento: filtros.value.segmento,
-        tipoPadron: filtros.value.tipoPadron,
-        origen: filtros.value.origen,
-        contacto: filtros.value.contacto,
-        ordenarPor: filtros.value.ordenarPor,
-      }
+      const filtrosApi = filtrosApiDesde(filtros.value)
       const agrupada = filtros.value.agruparPor
       const r = agrupada
         ? await obtenerCarteraAgrupada(pagina.value, tamanio, filtrosApi, ctrl.signal)

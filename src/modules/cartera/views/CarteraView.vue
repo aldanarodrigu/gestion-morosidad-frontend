@@ -4,12 +4,12 @@ import { useAuthStore } from '@/modules/autenticacion/stores/auth.store'
 const auth = useAuthStore()
 import FechaSincronizacion from '@/shared/components/FechaSincronizacion.vue'
 import { exportarCartera } from '../services/carteraService'
-import type { FiltrosCarteraApi, FormatoExportacion } from '../services/carteraService'
+import type { FormatoExportacion } from '../services/carteraService'
 import ExportacionCarteraPanel from '../components/ExportacionCarteraPanel.vue'
 import MorosidadFilters from '../components/MorosidadFilters.vue'
 import CarteraTable from '../components/CarteraTable.vue'
 import CarteraAgrupadaTable from '../components/CarteraAgrupadaTable.vue'
-import { useCartera } from '../composables/useCartera'
+import { filtrosApiDesde, useCartera } from '../composables/useCartera'
 
 const {
   cartera,
@@ -38,16 +38,14 @@ function abrirExportacion() {
   panelExportacion.value = true
 }
 
-async function exportarArchivo(filtrosExportacion: FiltrosCarteraApi, formato: FormatoExportacion) {
+// Exporta exactamente lo que muestra el listado (todas las páginas).
+async function exportarArchivo(formato: FormatoExportacion) {
   if (!auth.puedeExportar || exportando.value) return
   exportando.value = true
   errorExportacion.value = ''
   const f = filtros.value
   try {
-    const archivo = await exportarCartera({
-      ...filtrosExportacion,
-      ordenarPor: f.ordenarPor,
-    }, f.agruparPor, formato)
+    const archivo = await exportarCartera(filtrosApiDesde(f), f.agruparPor, formato)
     const url = URL.createObjectURL(archivo)
     const enlace = document.createElement('a')
     enlace.href = url
@@ -75,7 +73,7 @@ async function exportarArchivo(filtrosExportacion: FiltrosCarteraApi, formato: F
     <ExportacionCarteraPanel
       v-if="auth.puedeExportar && panelExportacion"
       :exportando="exportando"
-      :agrupada="filtros.agruparPor"
+      :filtros="filtros"
       @cancelar="panelExportacion = false"
       @confirmar="exportarArchivo"
     />

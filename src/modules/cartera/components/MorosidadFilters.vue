@@ -135,7 +135,7 @@ const opcionesOrden = [
         </div>
 
         <button v-if="puedeExportar" type="button" class="export-button" :disabled="exportando" @click="emit('export')">
-          {{ exportando ? 'Exportando...' : 'Exportar Excel' }}
+          {{ exportando ? 'Exportando...' : 'Exportar' }}
         </button>
       </div>
     </section>
