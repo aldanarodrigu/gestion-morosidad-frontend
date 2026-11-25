@@ -6,9 +6,10 @@ import { useEsqueleto } from '@/shared/composables/useEsqueleto'
 import CarteraTable from './CarteraTable.vue'
 import type { CarteraGrupo } from '../types/cartera'
 
-const props = withDefaults(defineProps<{ grupos: CarteraGrupo[]; cargando?: boolean }>(), {
-  cargando: false,
-})
+const props = withDefaults(
+  defineProps<{ grupos: CarteraGrupo[]; cargando?: boolean; filasEsqueleto?: number }>(),
+  { cargando: false, filasEsqueleto: 20 },
+)
 const esqueleto = useEsqueleto(() => props.cargando)
 const abiertos = ref(new Set<string>())
 watch(
@@ -45,7 +46,7 @@ function colorSegmento(orden?: number) {
         <SkeletonFilas
           v-if="esqueleto"
           :columnas="7"
-          :filas="20"
+          :filas="filasEsqueleto"
           :derecha="[2, 4, 5]"
           :anchos="['7em', '12em', '2em', '8em', '3em', '7em', '6em']"
         />

@@ -170,3 +170,51 @@ describe('checkbox de agrupación', () => {
     },
   )
 })
+
+describe('tamaño de página', () => {
+  it('lee el tamaño desde la URL y descarta valores no permitidos', async () => {
+    route.query = { filas: '50' }
+    let w = montar()
+    await flushPromises()
+    expect(api.obtenerCartera).toHaveBeenLastCalledWith(0, 50, expect.any(Object), expect.any(AbortSignal))
+    w.unmount()
+
+    route.query = { filas: '7' }
+    w = montar()
+    await flushPromises()
+    expect(estado.tamanioPagina.value).toBe(20)
+    expect(api.obtenerCartera).toHaveBeenLastCalledWith(0, 20, expect.any(Object), expect.any(AbortSignal))
+    w.unmount()
+  })
+
+  it('al cambiar el tamaño conserva la primera fila visible y lo guarda en la URL', async () => {
+    vi.mocked(api.obtenerCartera).mockResolvedValue({
+      contenido: [], pagina: 0, tamanio: 20, totalElementos: 1000, totalPaginas: 50,
+    })
+    const w = montar()
+    await flushPromises()
+    estado.cambiarPagina(4) // filas 81–100
+    await flushPromises()
+    estado.cambiarTamanio(50)
+    await flushPromises()
+    expect(estado.pagina.value).toBe(1) // filas 51–100
+    expect(api.obtenerCartera).toHaveBeenLastCalledWith(1, 50, expect.any(Object), expect.any(AbortSignal))
+    expect(replace).toHaveBeenLastCalledWith({ query: { filas: '50', pagina: '2' } })
+
+    estado.cambiarTamanio(20)
+    await flushPromises()
+    expect(replace).toHaveBeenLastCalledWith({ query: { pagina: '3' } })
+    w.unmount()
+  })
+
+  it('ignora tamaños no permitidos', async () => {
+    const w = montar()
+    await flushPromises()
+    const llamadas = vi.mocked(api.obtenerCartera).mock.calls.length
+    estado.cambiarTamanio(1000)
+    await flushPromises()
+    expect(estado.tamanioPagina.value).toBe(20)
+    expect(api.obtenerCartera).toHaveBeenCalledTimes(llamadas)
+    w.unmount()
+  })
+})

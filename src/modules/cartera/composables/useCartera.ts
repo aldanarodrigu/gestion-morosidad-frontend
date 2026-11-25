@@ -50,6 +50,14 @@ export function filtrosApiDesde(f: CarteraFilters): FiltrosCarteraApi {
   }
 }
 
+/** Tamaños de página que puede elegir el usuario. */
+export const TAMANIOS_PAGINA = [20, 50, 100] as const
+
+function tamanioDesdeUrl(q: LocationQuery, porDefecto: number): number {
+  const t = Number.parseInt(leerParam(q.filas), 10)
+  return (TAMANIOS_PAGINA as readonly number[]).includes(t) ? t : porDefecto
+}
+
 // En la URL la página es 1-based; internamente es 0-based
 function paginaDesdeUrl(q: LocationQuery): number {
   const p = Number.parseInt(leerParam(q.pagina), 10)
@@ -66,6 +74,7 @@ export function useCartera(tamanio = 20) {
   const cargando = ref(false)
   const error = ref('')
   const pagina = ref(paginaDesdeUrl(route.query))
+  const tamanioPagina = ref(tamanioDesdeUrl(route.query, tamanio))
   const totalElementos = ref(0)
   const totalPaginas = ref(0)
 
@@ -89,6 +98,7 @@ export function useCartera(tamanio = 20) {
     if (f.contacto) query.contacto = f.contacto
     if (f.agruparPor) query.agrupar = 'true'
     if (f.ordenarPor !== 'antiguedad') query.orden = f.ordenarPor
+    if (tamanioPagina.value !== tamanio) query.filas = String(tamanioPagina.value)
     if (pagina.value > 0) query.pagina = String(pagina.value + 1)
 
     router.replace({ query })
@@ -108,8 +118,8 @@ export function useCartera(tamanio = 20) {
       const filtrosApi = filtrosApiDesde(filtros.value)
       const agrupada = filtros.value.agruparPor
       const r = agrupada
-        ? await obtenerCarteraAgrupada(pagina.value, tamanio, filtrosApi, ctrl.signal)
-        : await obtenerCartera(pagina.value, tamanio, filtrosApi, ctrl.signal)
+        ? await obtenerCarteraAgrupada(pagina.value, tamanioPagina.value, filtrosApi, ctrl.signal)
+        : await obtenerCartera(pagina.value, tamanioPagina.value, filtrosApi, ctrl.signal)
       if (ctrl.signal.aborted) return
 
       grupos.value = agrupada ? (r.contenido as CarteraGrupo[]) : []
@@ -144,6 +154,16 @@ export function useCartera(tamanio = 20) {
     cargar()
   }
 
+  // Mantiene a la vista la primera fila que se estaba mirando: con 20 filas en la página 3
+  // (filas 41–60), al pasar a 50 se va a la página 1 (filas 1–50), que la incluye.
+  function cambiarTamanio(nuevo: number) {
+    if (!(TAMANIOS_PAGINA as readonly number[]).includes(nuevo) || nuevo === tamanioPagina.value) return
+    const primeraFila = pagina.value * tamanioPagina.value
+    tamanioPagina.value = nuevo
+    pagina.value = Math.floor(primeraFila / nuevo)
+    cargar()
+  }
+
   // Buscador: con debounce
   watch(
     () => filtros.value.search,
@@ -172,10 +192,12 @@ export function useCartera(tamanio = 20) {
     cargando,
     error,
     pagina,
+    tamanioPagina,
     totalElementos,
     totalPaginas,
     filtros,
     cargar,
     cambiarPagina,
+    cambiarTamanio,
   }
 }

@@ -11,7 +11,8 @@ import ExportacionCarteraPanel from '../components/ExportacionCarteraPanel.vue'
 import MorosidadFilters from '../components/MorosidadFilters.vue'
 import CarteraTable from '../components/CarteraTable.vue'
 import CarteraAgrupadaTable from '../components/CarteraAgrupadaTable.vue'
-import { filtrosApiDesde, useCartera } from '../composables/useCartera'
+import { TAMANIOS_PAGINA, filtrosApiDesde, useCartera } from '../composables/useCartera'
+import PaginacionTabla from '@/shared/components/PaginacionTabla.vue'
 
 const {
   cartera,
@@ -19,11 +20,13 @@ const {
   cargando,
   error,
   pagina,
+  tamanioPagina,
   totalElementos,
   totalPaginas,
   filtros,
   cargar,
   cambiarPagina,
+  cambiarTamanio,
 } = useCartera()
 
 const fechasVisibles = computed(() => (filtros.value.agruparPor
@@ -106,28 +109,21 @@ async function exportarArchivo(formato: FormatoExportacion) {
       <p v-if="filtros.agruparPor" class="nota-agrupacion">
         Agrupado por documento. Los totales corresponden a las deudas que cumplen los filtros.
       </p>
-      <CarteraAgrupadaTable v-if="filtros.agruparPor" class="tabla" :grupos="grupos" :cargando="cargando" />
-      <CarteraTable v-else class="tabla" :cartera="cartera" :cargando="cargando" />
+      <CarteraAgrupadaTable v-if="filtros.agruparPor" class="tabla" :grupos="grupos" :cargando="cargando" :filas-esqueleto="tamanioPagina" />
+      <CarteraTable v-else class="tabla" :cartera="cartera" :cargando="cargando" :filas-esqueleto="tamanioPagina" />
 
-      <div v-if="totalPaginas > 1" class="paginacion">
-        <button
-          type="button"
-          :disabled="pagina === 0 || cargando"
-          @click="cambiarPagina(pagina - 1)"
-        >
-          Anterior
-        </button>
-
-        <span> Página {{ pagina + 1 }} de {{ totalPaginas }} </span>
-
-        <button
-          type="button"
-          :disabled="pagina + 1 >= totalPaginas || cargando"
-          @click="cambiarPagina(pagina + 1)"
-        >
-          Siguiente
-        </button>
-      </div>
+      <PaginacionTabla
+        v-if="totalElementos > TAMANIOS_PAGINA[0]"
+        :pagina="pagina"
+        :total-paginas="totalPaginas"
+        :total-elementos="totalElementos"
+        :tamanio="tamanioPagina"
+        :tamanios="TAMANIOS_PAGINA"
+        :elementos="filtros.agruparPor ? 'contribuyentes' : 'deudas'"
+        :deshabilitado="cargando"
+        @cambiar-pagina="cambiarPagina"
+        @cambiar-tamanio="cambiarTamanio"
+      />
     </template>
   </section>
 </template>
@@ -164,16 +160,7 @@ async function exportarArchivo(formato: FormatoExportacion) {
   color: var(--color-text);
 }
 
-.paginacion {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 12px;
-  padding: 16px;
-  font-size: 13px;
-}
 
-.paginacion button,
 .error button {
   padding: 6px 10px;
   border: 1px solid var(--color-border);
@@ -188,15 +175,10 @@ async function exportarArchivo(formato: FormatoExportacion) {
     color 0.2s;
 }
 
-.paginacion button:hover:not(:disabled),
 .error button:hover {
   background: var(--color-primary);
   border-color: var(--color-primary);
   color: var(--color-surface);
 }
 
-.paginacion button:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
-}
 </style>

@@ -13,7 +13,8 @@ vi.mock('../src/modules/cartera/composables/useCartera', async (importOriginal) 
   ...(await importOriginal<typeof import('../src/modules/cartera/composables/useCartera')>()),
   useCartera: () => ({
     cartera: ref([]), grupos: ref([]), cargando: ref(false), error: ref(''), pagina: ref(5),
-    totalElementos: ref(1000), totalPaginas: ref(50), cargar: vi.fn(), cambiarPagina: vi.fn(),
+    totalElementos: ref(1000), totalPaginas: ref(50), tamanioPagina: ref(20), cargar: vi.fn(),
+    cambiarPagina: vi.fn(), cambiarTamanio: vi.fn(),
     filtros: filtrosListado,
   }),
 }))
@@ -53,7 +54,7 @@ describe('exportación de cartera', () => {
     await formato.setValue('csv')
     expect(w.get('button[type="submit"]').text()).toBe('Descargar CSV')
     expect(w.text()).toContain('sin hoja de resumen')
-    await w.get('form').trigger('submit')
+    await w.get('form.exportacion-panel').trigger('submit')
     await flushPromises()
     expect(exportarCartera).toHaveBeenCalledExactlyOnceWith(FILTROS_API_LISTADO, true, 'csv')
     expect(vi.mocked(HTMLAnchorElement.prototype.click).mock.instances[0]?.download).toBe('cartera-morosidad.csv')
@@ -66,7 +67,7 @@ describe('exportación de cartera', () => {
     const w = montar()
     await w.get('button').trigger('click')
     await flushPromises()
-    await w.get('form').trigger('submit')
+    await w.get('form.exportacion-panel').trigger('submit')
     expect(w.get('button[type="submit"]').attributes('disabled')).toBeDefined()
     expect(w.get('[role="status"]').text()).toContain('todas las filas')
     expect(exportarCartera).toHaveBeenCalledExactlyOnceWith(FILTROS_API_LISTADO, true, 'xlsx')
@@ -86,7 +87,7 @@ describe('exportación de cartera', () => {
     const w = montar()
     await w.get('button').trigger('click')
     await flushPromises()
-    await w.get('form').trigger('submit')
+    await w.get('form.exportacion-panel').trigger('submit')
     await flushPromises()
     expect(w.get('[role="alert"]').text()).toContain('No se pudo exportar')
     expect(w.get('button').attributes('disabled')).toBeUndefined()
@@ -113,11 +114,11 @@ describe('filtros de la exportación', () => {
     filtrosListado.value = { ...filtrosListado.value, segmento: 'tardia', tipoPadron: '', agruparPor: false }
     await flushPromises()
     expect(w.get('[aria-label="Filtros aplicados"]').text()).toContain('Mora Tardía')
-    await w.get('form').trigger('submit')
+    await w.get('form.exportacion-panel').trigger('submit')
     await flushPromises()
     expect(exportarCartera).toHaveBeenCalledExactlyOnceWith(
       { ...FILTROS_API_LISTADO, segmento: 'tardia', tipoPadron: '' }, false, 'xlsx')
-    expect(w.find('form').exists()).toBe(false)
+    expect(w.find('form.exportacion-panel').exists()).toBe(false)
     w.unmount()
   })
 
@@ -130,7 +131,7 @@ describe('filtros de la exportación', () => {
     await flushPromises()
     expect(w.find('[aria-label="Filtros aplicados"]').exists()).toBe(false)
     expect(w.text()).toContain('toda la cartera')
-    await w.get('form').trigger('submit')
+    await w.get('form.exportacion-panel').trigger('submit')
     await flushPromises()
     expect(exportarCartera).toHaveBeenCalledExactlyOnceWith({ busqueda: '', segmento: '', tipoPadron: '', origen: '',
       contacto: '', ordenarPor: 'antiguedad' }, false, 'xlsx')
@@ -142,7 +143,7 @@ describe('filtros de la exportación', () => {
     await w.get('button').trigger('click')
     await flushPromises()
     await w.findAll('button').find(b => b.text() === 'Cancelar')!.trigger('click')
-    expect(w.find('form').exists()).toBe(false)
+    expect(w.find('form.exportacion-panel').exists()).toBe(false)
     expect(exportarCartera).not.toHaveBeenCalled()
     w.unmount()
   })
@@ -155,14 +156,14 @@ describe('permisos de exportación', () => {
   expect(w.findAll('button').some(b => b.text() === 'Exportar')).toBe(false)
   w.findComponent({name:'MorosidadFilters'}).vm.$emit('export')
   await flushPromises()
-  expect(w.find('form').exists()).toBe(false)
+  expect(w.find('form.exportacion-panel').exists()).toBe(false)
   expect(exportarCartera).not.toHaveBeenCalled()
   w.unmount()
  })
  it('permite exportar teniendo Analista junto con otros roles', async () => {
   useAuthStore().user!.roles=['ADMINISTRADOR','NOTIFICADOR','ANALISTA']
   const w=montar(); await w.get('button').trigger('click'); await flushPromises()
-  expect(w.find('form').exists()).toBe(true)
+  expect(w.find('form.exportacion-panel').exists()).toBe(true)
   w.unmount()
  })
 })
