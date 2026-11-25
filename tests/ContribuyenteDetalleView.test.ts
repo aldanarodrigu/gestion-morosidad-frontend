@@ -106,7 +106,7 @@ describe('CM de la deuda seleccionada en el detalle', () => {
       const w = montar()
       await flushPromises()
       expect(w.find('.resumen .meta').exists()).toBe(false)
-      expect(w.text()).toContain('Volvé a la cartera')
+      expect(w.text()).toContain('Elegí arriba la deuda o el padrón')
       expect(gestiones.obtenerGestiones).not.toHaveBeenCalled()
       await w.findAll('.pestanas button')[2]!.trigger('click')
       expect(w.findComponent(DatosContactoTab).props('cm')).toBe('82461')
@@ -309,5 +309,17 @@ describe('volver a la cartera', () => {
     await flushPromises()
     const volver = w.findAllComponents(RouterLinkStub).find((l) => l.text() === 'Volver')!
     expect(volver.props('to')).toBe('/cartera?q=luna&segmento=tardia&pagina=4')
+  })
+})
+
+describe('elegir deuda desde Gestiones', () => {
+  it('elegir en el selector abre ese padrón igual que desde Padrones', async () => {
+    route.query = {}
+    vi.mocked(contribuyentes.obtenerDeudasPorContribuyenteId).mockResolvedValue(deudas)
+    const w = montar()
+    await flushPromises()
+    w.findComponent(GestionesTab).vm.$emit('seleccionar', 20)
+    await flushPromises()
+    expect(navegar).toHaveBeenLastCalledWith({ query: { deuda: '20' } })
   })
 })

@@ -154,6 +154,7 @@ watch(contribuyenteId, () => {
               :deudas="deudas"
               :deuda-inicial-id="deudaSeleccionadaId"
               @registrada="gestionRegistrada"
+              @seleccionar="abrirPadron"
               @cantidad="cantidadGestiones = $event"
             />
 

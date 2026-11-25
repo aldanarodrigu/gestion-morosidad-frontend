@@ -46,12 +46,12 @@ beforeEach(() => {
   ])
 })
 describe('historial y registro de gestiones', () => {
-  it('consulta la deuda de cartera y muestra el padrón sin selector', async () => {
+  it('consulta la deuda de cartera y la muestra elegida en el selector', async () => {
     const w = montar()
     await flushPromises()
     expect(api.obtenerGestiones).toHaveBeenCalledWith(10, expect.any(AbortSignal))
     expect(w.text()).toContain('Nota inicial')
-    expect(w.find('#gestion-deuda').exists()).toBe(false)
+    expect((w.get('#gestion-deuda').element as HTMLSelectElement).value).toBe('10')
     expect(w.get('.contexto-deuda').text()).toContain('Padrón 10')
     await w.setProps({ deudaInicialId: 20 })
     await flushPromises()
@@ -73,7 +73,7 @@ describe('historial y registro de gestiones', () => {
     const w = mount(GestionesTab, { props: { deudas } })
     await flushPromises()
     expect(api.obtenerGestiones).not.toHaveBeenCalled()
-    expect(w.text()).toContain('Volvé a la cartera')
+    expect(w.text()).toContain('Elegí arriba la deuda o el padrón')
     expect(w.find('.enlace').exists()).toBe(false)
     w.unmount()
   })
@@ -191,6 +191,37 @@ describe('historial y registro de gestiones', () => {
     expect(w.find('.enlace').exists()).toBe(true)
     await w.get('.enlace').trigger('click')
     expect(w.find('form').exists()).toBe(true)
+    w.unmount()
+  })
+})
+
+describe('selector de deuda o padrón', () => {
+  it('sin deuda elegida ofrece elegirla ahí mismo y avisa a la ficha', async () => {
+    const w = mount(GestionesTab, { props: { deudas }, global: { plugins: [createPinia()] } })
+    await flushPromises()
+    const select = w.get('#gestion-deuda')
+    expect((select.element as HTMLSelectElement).value).toBe('')
+    expect(select.findAll('option').slice(1).map((o) => o.attributes('value'))).toEqual(deudas.map((d) => String(d.id)))
+    expect(w.text()).not.toContain('Volvé a la cartera')
+
+    await select.setValue(String(deudas[1]!.id))
+    expect(w.emitted('seleccionar')).toEqual([[deudas[1]!.id]])
+    w.unmount()
+  })
+
+  it('elegir la misma deuda no vuelve a emitir', async () => {
+    const w = mount(GestionesTab, { props: { deudas, deudaInicialId: 10 }, global: { plugins: [createPinia()] } })
+    await flushPromises()
+    await w.get('#gestion-deuda').setValue('10')
+    expect(w.emitted('seleccionar')).toBeUndefined()
+    w.unmount()
+  })
+
+  it('con una sola deuda no muestra selector', async () => {
+    const w = mount(GestionesTab, { props: { deudas: [deudas[0]!] }, global: { plugins: [createPinia()] } })
+    await flushPromises()
+    expect(w.find('#gestion-deuda').exists()).toBe(false)
+    expect(w.get('.contexto-deuda').text()).toContain('CM')
     w.unmount()
   })
 })

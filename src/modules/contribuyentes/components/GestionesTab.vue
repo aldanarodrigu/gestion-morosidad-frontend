@@ -5,6 +5,7 @@ import AvisoCarga from '@/shared/components/esqueleto/AvisoCarga.vue'
 import SkeletonBloque from '@/shared/components/esqueleto/SkeletonBloque.vue'
 import { useEsqueleto } from '@/shared/composables/useEsqueleto'
 import { useAuthStore } from '@/modules/autenticacion/stores/auth.store'
+import { formatoImporte } from '@/shared/utils/formato'
 import type { DeudaApi } from '@/modules/cartera/types/cartera'
 import {
   obtenerAccionesDisponibles,
@@ -18,7 +19,12 @@ import type { ResultadoGestion } from '../utils/gestion'
 const auth = useAuthStore()
 const puedeRegistrar = computed(() => auth.tieneRol('NOTIFICADOR'))
 const props = defineProps<{ deudas: DeudaApi[]; deudaInicialId?: number }>()
-const emit = defineEmits<{ registrada: [deudaId: number]; cantidad: [total: number | null] }>()
+const emit = defineEmits<{
+  registrada: [deudaId: number]
+  cantidad: [total: number | null]
+  /** Se eligió otra deuda en el selector; la ficha la abre igual que desde Padrones. */
+  seleccionar: [deudaId: number]
+}>()
 const deudaId = ref<number | null>(null)
 const gestiones = ref<GestionResponse[]>([])
 const acciones = ref<DeudaApi['accionesSugeridas']>([])
@@ -128,6 +134,14 @@ function fecha(valor: string) {
     new Date(valor),
   )
 }
+function elegirDeuda(evento: Event) {
+  const id = Number((evento.target as HTMLSelectElement).value)
+  if (props.deudas.some((d) => d.id === id) && id !== deudaId.value) emit('seleccionar', id)
+}
+function descripcionDeuda(deuda: DeudaApi) {
+  const origen = deuda.padron.origen === 'SUCIVE' ? 'SUCIVE' : 'Intendencia'
+  return `Padrón ${deuda.padron.numeroPadron || '—'} · CM ${deuda.padron.cm} · ${origen} · ${tributos(deuda)} · ${formatoImporte(deuda.importe)}`
+}
 function tributos(deuda: DeudaApi) {
   return (
     deuda.tributos.map((t) => t.descripcion || t.codigo).join(', ') || 'Sin tributos informados'
@@ -138,7 +152,18 @@ function tributos(deuda: DeudaApi) {
 <template>
   <section class="gestiones" aria-label="Gestiones de la deuda" :aria-busy="cargando || undefined">
     <AvisoCarga :activo="cargando" texto="Cargando gestiones" />
-    <div v-if="deudaSeleccionada" class="contexto-deuda">
+    <!-- Con varias deudas, se elige acá mismo cuál gestionar (no hace falta volver a la cartera) -->
+    <div v-if="deudas.length > 1" class="contexto-deuda">
+      <label for="gestion-deuda">Deuda / padrón</label>
+      <select id="gestion-deuda" :value="deudaId ?? ''" :disabled="guardando" @change="elegirDeuda">
+        <option value="" disabled>Elegí la deuda o el padrón a gestionar</option>
+        <option v-for="deuda in deudas" :key="deuda.id" :value="deuda.id">
+          {{ descripcionDeuda(deuda) }}
+        </option>
+      </select>
+      <p v-if="deudaSeleccionada" class="ayuda historial-de">Historial gestiones de esta deuda</p>
+    </div>
+    <div v-else-if="deudaSeleccionada" class="contexto-deuda">
       <p class="ayuda">Deuda / padrón</p>
       <p>
         CM {{ deudaSeleccionada.padron.cm }} · Padrón {{ deudaSeleccionada.padron.numeroPadron }} ·
@@ -148,7 +173,7 @@ function tributos(deuda: DeudaApi) {
     </div>
     <p v-if="!deudas.length" class="vacio">No hay deudas disponibles.</p>
     <p v-else-if="!deudaSeleccionada" class="vacio">
-      Volvé a la cartera y abrí la deuda que querés gestionar.
+      Elegí arriba la deuda o el padrón para ver su historial y registrar gestiones.
     </p>
     <template v-else-if="cargando">
       <ol v-if="esqueleto" class="historial" aria-hidden="true">
@@ -253,6 +278,9 @@ function tributos(deuda: DeudaApi) {
 .contexto-deuda {
   padding-bottom: 16px;
   border-bottom: 1px solid var(--color-border);
+}
+.historial-de {
+  margin-top: 8px;
 }
 label {
   display: block;
