@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import SkeletonFilas from '@/shared/components/esqueleto/SkeletonFilas.vue'
 import { useEsqueleto } from '@/shared/composables/useEsqueleto'
@@ -42,8 +43,18 @@ function formatoImporte(importe: number) {
   })
 }
 
-function mostrarAcciones(acciones: string[]) {
-  window.alert(acciones.join('\n'))
+// Filas con todas sus acciones sugeridas desplegadas en la celda.
+const accionesAbiertas = ref(new Set<number>())
+watch(
+  () => props.cartera,
+  () => (accionesAbiertas.value = new Set()),
+)
+
+function alternarAcciones(id: number) {
+  const abiertas = new Set(accionesAbiertas.value)
+  if (abiertas.has(id)) abiertas.delete(id)
+  else abiertas.add(id)
+  accionesAbiertas.value = abiertas
 }
 </script>
 
@@ -135,18 +146,28 @@ function mostrarAcciones(acciones: string[]) {
 
           <td class="col-left col-acciones acciones">
             <template v-if="item.accionesSugeridas.length">
-              <span class="accion-principal">
+              <span class="accion-principal" :class="{ completa: accionesAbiertas.has(item.id) }">
                 {{ item.accionesSugeridas[0] }}
               </span>
+
+              <ul
+                v-if="accionesAbiertas.has(item.id)"
+                :id="`acciones-${item.id}`"
+                class="acciones-resto"
+                :aria-label="`Otras acciones sugeridas para CM ${item.cm}`"
+              >
+                <li v-for="accion in item.accionesSugeridas.slice(1)" :key="accion">{{ accion }}</li>
+              </ul>
 
               <button
                 v-if="item.accionesSugeridas.length > 1"
                 class="acciones-mas"
                 type="button"
-                :title="item.accionesSugeridas.slice(1).join(', ')"
-                @click.stop="mostrarAcciones(item.accionesSugeridas)"
+                :aria-expanded="accionesAbiertas.has(item.id)"
+                :aria-controls="`acciones-${item.id}`"
+                @click.stop="alternarAcciones(item.id)"
               >
-                +{{ item.accionesSugeridas.length - 1 }} más
+                {{ accionesAbiertas.has(item.id) ? 'Ver menos' : `+${item.accionesSugeridas.length - 1} más` }}
               </button>
             </template>
 
@@ -323,6 +344,28 @@ function mostrarAcciones(acciones: string[]) {
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   line-clamp: 2;
+}
+
+.accion-principal.completa {
+  display: block;
+  -webkit-line-clamp: unset;
+  line-clamp: unset;
+}
+
+/* Resto de las acciones, en la misma celda y con el mismo estilo que la principal */
+.acciones-resto {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.acciones-resto li {
+  padding-top: 6px;
+  border-top: 1px solid var(--color-border);
+}
+
+.acciones-resto li + li {
+  margin-top: 6px;
 }
 
 .acciones-mas {
