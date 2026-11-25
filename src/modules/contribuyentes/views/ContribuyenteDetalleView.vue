@@ -105,10 +105,7 @@ watch(contribuyenteId, () => {
 <template>
   <PaginaLayout>
     <template #barra>
-      <RouterLink :to="rutaVolver" class="volver">
-        <ArrowLeftIcon class="icono-volver" aria-hidden="true" />
-        Volver
-      </RouterLink>
+      <RouterLink :to="rutaVolver" class="volver"> Volver </RouterLink>
     </template>
 
     <AvisoCarga :activo="cargando" texto="Cargando datos del contribuyente" />

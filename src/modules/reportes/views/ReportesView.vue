@@ -190,8 +190,8 @@ function limpiar() {
         Deuda pendiente de la base local: todas las deudas no canceladas con saldo positivo. Los
         filtros se combinan entre sí y se aplican a toda la cartera.
         <RouterLink to="/cartera" class="enlace-cartera"
-          >Ir a cartera <span aria-hidden="true">→</span></RouterLink
-        >
+          >Ir a cartera <span aria-hidden="true"></span
+        ></RouterLink>
       </p>
       <p v-if="errorCatalogos" role="alert" class="ayuda ayuda-texto">
         No se pudieron cargar los filtros.
