@@ -54,3 +54,15 @@ describe('acceso directo a Configuración', () => {
     expect(router.currentRoute.value.path).toBe('/cartera')
   })
 })
+
+describe('título de la pestaña del navegador', () => {
+  it('cada pantalla tiene su propio título, con tilde', async () => {
+    await router.push('/login')
+    expect(document.title).toBe('Ingresar · Gestión de Morosidad')
+    sesion(['ADMINISTRADOR'])
+    await router.push('/configuracion')
+    expect(document.title).toBe('Configuración · Gestión de Morosidad')
+    await router.push('/reportes')
+    expect(document.title).toBe('Reportes · Gestión de Morosidad')
+  })
+})

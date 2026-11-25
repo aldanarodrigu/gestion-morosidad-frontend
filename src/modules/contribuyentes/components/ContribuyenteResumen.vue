@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import FechaSincronizacion from '@/shared/components/FechaSincronizacion.vue'
+import { fecha, importe, origen as nombreOrigen, claseSegmento } from '@/shared/utils/formato'
 import SkeletonBloque from '@/shared/components/esqueleto/SkeletonBloque.vue'
 import type { ContribuyenteResumenResponse } from '../services/contribuyenteService'
 
@@ -8,32 +9,8 @@ defineProps<{
   contribuyente: ContribuyenteResumenResponse | null
 }>()
 
-const formatoImporte = (importe: number) =>
-  new Intl.NumberFormat('es-UY', {
-    style: 'currency',
-    currency: 'UYU',
-  }).format(importe)
-
-const formatoFecha = (fecha: string | null) => {
-  if (!fecha) return '—'
-
-  const [anio, mes, dia] = fecha.split('-')
-  return `${dia}/${mes}/${anio}`
-}
-
-function claseSegmento(segmento?: string | null): string {
-  switch (segmento?.toLowerCase()) {
-    case 'mora temprana':
-      return 'temprana'
-    case 'mora inicial':
-      return 'inicial'
-    case 'mora tardía':
-    case 'mora tardia':
-      return 'tardia'
-    default:
-      return ''
-  }
-}
+const formatoImporte = importe
+const formatoFecha = fecha
 </script>
 
 <template>
@@ -51,7 +28,11 @@ function claseSegmento(segmento?: string | null): string {
       </div>
     </header>
     <dl class="stats">
-      <div v-for="etiqueta in ['Días máx. vencido', 'Deuda más antigua', 'Deudas', 'Padrones']" :key="etiqueta" class="stat">
+      <div
+        v-for="etiqueta in ['Días máx. vencido', 'Deuda más antigua', 'Deudas', 'Padrones']"
+        :key="etiqueta"
+        class="stat"
+      >
         <dt>{{ etiqueta }}</dt>
         <dd><SkeletonBloque ancho="5em" /></dd>
       </div>
@@ -62,7 +43,7 @@ function claseSegmento(segmento?: string | null): string {
     <header class="cabecera">
       <div class="identidad">
         <p v-if="contribuyente.cm" class="meta" aria-label="Cuenta seleccionada">
-          <span class="cuenta-origen">{{ contribuyente.origen === 'SUCIVE' ? 'SUCIVE' : 'Intendencia' }}</span>
+          <span class="cuenta-origen">{{ nombreOrigen(contribuyente.origen) }}</span>
           <span aria-hidden="true" class="separador">·</span>
           <span class="cuenta-cm">CM {{ contribuyente.cm }}</span>
         </p>
@@ -70,8 +51,12 @@ function claseSegmento(segmento?: string | null): string {
         <h1>{{ contribuyente.nombre }}</h1>
 
         <p class="documento">Documento: {{ contribuyente.documento || 'Sin documento' }}</p>
-        <FechaSincronizacion v-if="contribuyente.cm" class="actualizacion-padron"
-          :fechas="[contribuyente.fechaSincronizacion]" etiqueta="Padrón sincronizado" />
+        <FechaSincronizacion
+          v-if="contribuyente.cm"
+          class="actualizacion-padron"
+          :fechas="[contribuyente.fechaSincronizacion]"
+          etiqueta="Padrón sincronizado"
+        />
       </div>
 
       <div class="deuda">
@@ -143,12 +128,14 @@ function claseSegmento(segmento?: string | null): string {
   gap: 6px;
   margin-bottom: 6px;
   color: var(--color-primary);
-  font-size: 12px;
+  font-size: var(--texto-sm);
   font-weight: 600;
   letter-spacing: 0.03em;
 }
 
-.separador { color: var(--color-text-light); }
+.separador {
+  color: var(--color-text-light);
+}
 
 .identidad h1 {
   margin-bottom: 6px;
@@ -159,11 +146,13 @@ function claseSegmento(segmento?: string | null): string {
   overflow-wrap: anywhere;
 }
 
-.actualizacion-padron { margin-top: 7px; }
+.actualizacion-padron {
+  margin-top: 7px;
+}
 
 .documento {
   color: var(--color-text-secondary);
-  font-size: 13px;
+  font-size: var(--texto-base);
 }
 
 .deuda {
@@ -176,7 +165,7 @@ function claseSegmento(segmento?: string | null): string {
 
 .deuda-label {
   color: var(--color-text-secondary);
-  font-size: 11px;
+  font-size: var(--texto-xs);
   font-weight: 600;
   letter-spacing: 0.05em;
 }
@@ -191,21 +180,21 @@ function claseSegmento(segmento?: string | null): string {
 
 .segmento-badge {
   display: inline-block;
-  font-size: 12px;
+  font-size: var(--texto-sm);
   font-weight: 600;
   line-height: 1.4;
 }
 
 .segmento-badge.temprana {
-  color: #15803d;
+  color: var(--color-temprana);
 }
 
 .segmento-badge.inicial {
-  color: #b45309;
+  color: var(--color-inicial);
 }
 
 .segmento-badge.tardia {
-  color: #b42318;
+  color: var(--color-tardia);
 }
 
 .stats {
@@ -227,7 +216,7 @@ function claseSegmento(segmento?: string | null): string {
 .stat dt {
   margin-bottom: 5px;
   color: var(--color-text-secondary);
-  font-size: 12px;
+  font-size: var(--texto-sm);
 }
 
 .stat dd {
@@ -239,7 +228,7 @@ function claseSegmento(segmento?: string | null): string {
   overflow-wrap: anywhere;
 }
 
-@media (max-width: 600px) {
+@media (max-width: 599px) {
   .cabecera {
     align-items: flex-start;
     flex-direction: column;

@@ -20,8 +20,19 @@ const props = withDefaults(
     conDetalle?: number[]
     /** Ancho por columna; si falta, se alterna entre anchos parecidos a texto real. */
     anchos?: (string | undefined)[]
+    /** Relleno de la primera y la última celda, si la tabla las alinea con el resto de la pantalla. */
+    rellenoExtremos?: string
+    /** Clase por columna (por ejemplo, para ocultar columnas secundarias igual que la tabla real). */
+    clases?: (string | undefined)[]
   }>(),
-  { filas: 8, derecha: () => [], conDetalle: () => [], anchos: () => [] },
+  {
+    filas: 8,
+    derecha: () => [],
+    conDetalle: () => [],
+    anchos: () => [],
+    rellenoExtremos: undefined,
+    clases: () => [],
+  },
 )
 
 const ANCHOS = ['7em', '5em', '9em', '6em', '8em']
@@ -34,8 +45,22 @@ function ancho(columna: number, fila: number) {
 
 <template>
   <tr v-for="fila in filas" :key="fila" class="fila-esqueleto" aria-hidden="true">
-    <td v-for="(_, columna) in columnas" :key="columna">
-      <SkeletonBloque :ancho="ancho(columna, fila)" :class="{ derecha: derecha.includes(columna) }" />
+    <td
+      v-for="(_, columna) in columnas"
+      :key="columna"
+      :class="clases[columna]"
+      :style="
+        rellenoExtremos && columna === 0
+          ? { paddingLeft: rellenoExtremos }
+          : rellenoExtremos && columna === columnas - 1
+            ? { paddingRight: rellenoExtremos }
+            : undefined
+      "
+    >
+      <SkeletonBloque
+        :ancho="ancho(columna, fila)"
+        :class="{ derecha: derecha.includes(columna) }"
+      />
       <SkeletonBloque
         v-if="conDetalle.includes(columna)"
         class="detalle"
@@ -60,6 +85,6 @@ td {
 /* Imita las líneas secundarias (11–12px con un pequeño margen superior) */
 .detalle {
   margin-top: 4px;
-  font-size: 11px;
+  font-size: var(--texto-xs);
 }
 </style>

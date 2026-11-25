@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { numero } from '@/shared/utils/formato'
 import { computed } from 'vue'
 import type {
   ProgresoSincronizacion,
@@ -41,7 +42,7 @@ const paginasRestantes = computed(() =>
     ? Math.max(0, props.progreso.totalPaginas - props.progreso.paginasDescargadas)
     : null,
 )
-const formato = (n: number) => new Intl.NumberFormat('es-UY').format(n)
+const formato = numero
 const textoAccesible = computed(() =>
   cancelada.value
     ? props.estado === 'CANCELADA'
@@ -175,7 +176,7 @@ const textoAccesible = computed(() =>
   align-items: center;
   gap: 8px;
   color: var(--color-text-secondary);
-  font-size: 12px;
+  font-size: var(--texto-sm);
 }
 .numero {
   display: grid;
@@ -211,7 +212,7 @@ const textoAccesible = computed(() =>
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 8px;
-  font-size: 12px;
+  font-size: var(--texto-sm);
   margin-bottom: 8px;
 }
 .barra-cabecera strong span {
@@ -237,18 +238,32 @@ const textoAccesible = computed(() =>
   position: absolute;
   inset: 0 auto 0 0;
   width: 42%;
-  background: linear-gradient(90deg, transparent, var(--color-primary) 35%, color-mix(in srgb, var(--color-primary) 65%, white) 65%, transparent);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--color-primary) 35%,
+    color-mix(in srgb, var(--color-primary) 65%, white) 65%,
+    transparent
+  );
   border-radius: 10px;
   animation: descargando 1.8s linear infinite;
 }
 .descarga-activa .avance {
-  background-image: repeating-linear-gradient(115deg, transparent 0 10px, rgb(255 255 255 / 22%) 10px 20px);
+  background-image: repeating-linear-gradient(
+    115deg,
+    transparent 0 10px,
+    rgb(255 255 255 / 22%) 10px 20px
+  );
   background-size: 44px 100%;
   animation: rayas-descarga 1.2s linear infinite;
 }
 @keyframes rayas-descarga {
-  from { background-position: 0 0; }
-  to { background-position: 44px 0; }
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 44px 0;
+  }
 }
 .metricas {
   display: flex;
@@ -257,36 +272,25 @@ const textoAccesible = computed(() =>
   margin: 16px 0 0;
 }
 .metricas dt {
-  font-size: 11px;
+  font-size: var(--texto-xs);
   color: var(--color-text-secondary);
 }
 .metricas dd {
   margin: 4px 0 0;
-  font-size: 13px;
+  font-size: var(--texto-base);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 .pagina-actual,
 .ayuda {
   margin-top: 12px;
-  font-size: 11px;
+  font-size: var(--texto-xs);
   color: var(--color-text-secondary);
   line-height: 1.6;
 }
 .pagina-actual strong {
   color: var(--color-primary);
   font-weight: 500;
-}
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
 }
 @keyframes descargando {
   0% {
@@ -306,9 +310,11 @@ const textoAccesible = computed(() =>
   .avance {
     transition: none;
   }
-  .descarga-activa .avance { animation: none; }
+  .descarga-activa .avance {
+    animation: none;
+  }
 }
-@media (max-width: 600px) {
+@media (max-width: 599px) {
   .etapas {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 14px;

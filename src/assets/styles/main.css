@@ -1,10 +1,11 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@600;700&display=swap');
+/* Las fuentes (Inter y Montserrat) se sirven desde el proyecto: ver src/main.ts */
 
 :root {
   /* Colores*/
   --color-primary: #0f52ba;
   --color-primary-dark: #0c4295;
-  --color-primary-light: #0c4295;
+  /* Tinte claro del azul principal (fondos de selección o resaltado) */
+  --color-primary-light: #e7eefa;
   --color-accent: #ffcc00;
 
   /* Fondos */
@@ -16,6 +17,8 @@
   --color-text: #1f2933;
   --color-text-secondary: #667085;
   --color-text-light: #98a2b3;
+  /* Texto de navegación: más oscuro que el secundario, más suave que el principal */
+  --color-text-fuerte: #344054;
 
   /* Bordes */
   --color-border: #e4e7ec;
@@ -24,10 +27,35 @@
   --color-esqueleto: #e6e9ee;
   --color-esqueleto-brillo: #f3f4f7;
 
-  /* Segmentos */
+  /* Segmentos de mora */
   --color-temprana: #15803d;
-  --color-incial: #b45309;
+  --color-inicial: #b45309;
   --color-tardia: #b42318;
+
+  /* Series de gráficos (además del azul principal) */
+  --color-serie-secundaria: #6f86b3;
+  --color-serie-clara: #a5bde0;
+
+  /* Estados (usados por .text-success / .text-warning / .text-danger) */
+  --color-success: var(--color-temprana);
+  --color-warning: var(--color-inicial);
+  --color-danger: var(--color-tardia);
+
+  /* Tipografía */
+  --texto-xs: 11px;
+  --texto-sm: 12px;
+  --texto-base: 13px;
+  --titulo-pantalla: 20px;
+
+  /* Controles (inputs, selects, botones de formulario) */
+  --control-alto: 40px;
+  --boton-alto: 34px;
+
+  /* Página (referencia: Cartera) */
+  --pagina-margen: var(--spacing-lg);
+  --celda-relleno-y: 12px;
+  --celda-relleno-x: 16px;
+  --titulo-panel: 15px;
 
   /* Espaciado */
   --spacing-xs: 2px;
@@ -168,7 +196,8 @@ p {
    ========================= */
 
 /* Visible solo para lectores de pantalla */
-.solo-lector {
+.solo-lector,
+.sr-only {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -178,4 +207,305 @@ p {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
+}
+
+/* =========================
+   COMPONENTES COMUNES
+   Estilo de referencia: pantalla de Cartera. Usar estas clases en lugar de
+   redefinir paneles, botones, campos y tablas en cada pantalla.
+   ========================= */
+
+/* Panel: bloque blanco con borde y sombra suave */
+.panel {
+  min-width: 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.panel-cuerpo {
+  padding: 20px var(--pagina-margen);
+}
+
+.panel-titulo {
+  font-size: var(--titulo-panel);
+  font-weight: 600;
+}
+
+.panel-subtitulo {
+  margin-top: 4px;
+  color: var(--color-text-secondary);
+  font-size: var(--texto-base);
+}
+
+.ayuda-texto {
+  color: var(--color-text-secondary);
+  font-size: var(--texto-sm);
+}
+
+/* Botones: secundario (por defecto) y principal.
+   .primario y .secundario son nombres anteriores que se mantienen como alias. */
+.boton,
+.primario,
+.secundario {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: var(--boton-alto);
+  padding: 0 var(--spacing-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-primary);
+  font-size: var(--texto-base);
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease;
+}
+
+.boton:hover:not(:disabled),
+.primario:hover:not(:disabled),
+.secundario:hover:not(:disabled) {
+  border-color: var(--color-primary);
+}
+
+.boton:disabled,
+.primario:disabled,
+.secundario:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.boton:focus-visible,
+.primario:focus-visible,
+.secundario:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.boton-primario,
+.primario {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-surface);
+}
+
+.boton-primario:hover:not(:disabled),
+.primario:hover:not(:disabled) {
+  border-color: var(--color-primary-dark);
+  background: var(--color-primary-dark);
+}
+
+/* Mismo alto que los campos, para botones en una fila de filtros */
+.boton-control {
+  height: var(--control-alto);
+}
+
+/* Campos: etiqueta arriba y control de 40px */
+.campo-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--texto-sm);
+  font-weight: 500;
+}
+
+.campo-form > input:not([type='checkbox']):not([type='radio']),
+.campo-form > select,
+.control {
+  width: 100%;
+  height: var(--control-alto);
+  padding: 0 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--texto-base);
+  font-weight: 400;
+  transition: border-color 0.15s ease;
+}
+
+.campo-form > input:not([type='checkbox']):not([type='radio']):focus,
+.campo-form > select:focus,
+.control:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.campo-form > input:disabled,
+.campo-form > select:disabled,
+.control:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Grilla de filtros y formularios: tantas columnas como entren; una sola en móvil */
+.grilla-formulario {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  align-items: end;
+  gap: var(--spacing-md);
+}
+
+.grilla-formulario > .campo-ancho {
+  grid-column: span 2;
+}
+
+@media (max-width: 599px) {
+  .grilla-formulario {
+    grid-template-columns: 1fr;
+  }
+
+  .grilla-formulario > .campo-ancho {
+    grid-column: auto;
+  }
+}
+
+.acciones-formulario {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--spacing-sm);
+}
+
+/* Dentro de una grilla, los botones ocupan dos columnas para no quedar apretados */
+.grilla-formulario > .acciones-formulario {
+  grid-column: span 2;
+}
+
+@media (max-width: 599px) {
+  .grilla-formulario > .acciones-formulario {
+    grid-column: auto;
+  }
+}
+
+/* Tabla de datos (selectores con «>» para no afectar tablas anidadas) */
+.tabla-contenedor-datos {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.tabla-datos {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--texto-base);
+  --esqueleto-celda-padding: var(--celda-relleno-y) var(--celda-relleno-x);
+}
+
+.tabla-datos > thead > tr > th,
+.tabla-datos > tbody > tr > td,
+.tabla-datos > tfoot > tr > th,
+.tabla-datos > tfoot > tr > td {
+  padding: var(--celda-relleno-y) var(--celda-relleno-x);
+  text-align: left;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.tabla-datos > thead > tr > th {
+  padding-block: 10px;
+  color: var(--color-text-secondary);
+  background: var(--color-background);
+  font-size: var(--texto-sm);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.tabla-datos > tbody > tr > td {
+  color: var(--color-text);
+}
+
+.tabla-datos > tfoot > tr > th,
+.tabla-datos > tfoot > tr > td {
+  font-weight: 600;
+}
+
+.tabla-datos .numero {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.tabla-datos small {
+  display: block;
+  margin-top: 2px;
+  color: var(--color-text-secondary);
+  font-size: var(--texto-xs);
+}
+
+/* Tabla de borde a borde: primera y última columna alineadas con los márgenes de la página */
+.tabla-a-ras > thead > tr > th:first-child,
+.tabla-a-ras > tbody > tr > td:first-child,
+.tabla-a-ras > tfoot > tr > :first-child {
+  padding-left: var(--pagina-margen);
+}
+
+.tabla-a-ras > thead > tr > th:last-child,
+.tabla-a-ras > tbody > tr > td:last-child,
+.tabla-a-ras > tfoot > tr > :last-child {
+  padding-right: var(--pagina-margen);
+}
+
+/* Mensajes de estado (vacío, error) dentro del contenido */
+.mensaje-pagina {
+  padding: 16px var(--pagina-margen);
+  color: var(--color-text-secondary);
+  font-size: var(--texto-base);
+}
+
+.mensaje-pagina.error {
+  color: var(--color-tardia);
+}
+
+/* =========================
+   FORMULARIOS: obligatorios y errores por campo
+   ========================= */
+
+/* Asterisco en la etiqueta de un campo obligatorio (el campo lleva además `required`) */
+.requerido::after {
+  content: ' *';
+  color: var(--color-tardia);
+}
+
+.aviso-obligatorios {
+  color: var(--color-text-secondary);
+  font-size: var(--texto-xs);
+}
+
+/* Error debajo del campo que lo causó */
+.error-campo {
+  margin-top: 4px;
+  color: var(--color-tardia);
+  font-size: var(--texto-sm);
+  font-weight: 500;
+}
+
+[aria-invalid='true'] {
+  border-color: var(--color-tardia) !important;
+}
+
+/* =========================
+   PUNTOS DE CORTE COMUNES
+   móvil < 600px · tablet < 1024px · notebook chica < 1280px
+   (el navbar suma uno propio en 1366px para compactar sus etiquetas)
+   ========================= */
+
+/* Columnas secundarias de tablas anchas: se ocultan cuando no entran (el dato sigue en la ficha) */
+@media (max-width: 1279px) {
+  .ocultar-bajo-notebook {
+    display: none;
+  }
+}
+
+@media (max-width: 1023px) {
+  .ocultar-bajo-tablet {
+    display: none;
+  }
 }

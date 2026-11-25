@@ -1,16 +1,41 @@
 import { http } from '@/shared/api/http'
 export type OrigenCaptura = 'INTENDENCIA' | 'SUCIVE'
-export interface CuentaCaptura { cm: string; origen: OrigenCaptura }
-export interface EstadoCuenta extends CuentaCaptura {
-  numeroPadron: string | null; tipoPadron: string | null; nombre: string | null; documento: string | null;
-  importe: number; estado: string; segmento: string | null; fechaSincronizacion: string | null;
-  fechaUltimoCobro: string | null; motivoUltimoCobro?: string | null; importeUltimoCobro: number | null;
-  aniosDeuda?: string | null;
-  cantidadFacturasVencidas?: number | null; cantidadFacturasConDeuda?: number | null; anioDesde?: number | null; anioHasta?: number | null; cantidadAniosDeuda?: number | null; 
-  deudaFacturas?: number | null; saldoAFavor?: number | null; creditoDescontado?: number | null;
+export interface CuentaCaptura {
+  cm: string
+  origen: OrigenCaptura
 }
-export interface CapturaResumen { id: number; nombre: string; fecha: string; usuario: string; cantidadCuentas: number }
-export interface CapturaDetalle extends Omit<CapturaResumen, 'cantidadCuentas'> { cuentas: EstadoCuenta[] }
+export interface EstadoCuenta extends CuentaCaptura {
+  numeroPadron: string | null
+  tipoPadron: string | null
+  nombre: string | null
+  documento: string | null
+  importe: number
+  estado: string
+  segmento: string | null
+  fechaSincronizacion: string | null
+  fechaUltimoCobro: string | null
+  motivoUltimoCobro?: string | null
+  importeUltimoCobro: number | null
+  aniosDeuda?: string | null
+  cantidadFacturasVencidas?: number | null
+  cantidadFacturasConDeuda?: number | null
+  anioDesde?: number | null
+  anioHasta?: number | null
+  cantidadAniosDeuda?: number | null
+  deudaFacturas?: number | null
+  saldoAFavor?: number | null
+  creditoDescontado?: number | null
+}
+export interface CapturaResumen {
+  id: number
+  nombre: string
+  fecha: string
+  usuario: string
+  cantidadCuentas: number
+}
+export interface CapturaDetalle extends Omit<CapturaResumen, 'cantidadCuentas'> {
+  cuentas: EstadoCuenta[]
+}
 export async function listarCapturas(signal?: AbortSignal) {
   return (await http.get<CapturaResumen[]>('/capturas-cartera', { signal })).data
 }
@@ -25,6 +50,7 @@ export const claveCuenta = (c: CuentaCaptura) => `${c.origen}|${c.cm}`
 /** La consulta existente distingue el CM por origen y devuelve 404 si no existe localmente. */
 export async function validarCuenta(cuenta: CuentaCaptura, signal?: AbortSignal) {
   await http.get(`/contribuyentes/${encodeURIComponent(cuenta.cm)}`, {
-    params: { origen: cuenta.origen }, signal,
+    params: { origen: cuenta.origen },
+    signal,
   })
 }

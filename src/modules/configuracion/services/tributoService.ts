@@ -24,14 +24,26 @@ export async function eliminarTributo(id: number): Promise<void> {
 }
 
 export interface PaginaTributos {
-  contenido: Tributo[]; pagina: number; tamanio: number; totalElementos: number; totalPaginas: number
+  contenido: Tributo[]
+  pagina: number
+  tamanio: number
+  totalElementos: number
+  totalPaginas: number
 }
 export async function obtenerTributosPaginados(
   pagina = 0,
   filtros: { busqueda?: string; origen?: string } = {},
   signal?: AbortSignal,
 ): Promise<PaginaTributos> {
-  return (await http.get<PaginaTributos>('/tributos/paginados', {
-    signal, params: { page: pagina, size: 20, busqueda: filtros.busqueda?.trim() || undefined, origen: filtros.origen || undefined },
-  })).data
+  return (
+    await http.get<PaginaTributos>('/tributos/paginados', {
+      signal,
+      params: {
+        page: pagina,
+        size: 20,
+        busqueda: filtros.busqueda?.trim() || undefined,
+        origen: filtros.origen || undefined,
+      },
+    })
+  ).data
 }

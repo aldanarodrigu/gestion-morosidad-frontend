@@ -269,7 +269,7 @@ function cerrarSesion() {
 .navbar {
   --navbar-alto: 64px;
   /* Gris oscuro para texto e íconos: ~10:1 de contraste sobre blanco */
-  --navbar-texto: #344054;
+  --navbar-texto: var(--color-text-fuerte);
   --navbar-texto-suave: var(--color-text-secondary);
   --navbar-destacado: var(--color-primary);
 
@@ -339,7 +339,7 @@ button:focus-visible,
 
 .sistema {
   font-family: 'Montserrat', sans-serif;
-  font-size: 15px;
+  font-size: var(--titulo-panel);
   font-weight: 700;
   letter-spacing: -0.01em;
   color: var(--color-text);
@@ -454,13 +454,13 @@ button:focus-visible,
 }
 
 .usuario-nombre {
-  font-size: 13px;
+  font-size: var(--texto-base);
   font-weight: 600;
   color: var(--color-text);
 }
 
 .usuario-rol {
-  font-size: 12px;
+  font-size: var(--texto-sm);
   color: var(--navbar-texto-suave);
 }
 
@@ -504,7 +504,7 @@ button:focus-visible,
 
 .cuenta-rol {
   margin-top: 2px;
-  font-size: 12px;
+  font-size: var(--texto-sm);
   color: var(--color-text-secondary);
 }
 
@@ -568,7 +568,7 @@ button:focus-visible,
   .enlace {
     gap: 6px;
     padding: 0 10px;
-    font-size: 13px;
+    font-size: var(--texto-base);
   }
 
   .enlace.router-link-active::after {
@@ -589,7 +589,7 @@ button:focus-visible,
   }
 }
 
-@media (max-width: 1199px) {
+@media (max-width: 1279px) {
   .marca-textos {
     display: none;
   }
@@ -664,7 +664,7 @@ button:focus-visible,
 
   .titulo-panel {
     color: var(--color-text-secondary);
-    font-size: 12px;
+    font-size: var(--texto-sm);
     font-weight: 600;
     letter-spacing: 0.04em;
     text-transform: uppercase;
@@ -682,7 +682,7 @@ button:focus-visible,
     margin: 0;
     padding: 12px;
     color: var(--color-text);
-    font-size: 15px;
+    font-size: var(--titulo-panel);
   }
 
   .enlace:hover {

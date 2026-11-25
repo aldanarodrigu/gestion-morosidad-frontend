@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { vEnfocar } from '@/shared/directives/enfocar'
 import { computed, onMounted, onScopeDispose, ref, watch } from 'vue'
 import { isAxiosError } from 'axios'
 import AvisoCarga from '@/shared/components/esqueleto/AvisoCarga.vue'
@@ -15,9 +16,7 @@ import type { SegmentoMora, RangoMora, RangoMoraRequest } from '../services/peri
 const auth = useAuthStore()
 const tipoPadron = ref<string | null>(null)
 const tiposPadron = ref<string[]>([])
-const puedeEditar = computed(
-  () => auth.tieneRol('ADMINISTRADOR') && !!tipoPadron.value,
-)
+const puedeEditar = computed(() => auth.tieneRol('ADMINISTRADOR') && !!tipoPadron.value)
 const usaBase = computed(
   () => tipoPadron.value !== null && rangos.value.every((r) => r.tipoPadron == null),
 )
@@ -174,9 +173,22 @@ async function guardar() {
     </header>
     <AvisoCarga :activo="cargando" texto="Cargando períodos" />
     <div v-if="esqueleto" class="tabla-contenedor" aria-hidden="true">
-      <table>
-        <thead><tr><th scope="col">Segmento</th><th scope="col">Desde</th><th scope="col">Hasta</th></tr></thead>
-        <tbody><SkeletonFilas :columnas="3" :filas="3" :con-detalle="[0]" :anchos="['9em', '5em', '5em']" /></tbody>
+      <table class="tabla-datos">
+        <thead>
+          <tr>
+            <th scope="col">Segmento</th>
+            <th scope="col">Desde</th>
+            <th scope="col">Hasta</th>
+          </tr>
+        </thead>
+        <tbody>
+          <SkeletonFilas
+            :columnas="3"
+            :filas="3"
+            :con-detalle="[0]"
+            :anchos="['9em', '5em', '5em']"
+          />
+        </tbody>
       </table>
     </div>
     <template v-else-if="cargando" />
@@ -186,8 +198,8 @@ async function guardar() {
     </div>
     <template v-else>
       <p v-if="tipoPadron === null" class="ayuda">
-        Estos rangos se aplican a los PadTipo sin configuración propia. Seleccioná un PadTipo
-        para personalizar los períodos de todos sus padrones.
+        Estos rangos se aplican a los PadTipo sin configuración propia. Seleccioná un PadTipo para
+        personalizar los períodos de todos sus padrones.
       </p>
       <p v-else class="ayuda">
         {{
@@ -208,7 +220,7 @@ async function guardar() {
       <p v-if="errorFormulario && !formulario" role="alert" class="error">{{ errorFormulario }}</p>
       <p v-if="mensaje" role="status" class="confirmacion">{{ mensaje }}</p>
       <div v-if="filas.length" class="tabla-contenedor">
-        <table>
+        <table class="tabla-datos">
           <thead>
             <tr>
               <th scope="col">Segmento</th>
@@ -237,7 +249,7 @@ async function guardar() {
         </table>
       </div>
       <p v-else class="ayuda">No hay segmentos de mora registrados.</p>
-      <form v-if="formulario && puedeEditar" class="formulario" @submit.prevent="guardar">
+      <form v-enfocar v-if="formulario && puedeEditar" class="formulario" @submit.prevent="guardar">
         <h3>Editar períodos de mora</h3>
         <p class="ayuda explicacion">
           Los límites son inclusivos. El siguiente período comienza al día siguiente del anterior;
@@ -268,8 +280,8 @@ async function guardar() {
         </fieldset>
         <p class="ayuda explicacion">
           Al guardar se actualizarán los segmentos de las deudas no canceladas del PadTipo
-          seleccionado, cualquiera sea su combinación de tributos. Los rangos anteriores quedan
-          en el historial.
+          seleccionado, cualquiera sea su combinación de tributos. Los rangos anteriores quedan en
+          el historial.
         </p>
         <p v-if="errorFormulario" role="alert" class="error">{{ errorFormulario }}</p>
         <div class="botones">
@@ -288,7 +300,7 @@ async function guardar() {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-lg);
-  font-size: 13px;
+  font-size: var(--texto-base);
 }
 .cabecera {
   display: flex;
@@ -299,7 +311,7 @@ async function guardar() {
 }
 .ayuda {
   color: var(--color-text-secondary);
-  font-size: 12px;
+  font-size: var(--texto-sm);
   margin: 0;
 }
 .tabla-contenedor {
@@ -307,26 +319,7 @@ async function guardar() {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
 }
-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-  --esqueleto-celda-padding: 11px 14px;
-}
-th,
-td {
-  padding: 11px 14px;
-  text-align: left;
-  border-bottom: 1px solid var(--color-border);
-}
-th {
-  background: var(--color-background);
-  color: var(--color-text-secondary);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.035em;
-  text-transform: uppercase;
-}
+/* Tabla: estilo común .tabla-datos (main.css) */
 tbody tr:last-child td {
   border-bottom: 0;
 }
@@ -373,7 +366,7 @@ label,
 .etiqueta {
   display: block;
   margin-bottom: 6px;
-  font-size: 12px;
+  font-size: var(--texto-sm);
   color: var(--color-text-secondary);
 }
 .desde {
@@ -387,7 +380,7 @@ select {
   border-radius: var(--radius-sm);
   background: var(--color-surface);
   color: var(--color-text);
-  font-size: 13px;
+  font-size: var(--texto-base);
 }
 .restaurar {
   align-self: flex-start;
@@ -399,29 +392,13 @@ input {
   border-radius: var(--radius-sm);
   background: var(--color-surface);
   color: var(--color-text);
-  font-size: 13px;
+  font-size: var(--texto-base);
 }
 .botones {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
   margin-top: 20px;
-}
-button {
-  padding: 9px 14px;
-  border-radius: var(--radius-sm);
-  font-size: 13px;
-}
-.primario {
-  border: 1px solid var(--color-primary);
-  background: var(--color-primary);
-  color: white;
-  font-weight: 600;
-}
-.secundario {
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
-  color: var(--color-text);
 }
 .error {
   color: var(--color-tardia);
@@ -430,17 +407,13 @@ button {
   margin: 0;
   color: var(--color-temprana);
 }
-button:disabled {
-  opacity: 0.6;
-  cursor: wait;
-}
 button:focus-visible,
 input:focus-visible,
 select:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
-@media (max-width: 600px) {
+@media (max-width: 599px) {
   .rango {
     grid-template-columns: 1fr 1fr;
   }

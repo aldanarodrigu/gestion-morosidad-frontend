@@ -1,67 +1,321 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted, onScopeDispose } from 'vue'
-import { obtenerConvenios, type FiltrosConvenio, type PaginaConvenios } from '../services/convenioService'
-import AvisoCarga from '@/shared/components/esqueleto/AvisoCarga.vue'
+import { useFiltrosAutomaticos } from '@/shared/composables/useFiltrosAutomaticos'
+import { computed, ref, reactive, onMounted } from 'vue'
+import {
+  obtenerConvenios,
+  type FiltrosConvenio,
+  type PaginaConvenios,
+} from '../services/convenioService'
+import PaginaLayout from '@/shared/layouts/PaginaLayout.vue'
+import { mensajeDeError, useConsulta } from '@/shared/composables/useConsulta'
+import PaginacionTabla from '@/shared/components/PaginacionTabla.vue'
+import {
+  formatoNumero,
+  origen as nombreOrigen,
+  importe as formatoImporte,
+  fecha,
+} from '@/shared/utils/formato'
+import EstadoConsulta from '@/shared/components/EstadoConsulta.vue'
 import SkeletonBloque from '@/shared/components/esqueleto/SkeletonBloque.vue'
 import SkeletonFilas from '@/shared/components/esqueleto/SkeletonFilas.vue'
-import { useEsqueleto } from '@/shared/composables/useEsqueleto'
-const filtros = reactive<FiltrosConvenio>({ origen: 'INTENDENCIA', cm: '', documento: '', nombre: '', desde: '', hasta: '' })
+const filtros = reactive<FiltrosConvenio>({
+  origen: 'INTENDENCIA',
+  cm: '',
+  documento: '',
+  nombre: '',
+  desde: '',
+  hasta: '',
+})
 let aplicados = { ...filtros }
-const datos = ref<PaginaConvenios>()
-const cargando = ref(false)
-const error = ref('')
+const { datos, cargando, error, ejecutar } = useConsulta<PaginaConvenios>()
 const detalle = ref<number>()
-const esqueleto = useEsqueleto(() => cargando.value)
-const ENCABEZADOS = ['Convenio / CM', 'Contribuyente', 'Cuotas vencidas / totales', 'Deuda desde', 'Importe neto', 'Detalle']
-let controller: AbortController | undefined
-async function cargar(pagina = 1) {
- controller?.abort(); const actual = new AbortController(); controller = actual
- cargando.value = true; error.value = ''; datos.value = undefined; detalle.value = undefined
- try { const resultado = await obtenerConvenios(aplicados, pagina, actual.signal); if (!actual.signal.aborted) datos.value = resultado }
- catch (e: unknown) { if (!actual.signal.aborted) { const ex = e as { response?: { data?: { mensaje?: string } } }; error.value = ex.response?.data?.mensaje || 'No se pudieron consultar los convenios. Intentá nuevamente.' } }
- finally { if (controller === actual) cargando.value = false }
+const ENCABEZADOS = [
+  'Convenio / CM',
+  'Contribuyente',
+  'Cuotas vencidas / totales',
+  'Deuda desde',
+  'Importe neto',
+  'Detalle',
+]
+function cargar(pagina = 1) {
+  detalle.value = undefined
+  return ejecutar(
+    (signal) => obtenerConvenios(aplicados, pagina, signal),
+    (e) => mensajeDeError(e, 'No se pudieron consultar los convenios. Intentá nuevamente.'),
+    { limpiar: true },
+  )
 }
-function buscar() { aplicados = { ...filtros }; void cargar() }
-function limpiar() { Object.assign(filtros, { origen: 'INTENDENCIA', cm: '', documento: '', nombre: '', desde: '', hasta: '' }); buscar() }
+const CM_VALIDO = /^[1-9][0-9]*$/
+const cmInvalido = computed(() => !!filtros.cm.trim() && !CM_VALIDO.test(filtros.cm.trim()))
+const mismosFiltros = (a: FiltrosConvenio, b: FiltrosConvenio) =>
+  (Object.keys(a) as (keyof FiltrosConvenio)[]).every((campo) => a[campo] === b[campo])
+
+// Los filtros se aplican solos; un CM mal escrito no dispara la consulta.
+function buscar(forzar = false) {
+  if (cmInvalido.value) return
+  if (!forzar && mismosFiltros(filtros, aplicados) && (datos.value || cargando.value)) return
+  aplicados = { ...filtros }
+  void cargar()
+}
+const { aplicarAhora } = useFiltrosAutomaticos(filtros, ['cm', 'documento', 'nombre'], buscar)
+function limpiar() {
+  Object.assign(filtros, {
+    origen: 'INTENDENCIA',
+    cm: '',
+    documento: '',
+    nombre: '',
+    desde: '',
+    hasta: '',
+  })
+  aplicarAhora()
+}
 onMounted(() => cargar())
-onScopeDispose(() => controller?.abort())
-const importe = (valor: string | null) => valor == null ? '—' : valor
+const importe = (valor: string | null) => formatoImporte(valor)
 </script>
 <template>
- <main class="convenios">
-  <header><h1>Convenios</h1><p>Convenios activos con deuda vencida</p></header>
-  <form class="panel filtros" @submit.prevent="buscar">
-   <label>Origen<select v-model="filtros.origen"><option value="INTENDENCIA">Intendencia</option><option value="SUCIVE">SUCIVE</option></select></label>
-   <label>CM<input v-model="filtros.cm" type="text" inputmode="numeric" pattern="[1-9][0-9]*" /></label>
-   <label>Documento<input v-model="filtros.documento" maxlength="150" /></label>
-   <label>Contribuyente<input v-model="filtros.nombre" maxlength="150" /></label>
-   <label>Vencimiento desde<input v-model="filtros.desde" type="date" /></label>
-   <label>Vencimiento hasta (excluido)<input v-model="filtros.hasta" type="date" /></label>
-   <div class="botones"><button class="primario" :disabled="cargando">Buscar</button><button type="button" @click="limpiar" :disabled="cargando">Limpiar</button></div>
-  </form>
-  <section class="panel" aria-live="polite" :aria-busy="cargando">
-   <AvisoCarga :activo="cargando" texto="Consultando convenios" />
-   <template v-if="esqueleto">
-    <p class="cantidad"><SkeletonBloque ancho="14em" /></p>
-    <div class="tabla"><table><thead><tr><th v-for="e in ENCABEZADOS" :key="e">{{ e }}</th></tr></thead>
-     <tbody><SkeletonFilas :columnas="6" :filas="20" :con-detalle="[0, 1]" :anchos="['6em', '12em', '4em', '6em', '6em', '6em']" /></tbody>
-    </table></div>
-   </template>
-   <template v-else-if="cargando" />
-   <div v-else-if="error" role="alert" class="error">{{ error }} <button @click="cargar()">Reintentar</button></div>
-   <template v-else-if="datos">
-    <p class="cantidad">{{ datos.meta.total }} convenios · {{ aplicados.origen === 'SUCIVE' ? 'SUCIVE' : 'Intendencia' }}</p>
-    <p v-if="!datos.data.length">No se encontraron convenios para esta consulta.</p>
-    <div v-else class="tabla"><table><thead><tr><th>Convenio / CM</th><th>Contribuyente</th><th>Cuotas vencidas / totales</th><th>Deuda desde</th><th>Importe neto</th><th>Detalle</th></tr></thead>
-     <tbody><template v-for="c in datos.data" :key="c.CM"><tr><td><strong>{{ c.NUMERO_CONVENIO ?? '—' }}</strong><small>CM {{ c.CM }}<template v-if="c.MATRICULA"> · {{ c.MATRICULA }}</template></small></td><td>{{ c.PERSONA || 'Sin nombre informado' }}<small>Documento: {{ c.DOCUMENTO || '—' }}</small></td><td>{{ c.CANT_CUOTAS_VENC ?? '—' }} / {{ c.CANT_CUOTAS_CONVENIOS ?? '—' }}</td><td>{{ c.DEUDA_DESDE || '—' }}</td><td class="numero">{{ importe(c.IMPORTE_DEUDA) }}</td><td><button :aria-expanded="detalle === c.CM" @click="detalle = detalle === c.CM ? undefined : c.CM">{{ detalle === c.CM ? 'Ocultar' : 'Ver detalle' }}</button></td></tr>
-     <tr v-if="detalle === c.CM"><td colspan="6"><dl><div><dt>Deuda de facturas</dt><dd>{{ importe(c.DEUDA_FACTURAS) }}</dd></div><div><dt>Saldo a favor</dt><dd>{{ importe(c.SALDO_A_FAVOR) }}</dd></div><div><dt>Crédito descontado</dt><dd>{{ importe(c.CREDITO_DESCONTADO) }}</dd></div><div><dt>Tributos</dt><dd>{{ c.TRIBUTOS_DEUDA || '—' }}</dd></div><div><dt>Último vencimiento</dt><dd>{{ c.ULTIMO_VENCIMIENTO || '—' }}</dd></div><div><dt>Teléfono / correo</dt><dd>{{ c.TELEFONO || '—' }} / {{ c.EMAIL || '—' }}</dd></div><div><dt>Dirección / localidad</dt><dd>{{ [c.DIRECCION, c.NUMERO_PUERTA, c.LOCALIDAD].filter(Boolean).join(' · ') || '—' }}</dd></div></dl></td></tr></template></tbody>
-    </table></div>
-    <footer><button :disabled="datos.meta.current_page <= 1" @click="cargar(datos.meta.current_page - 1)">Anterior</button><span>Página {{ datos.meta.current_page }} de {{ datos.meta.last_page }} · 20 por página</span><button :disabled="!datos.meta.has_more" @click="cargar(datos.meta.current_page + 1)">Siguiente</button></footer>
-   </template>
-  </section>
-  <p class="nota">Consulta directa de la API. Los importes son nominales de la fuente, sin conversión de monedas. Las cuotas vencidas no incluyen la entrega inicial; el importe puede incluirla.</p>
- </main>
+  <PaginaLayout a-ras>
+    <template #barra>
+      <form
+        class="filtros grilla-formulario"
+        aria-label="Filtros de convenios"
+        @submit.prevent="aplicarAhora"
+      >
+        <label class="campo-form"
+          >Origen
+          <select v-model="filtros.origen">
+            <option value="INTENDENCIA">Intendencia</option>
+            <option value="SUCIVE">SUCIVE</option>
+          </select>
+        </label>
+        <label class="campo-form"
+          >CM<input
+            v-model="filtros.cm"
+            type="text"
+            inputmode="numeric"
+            pattern="[1-9][0-9]*"
+            :aria-invalid="cmInvalido"
+            aria-describedby="convenios-cm-error"
+          />
+          <span v-if="cmInvalido" id="convenios-cm-error" class="error-campo"
+            >Ingresá solo números, sin ceros al inicio.</span
+          ></label
+        >
+        <label class="campo-form"
+          >Documento<input v-model="filtros.documento" maxlength="150"
+        /></label>
+        <label class="campo-form"
+          >Contribuyente<input v-model="filtros.nombre" maxlength="150"
+        /></label>
+        <label class="campo-form"
+          >Vencimiento desde<input v-model="filtros.desde" type="date"
+        /></label>
+        <label class="campo-form"
+          >Vencimiento hasta (excluido)<input v-model="filtros.hasta" type="date"
+        /></label>
+        <div class="acciones-formulario">
+          <button type="button" class="boton boton-control" :disabled="cargando" @click="limpiar">
+            Limpiar
+          </button>
+        </div>
+      </form>
+      <p class="ayuda-texto">
+        Convenios activos con deuda vencida, consultados en el momento a la Intendencia o SUCIVE.
+        Los importes se muestran como los informa la fuente, sin conversión de monedas. Las cuotas
+        vencidas no incluyen la entrega inicial; el importe puede incluirla.
+      </p>
+    </template>
+
+    <template v-if="datos && !cargando" #totales>
+      <strong class="total">{{ formatoNumero(datos.meta.total) }} convenios</strong>
+      <span>{{ nombreOrigen(aplicados.origen) }}</span>
+    </template>
+
+    <section class="resultados" aria-label="Convenios" aria-live="polite" :aria-busy="cargando">
+      <EstadoConsulta
+        :cargando="cargando"
+        :error="error"
+        :vacio="!!datos && !datos.data.length"
+        texto-carga="Consultando convenios"
+        texto-vacio="No se encontraron convenios para esta consulta."
+        @reintentar="cargar()"
+      >
+        <template #esqueleto>
+          <div class="tabla-contenedor-datos">
+            <table class="tabla-datos tabla-a-ras">
+              <thead>
+                <tr>
+                  <th v-for="e in ENCABEZADOS" :key="e" scope="col">{{ e }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <SkeletonFilas
+                  :columnas="6"
+                  :filas="20"
+                  :con-detalle="[0, 1]"
+                  :derecha="[4]"
+                  :anchos="['6em', '12em', '4em', '6em', '6em', '6em']"
+                  relleno-extremos="var(--pagina-margen)"
+                />
+              </tbody>
+            </table>
+          </div>
+        </template>
+        <template v-if="datos">
+          <div class="tabla-contenedor-datos">
+            <table class="tabla-datos tabla-a-ras">
+              <thead>
+                <tr>
+                  <th
+                    v-for="e in ENCABEZADOS"
+                    :key="e"
+                    scope="col"
+                    :class="{ numero: e === 'Importe neto' }"
+                  >
+                    {{ e }}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <template v-for="c in datos.data" :key="c.CM">
+                  <tr>
+                    <td>
+                      <strong>{{ c.NUMERO_CONVENIO ?? '—' }}</strong
+                      ><small
+                        >CM {{ c.CM
+                        }}<template v-if="c.MATRICULA"> · {{ c.MATRICULA }}</template></small
+                      >
+                    </td>
+                    <td>
+                      {{ c.PERSONA || 'Sin nombre informado'
+                      }}<small>Documento: {{ c.DOCUMENTO || '—' }}</small>
+                    </td>
+                    <td>{{ c.CANT_CUOTAS_VENC ?? '—' }} / {{ c.CANT_CUOTAS_CONVENIOS ?? '—' }}</td>
+                    <td>{{ fecha(c.DEUDA_DESDE) }}</td>
+                    <td class="numero importe">{{ importe(c.IMPORTE_DEUDA) }}</td>
+                    <td>
+                      <button
+                        type="button"
+                        class="enlace"
+                        :aria-expanded="detalle === c.CM"
+                        @click="detalle = detalle === c.CM ? undefined : c.CM"
+                      >
+                        {{ detalle === c.CM ? 'Ocultar' : 'Ver detalle' }}
+                      </button>
+                    </td>
+                  </tr>
+                  <tr v-if="detalle === c.CM" class="fila-detalle">
+                    <td colspan="6">
+                      <dl class="detalle-convenio">
+                        <div>
+                          <dt>Deuda de facturas</dt>
+                          <dd>{{ importe(c.DEUDA_FACTURAS) }}</dd>
+                        </div>
+                        <div>
+                          <dt>Saldo a favor</dt>
+                          <dd>{{ importe(c.SALDO_A_FAVOR) }}</dd>
+                        </div>
+                        <div>
+                          <dt>Crédito descontado</dt>
+                          <dd>{{ importe(c.CREDITO_DESCONTADO) }}</dd>
+                        </div>
+                        <div>
+                          <dt>Tributos</dt>
+                          <dd>{{ c.TRIBUTOS_DEUDA || '—' }}</dd>
+                        </div>
+                        <div>
+                          <dt>Último vencimiento</dt>
+                          <dd>{{ fecha(c.ULTIMO_VENCIMIENTO) }}</dd>
+                        </div>
+                        <div>
+                          <dt>Teléfono / correo</dt>
+                          <dd>{{ c.TELEFONO || '—' }} / {{ c.EMAIL || '—' }}</dd>
+                        </div>
+                        <div>
+                          <dt>Dirección / localidad</dt>
+                          <dd>
+                            {{
+                              [c.DIRECCION, c.NUMERO_PUERTA, c.LOCALIDAD]
+                                .filter(Boolean)
+                                .join(' · ') || '—'
+                            }}
+                          </dd>
+                        </div>
+                      </dl>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+          <PaginacionTabla
+            :pagina="datos.meta.current_page - 1"
+            :total-paginas="datos.meta.last_page"
+            :total-elementos="datos.meta.total"
+            :tamanio="20"
+            :tamanios="[20]"
+            elementos="convenios"
+            :deshabilitado="cargando"
+            @cambiar-pagina="(p) => cargar(p + 1)"
+          />
+        </template>
+      </EstadoConsulta>
+    </section>
+  </PaginaLayout>
 </template>
+
 <style scoped>
-.convenios{max-width:1440px;margin:auto;padding:28px;display:grid;gap:20px}header p,.nota,small,dt,.cantidad{color:var(--color-text-secondary)}header p{margin-top:6px}.panel{background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:24px;box-shadow:var(--shadow-sm)}.filtros{display:flex;flex-wrap:wrap;gap:16px;align-items:end}label{display:grid;gap:6px;font-size:13px;flex:1 1 170px}input,select,button{border:1px solid var(--color-border);border-radius:var(--radius-sm);padding:9px 12px;background:var(--color-surface);color:var(--color-text)}input,select{width:100%}button{color:var(--color-primary)}button:disabled{opacity:.5;cursor:default}.primario{background:var(--color-primary);color:white}.botones{display:flex;gap:8px}.tabla{overflow:auto}table{width:100%;border-collapse:collapse;font-size:13px;--esqueleto-celda-padding:16px}th{text-align:left;background:var(--color-background);color:var(--color-text-secondary);font-weight:500}th,td{padding:16px;border-bottom:1px solid var(--color-border)}small{display:block;margin-top:5px}.numero{font-variant-numeric:tabular-nums;white-space:nowrap}.cantidad{margin-bottom:16px}dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px;margin:4px 0}dt{font-size:12px}dd{margin:4px 0;overflow-wrap:anywhere}footer{display:flex;justify-content:flex-end;align-items:center;gap:16px;margin-top:20px;font-size:13px}.error{color:var(--color-tardia)}.nota{font-size:12px}@media(max-width:650px){.convenios{padding:16px}.panel{padding:16px}footer{flex-wrap:wrap}}
+.total {
+  color: var(--color-text);
+  font-size: var(--texto-base);
+}
+
+.importe {
+  font-weight: 600;
+}
+
+.enlace {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-primary);
+  font-size: var(--texto-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.enlace:hover {
+  text-decoration: underline;
+}
+
+.enlace:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.fila-detalle > td {
+  padding: var(--spacing-md) var(--pagina-margen);
+  background: var(--color-background);
+}
+
+.detalle-convenio {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--spacing-md) var(--spacing-lg);
+  margin: 0;
+}
+
+.detalle-convenio dt {
+  color: var(--color-text-secondary);
+  font-size: var(--texto-sm);
+}
+
+.detalle-convenio dd {
+  margin: 2px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.mensaje-pagina button {
+  margin-top: var(--spacing-sm);
+}
 </style>

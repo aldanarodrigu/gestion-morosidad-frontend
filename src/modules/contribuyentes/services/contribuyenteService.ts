@@ -61,7 +61,7 @@ export function obtenerResumenDesdeDeudas(
     contribuyenteId: primeraDeuda.contribuyenteId,
     cm: deudaParaMostrar?.padron.cm ?? null,
     fechaSincronizacion: deudaParaMostrar?.fechaSincronizacion ?? null,
-    origen: deudaParaMostrar ? deudaParaMostrar.padron.origen ?? 'INTENDENCIA' : null,
+    origen: deudaParaMostrar ? (deudaParaMostrar.padron.origen ?? 'INTENDENCIA') : null,
     nombre: primeraDeuda.contribuyente.nombre,
     documento: primeraDeuda.contribuyente.documento,
     deudaTotal: Math.round(deudaTotal * 100) / 100,

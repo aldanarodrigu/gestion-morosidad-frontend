@@ -28,7 +28,7 @@ withDefaults(defineProps<{ titulo?: string; nota?: boolean }>(), { titulo: undef
 
 .titulo,
 .titulo-real {
-  font-size: 13px;
+  font-size: var(--texto-base);
 }
 
 .titulo-real {
@@ -41,6 +41,6 @@ withDefaults(defineProps<{ titulo?: string; nota?: boolean }>(), { titulo: undef
 }
 
 .nota {
-  font-size: 12px;
+  font-size: var(--texto-sm);
 }
 </style>

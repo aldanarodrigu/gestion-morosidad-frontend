@@ -29,7 +29,11 @@ export interface PaginaCancelaciones {
 }
 
 export const filtrosCancelacionesVacios: Readonly<FiltrosCancelacion> = {
-  origen: '', buscar: '', motivo: '', desde: '', hasta: '',
+  origen: '',
+  buscar: '',
+  motivo: '',
+  desde: '',
+  hasta: '',
 }
 
 export type FiltrosExportacionCancelaciones = Omit<FiltrosCancelacion, 'buscar'>
@@ -40,7 +44,11 @@ function parametros(filtros: FiltrosExportacionCancelaciones) {
   return Object.fromEntries(Object.entries(filtros).filter(([, valor]) => valor.trim()))
 }
 
-export async function obtenerCancelaciones(filtros: FiltrosCancelacion, page: number, signal: AbortSignal) {
+export async function obtenerCancelaciones(
+  filtros: FiltrosCancelacion,
+  page: number,
+  signal: AbortSignal,
+) {
   const { data } = await http.get<PaginaCancelaciones>('/cancelaciones', {
     params: { ...parametros(filtros), page, size: 20 },
     signal,
@@ -48,7 +56,11 @@ export async function obtenerCancelaciones(filtros: FiltrosCancelacion, page: nu
   return data
 }
 
-export async function exportarCancelaciones(filtros: FiltrosExportacionCancelaciones, formato: FormatoCancelaciones, signal: AbortSignal) {
+export async function exportarCancelaciones(
+  filtros: FiltrosExportacionCancelaciones,
+  formato: FormatoCancelaciones,
+  signal: AbortSignal,
+) {
   const { data } = await http.get<Blob>('/cancelaciones/exportar', {
     params: { ...parametros(filtros), formato: formato.toUpperCase() },
     responseType: 'blob',

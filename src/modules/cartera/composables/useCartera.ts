@@ -157,7 +157,8 @@ export function useCartera(tamanio = 20) {
   // Mantiene a la vista la primera fila que se estaba mirando: con 20 filas en la página 3
   // (filas 41–60), al pasar a 50 se va a la página 1 (filas 1–50), que la incluye.
   function cambiarTamanio(nuevo: number) {
-    if (!(TAMANIOS_PAGINA as readonly number[]).includes(nuevo) || nuevo === tamanioPagina.value) return
+    if (!(TAMANIOS_PAGINA as readonly number[]).includes(nuevo) || nuevo === tamanioPagina.value)
+      return
     const primeraFila = pagina.value * tamanioPagina.value
     tamanioPagina.value = nuevo
     pagina.value = Math.floor(primeraFila / nuevo)

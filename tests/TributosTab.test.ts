@@ -199,7 +199,7 @@ describe('paginación y filtros del catálogo', () => {
     await w.findAll('.eliminar')[0]!.trigger('click')
     await w.get('.confirmar-eliminar').trigger('click');await flushPromises()
     expect(api.obtenerTributosPaginados).toHaveBeenLastCalledWith(0,expect.anything(),expect.any(AbortSignal))
-    expect(w.get('.paginacion-catalogo').text()).toContain('Página 1 de 1')
+    expect(w.get('.paginacion-catalogo').text()).toContain('1–20 de 20 tributos')
     w.unmount()
   })
 })

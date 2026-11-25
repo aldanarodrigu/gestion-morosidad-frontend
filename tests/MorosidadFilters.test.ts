@@ -66,3 +66,36 @@ describe('filtros de cartera', () => {
     expect(limpiar(w).text()).toBe('Limpiar filtros')
   })
 })
+
+describe('filtros aplicados', () => {
+  it('muestra una etiqueta por filtro activo con su valor legible', async () => {
+    const w = montar({ search: 'perez', segmento: 'tardia', origen: 'sucive', tipoPadron: 'CIU' })
+    await flushPromises()
+    expect(w.findAll('.filtros-activos li').map((li) => li.text())).toEqual([
+      'Búsqueda: «perez»', 'Segmento: Mora Tardía', 'PadTipo: CIU', 'Origen: SUCIVE',
+    ])
+  })
+
+  it('cada etiqueta quita solo su filtro', async () => {
+    const w = montar({ segmento: 'tardia', origen: 'sucive' })
+    await flushPromises()
+    await w.get('[aria-label="Quitar filtro Origen: SUCIVE"]').trigger('click')
+    expect(w.props('modelValue')).toMatchObject({ segmento: 'tardia', origen: '' })
+    expect(w.findAll('.filtros-activos li')).toHaveLength(1)
+  })
+
+  it('sin filtros no muestra la lista', async () => {
+    const w = montar()
+    await flushPromises()
+    expect(w.find('.filtros-activos').exists()).toBe(false)
+  })
+
+  it('«Ordenar por» marca la opción activa', async () => {
+    const w = montar()
+    await flushPromises()
+    const botones = w.findAll('.sort-button')
+    await botones[1]!.trigger('click')
+    expect(w.props('modelValue').ordenarPor).toBe('importe')
+    expect(botones.map((b) => b.attributes('aria-pressed'))).toEqual(['false', 'true', 'false'])
+  })
+})

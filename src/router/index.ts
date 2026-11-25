@@ -10,12 +10,13 @@ const router = createRouter({
     {
       path: '/login',
       name: 'login',
+      meta: { titulo: 'Ingresar' },
       component: () => import('@/modules/autenticacion/views/LoginView.vue'),
     },
     {
       path: '/cambiar-contrasena',
       name: 'cambiar-contrasena',
-      meta: { requiresAuth: true },
+      meta: { titulo: 'Cambiar contraseña', requiresAuth: true },
       component: () => import('@/modules/autenticacion/views/CambiarPasswordView.vue'),
     },
     {
@@ -30,42 +31,42 @@ const router = createRouter({
         {
           path: 'cancelaciones',
           name: 'cancelaciones',
-          meta: { requiereCartera: true },
+          meta: { titulo: 'Cancelaciones', requiereCartera: true },
           component: () => import('@/modules/cancelaciones/views/CancelacionesView.vue'),
         },
         {
           path: 'convenios',
           name: 'convenios',
-          meta: { requiereCartera: true },
+          meta: { titulo: 'Convenios', requiereCartera: true },
           component: () => import('@/modules/convenios/views/ConveniosView.vue'),
         },
         {
           path: 'reportes',
           name: 'reportes',
-          meta: { requiereCartera: true },
+          meta: { titulo: 'Reportes', requiereCartera: true },
           component: () => import('@/modules/reportes/views/ReportesView.vue'),
         },
         {
           path: 'comparar-cartera',
           name: 'comparar-cartera',
-          meta: { requiereCartera: true },
+          meta: { titulo: 'Comparar cartera', requiereCartera: true },
           component: () => import('@/modules/comparacion/views/ComparacionCarteraView.vue'),
         },
         {
           path: 'configuracion',
           name: 'configuracion',
-          meta: { requiereAdministrador: true },
+          meta: { titulo: 'Configuración', requiereAdministrador: true },
           component: () => import('@/modules/configuracion/views/ConfiguracionView.vue'),
         },
         {
           path: 'cartera',
-          meta: { requiereCartera: true },
+          meta: { titulo: 'Cartera', requiereCartera: true },
           component: CarteraView,
         },
         {
           path: 'contribuyentes/:contribuyenteId',
           name: 'contribuyente-detail',
-          meta: { requiereCartera: true },
+          meta: { titulo: 'Ficha del contribuyente', requiereCartera: true },
           component: () => import('@/modules/contribuyentes/views/ContribuyenteDetalleView.vue'),
         },
       ],
@@ -106,6 +107,11 @@ router.beforeEach(async (to) => {
 // por acá); se guarda la última para que «Volver» desde la ficha la restaure.
 router.afterEach((to) => {
   if (to.path === '/cartera') recordarRutaCartera(to.fullPath)
+  // Título de la pestaña del navegador: uno por pantalla
+  const titulo = to.meta.titulo as string | undefined
+  document.title = titulo
+    ? `${titulo} · Gestión de Morosidad`
+    : 'Gestión de Morosidad · Intendencia de San José'
 })
 
 export default router

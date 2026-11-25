@@ -6,17 +6,21 @@
  */
 import SkeletonBloque from './SkeletonBloque.vue'
 
-withDefaults(
-  defineProps<{ etiquetas: string[]; tipo?: 'valor' | 'campo'; columnas?: number }>(),
-  { tipo: 'valor', columnas: 1 },
-)
+withDefaults(defineProps<{ etiquetas: string[]; tipo?: 'valor' | 'campo'; columnas?: number }>(), {
+  tipo: 'valor',
+  columnas: 1,
+})
 </script>
 
 <template>
   <div class="detalle-esqueleto" :style="{ '--columnas': columnas }" aria-hidden="true">
     <div v-for="(etiqueta, i) in etiquetas" :key="etiqueta" class="campo">
       <span class="etiqueta">{{ etiqueta }}</span>
-      <SkeletonBloque v-if="tipo === 'campo'" forma="rect" alto="var(--esqueleto-campo-alto, 38px)" />
+      <SkeletonBloque
+        v-if="tipo === 'campo'"
+        forma="rect"
+        alto="var(--esqueleto-campo-alto, 38px)"
+      />
       <SkeletonBloque v-else class="valor" :ancho="['60%', '45%', '70%'][i % 3]" />
     </div>
   </div>
@@ -43,7 +47,7 @@ withDefaults(
   font-size: 14px;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 599px) {
   .detalle-esqueleto {
     grid-template-columns: 1fr;
   }

@@ -8,17 +8,34 @@ beforeEach(() => { vi.resetAllMocks(); vi.mocked(obtenerConvenios).mockResolvedV
 describe('Convenios reales', () => {
  it('muestra resultados y abre el desglose conservando el importe', async () => {
   const w = mount(ConveniosView); await flushPromises()
-  expect(w.text()).toContain('Ana'); expect(w.text()).toContain('123.45000')
+  expect(w.text()).toContain('Ana'); expect(w.text()).toContain('$ 123,45')
   await w.findAll('button').find(b => b.text() === 'Ver detalle')!.trigger('click')
-  expect(w.text()).toContain('Crédito descontado'); expect(w.text()).toContain('130.45'); w.unmount()
+  expect(w.text()).toContain('Crédito descontado'); expect(w.text()).toContain('$ 130,45'); w.unmount()
  })
- it('aplica filtros y pagina usando los filtros ya aplicados', async () => {
+ it('aplica los filtros solos y pagina con los filtros aplicados', async () => {
+  vi.useFakeTimers()
   const w = mount(ConveniosView); await flushPromises()
-  await w.find('select').setValue('SUCIVE'); await w.find('input[inputmode=numeric]').setValue('900'); await w.find('form').trigger('submit'); await flushPromises()
+  await w.find('select').setValue('SUCIVE'); await vi.advanceTimersByTimeAsync(0)
+  expect(obtenerConvenios).toHaveBeenLastCalledWith(expect.objectContaining({ origen: 'SUCIVE', cm: '' }), 1, expect.any(AbortSignal))
+  const llamadas = vi.mocked(obtenerConvenios).mock.calls.length
+  await w.find('input[inputmode=numeric]').setValue('900'); await vi.advanceTimersByTimeAsync(399)
+  expect(obtenerConvenios).toHaveBeenCalledTimes(llamadas)
+  await vi.advanceTimersByTimeAsync(1)
   expect(obtenerConvenios).toHaveBeenLastCalledWith(expect.objectContaining({ origen: 'SUCIVE', cm: '900' }), 1, expect.any(AbortSignal))
-  await w.find('select').setValue('INTENDENCIA')
-  await w.findAll('button').find(b => b.text() === 'Siguiente')!.trigger('click'); await flushPromises()
-  expect(obtenerConvenios).toHaveBeenLastCalledWith(expect.objectContaining({ origen: 'SUCIVE' }), 2, expect.any(AbortSignal)); w.unmount()
+  await w.findAll('button').find(b => b.text() === 'Siguiente')!.trigger('click'); await vi.advanceTimersByTimeAsync(0)
+  expect(obtenerConvenios).toHaveBeenLastCalledWith(expect.objectContaining({ origen: 'SUCIVE', cm: '900' }), 2, expect.any(AbortSignal))
+  w.unmount(); vi.useRealTimers()
+ })
+ it('un CM mal escrito no consulta y lo marca en el campo', async () => {
+  vi.useFakeTimers()
+  const w = mount(ConveniosView); await flushPromises()
+  const llamadas = vi.mocked(obtenerConvenios).mock.calls.length
+  const cm = w.find('input[inputmode=numeric]')
+  await cm.setValue('09a'); await vi.advanceTimersByTimeAsync(500)
+  expect(obtenerConvenios).toHaveBeenCalledTimes(llamadas)
+  expect(cm.attributes('aria-invalid')).toBe('true')
+  expect(w.text()).toContain('Ingresá solo números')
+  w.unmount(); vi.useRealTimers()
  })
  it('distingue error externo de consulta sin resultados y permite reintentar', async () => {
   vi.mocked(obtenerConvenios).mockRejectedValueOnce({ response: { data: { mensaje: 'API externa respondió HTTP 504' } } })

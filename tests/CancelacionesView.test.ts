@@ -56,13 +56,13 @@ it('abre un panel de exportación independiente del listado para Analista', asyn
   auth.user = { id: 1, username: 'usuario', roles: ['ADMINISTRADOR'] }
   const vista = mount(CancelacionesView)
   await flushPromises()
-  expect(vista.findAll('.filtros button').map(boton => boton.text())).not.toContain('Exportar Excel')
+  expect(vista.findAll('.filtros button').map(boton => boton.text())).not.toContain('Exportar')
 
   auth.user.roles.push('ANALISTA')
   await flushPromises()
-  const abrir = vista.findAll('.filtros button').find(boton => boton.text() === 'Exportar Excel')!
+  const abrir = vista.findAll('.filtros button').find(boton => boton.text() === 'Exportar')!
   await vista.get('.filtros select').setValue('INTENDENCIA')
-  await vista.get('form.panel').trigger('submit')
+  await vista.get('form.filtros-form').trigger('submit')
   await flushPromises()
   await abrir.trigger('click')
   await flushPromises()
@@ -107,7 +107,7 @@ it('permite limpiar los filtros del panel, cancelar y volver a abrir con valores
   useAuthStore().user = { id: 1, username: 'analista', roles: ['ANALISTA'] }
   const vista = mount(CancelacionesView)
   await flushPromises()
-  const abrir = vista.findAll('.filtros button').find(boton => boton.text() === 'Exportar Excel')!
+  const abrir = vista.findAll('.filtros button').find(boton => boton.text() === 'Exportar')!
   await abrir.trigger('click')
   await flushPromises()
   const panel = vista.get('form.exportacion-panel')

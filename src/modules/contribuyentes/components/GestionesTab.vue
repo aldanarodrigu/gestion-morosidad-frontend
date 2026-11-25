@@ -1,11 +1,16 @@
 <script setup lang="ts">
+import { vEnfocar } from '@/shared/directives/enfocar'
 import { computed, onScopeDispose, ref, watch } from 'vue'
 import { isAxiosError } from 'axios'
 import AvisoCarga from '@/shared/components/esqueleto/AvisoCarga.vue'
 import SkeletonBloque from '@/shared/components/esqueleto/SkeletonBloque.vue'
 import { useEsqueleto } from '@/shared/composables/useEsqueleto'
 import { useAuthStore } from '@/modules/autenticacion/stores/auth.store'
-import { formatoImporte } from '@/shared/utils/formato'
+import {
+  fechaHora,
+  importe as formatoImporte,
+  origen as nombreOrigen,
+} from '@/shared/utils/formato'
 import type { DeudaApi } from '@/modules/cartera/types/cartera'
 import {
   obtenerAccionesDisponibles,
@@ -37,6 +42,13 @@ const guardando = ref(false)
 const formulario = ref(false)
 const errorCarga = ref('')
 const errorFormulario = ref('')
+// La validación compartida devuelve un mensaje; acá se ubica junto al campo que lo causó.
+const CAMPO_DEL_ERROR: Record<string, 'accion' | 'resultado' | 'observacion'> = {
+  'Seleccioná una acción.': 'accion',
+  'Seleccioná un resultado.': 'resultado',
+  'La observación no puede superar los 255 caracteres.': 'observacion',
+}
+const campoConError = computed(() => CAMPO_DEL_ERROR[errorFormulario.value])
 const mensaje = ref('')
 const deudaSeleccionada = computed(() => props.deudas.find((d) => d.id === deudaId.value))
 let controller: AbortController | null = null
@@ -129,17 +141,13 @@ async function guardar() {
     guardando.value = false
   }
 }
-function fecha(valor: string) {
-  return new Intl.DateTimeFormat('es-UY', { dateStyle: 'medium', timeStyle: 'short' }).format(
-    new Date(valor),
-  )
-}
+const fecha = fechaHora
 function elegirDeuda(evento: Event) {
   const id = Number((evento.target as HTMLSelectElement).value)
   if (props.deudas.some((d) => d.id === id) && id !== deudaId.value) emit('seleccionar', id)
 }
 function descripcionDeuda(deuda: DeudaApi) {
-  const origen = deuda.padron.origen === 'SUCIVE' ? 'SUCIVE' : 'Intendencia'
+  const origen = nombreOrigen(deuda.padron.origen)
   return `Padrón ${deuda.padron.numeroPadron || '—'} · CM ${deuda.padron.cm} · ${origen} · ${tributos(deuda)} · ${formatoImporte(deuda.importe)}`
 }
 function tributos(deuda: DeudaApi) {
@@ -223,25 +231,60 @@ function tributos(deuda: DeudaApi) {
       <p v-else-if="puedeRegistrar && !acciones.length && deudas.length" class="ayuda">
         No hay acciones disponibles para el segmento de esta deuda.
       </p>
-      <form v-if="formulario && puedeRegistrar" class="formulario" @submit.prevent="guardar">
+      <form
+        v-enfocar
+        v-if="formulario && puedeRegistrar"
+        class="formulario"
+        @submit.prevent="guardar"
+      >
         <h3>Registrar nueva gestión</h3>
         <div class="campos">
           <div>
-            <label for="gestion-accion">Acción realizada</label>
-            <select id="gestion-accion" v-model="accionId" required :disabled="guardando">
+            <label for="gestion-accion" class="requerido">Acción realizada</label>
+            <select
+              id="gestion-accion"
+              v-model="accionId"
+              required
+              :disabled="guardando"
+              :aria-invalid="campoConError === 'accion'"
+              :aria-describedby="campoConError === 'accion' ? 'gestion-error' : undefined"
+            >
               <option v-for="accion in acciones" :key="accion.id" :value="accion.id">
                 {{ accion.nombre }}
               </option>
             </select>
+            <p
+              v-if="campoConError === 'accion'"
+              id="gestion-error"
+              role="alert"
+              class="error-campo"
+            >
+              {{ errorFormulario }}
+            </p>
           </div>
           <div>
-            <label for="gestion-resultado">Respuesta del contribuyente</label>
-            <select id="gestion-resultado" v-model="resultado" required :disabled="guardando">
+            <label for="gestion-resultado" class="requerido">Respuesta del contribuyente</label>
+            <select
+              id="gestion-resultado"
+              v-model="resultado"
+              required
+              :disabled="guardando"
+              :aria-invalid="campoConError === 'resultado'"
+              :aria-describedby="campoConError === 'resultado' ? 'gestion-error' : undefined"
+            >
               <option disabled value="">Seleccioná un resultado</option>
               <option v-for="opcion in resultadosGestion" :key="opcion.value" :value="opcion.value">
                 {{ opcion.label }}
               </option>
             </select>
+            <p
+              v-if="campoConError === 'resultado'"
+              id="gestion-error"
+              role="alert"
+              class="error-campo"
+            >
+              {{ errorFormulario }}
+            </p>
           </div>
         </div>
         <label for="gestion-observacion">Observaciones</label>
@@ -252,9 +295,22 @@ function tributos(deuda: DeudaApi) {
           maxlength="255"
           :disabled="guardando"
           placeholder="Notas sobre la gestión realizada..."
+          :aria-invalid="campoConError === 'observacion'"
+          :aria-describedby="campoConError === 'observacion' ? 'gestion-error' : undefined"
         />
         <p class="contador">{{ observacion.length }}/255</p>
-        <p v-if="errorFormulario" role="alert" class="error">{{ errorFormulario }}</p>
+        <p
+          v-if="campoConError === 'observacion'"
+          id="gestion-error"
+          role="alert"
+          class="error-campo"
+        >
+          {{ errorFormulario }}
+        </p>
+        <p v-else-if="errorFormulario && !campoConError" role="alert" class="error">
+          {{ errorFormulario }}
+        </p>
+        <p class="aviso-obligatorios">Los campos con * son obligatorios.</p>
         <div class="botones">
           <button type="button" class="secundario" :disabled="guardando" @click="limpiarFormulario">
             Cancelar
@@ -273,7 +329,7 @@ function tributos(deuda: DeudaApi) {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-lg);
-  font-size: 13px;
+  font-size: var(--texto-base);
 }
 .contexto-deuda {
   padding-bottom: 16px;
@@ -286,7 +342,7 @@ label {
   display: block;
   margin-bottom: 6px;
   color: var(--color-text-secondary);
-  font-size: 12px;
+  font-size: var(--texto-sm);
   font-weight: 500;
 }
 select,
@@ -297,7 +353,7 @@ textarea {
   border-radius: var(--radius-sm);
   background: var(--color-surface);
   color: var(--color-text);
-  font-size: 13px;
+  font-size: var(--texto-base);
 }
 textarea {
   resize: vertical;
@@ -338,7 +394,7 @@ button:focus-visible {
 .ayuda,
 .contador {
   color: var(--color-text-secondary);
-  font-size: 12px;
+  font-size: var(--texto-sm);
 }
 .observacion {
   margin: 9px 0 6px;
@@ -349,7 +405,7 @@ button:focus-visible {
   margin: 0;
 }
 .resultado {
-  font-size: 11px;
+  font-size: var(--texto-xs);
   color: var(--color-text-secondary);
 }
 .resultado.exitosa {
@@ -359,7 +415,7 @@ button:focus-visible {
   color: var(--color-tardia);
 }
 .resultado.pendiente {
-  color: var(--color-incial);
+  color: var(--color-inicial);
 }
 .formulario {
   padding: var(--spacing-lg);
@@ -374,7 +430,8 @@ h3 {
 }
 .campos {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  /* Tantas columnas como entren (mín. 220px); una sola en móvil */
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 16px;
   margin-bottom: 18px;
 }
@@ -384,35 +441,12 @@ h3 {
   gap: 10px;
   margin-top: 16px;
 }
-button {
-  padding: 9px 14px;
-  border-radius: var(--radius-sm);
-  font-size: 13px;
-}
-.primario {
-  color: white;
-  background: var(--color-primary);
-  border: 1px solid var(--color-primary);
-  font-weight: 600;
-}
-.primario:hover {
-  background: var(--color-primary-dark);
-}
-.secundario {
-  color: var(--color-text);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-}
 .enlace {
   align-self: flex-start;
   padding: 0;
   border: 0;
   background: none;
   color: var(--color-primary);
-}
-button:disabled {
-  opacity: 0.6;
-  cursor: wait;
 }
 .vacio {
   padding: 20px 0;
@@ -430,7 +464,7 @@ button:disabled {
   color: var(--color-temprana);
   margin: 0;
 }
-@media (max-width: 600px) {
+@media (max-width: 599px) {
   .campos {
     grid-template-columns: 1fr;
   }

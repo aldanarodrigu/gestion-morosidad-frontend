@@ -105,7 +105,7 @@ describe('detalle de facturas bajo demanda', () => {
   it('permite reintentar una falla y muestra lista vacía sin inventar filas', async () => {
     vi.mocked(obtenerFacturas).mockRejectedValueOnce(new Error('504')).mockResolvedValueOnce({ data: [], meta: { total: 0 } })
     const w = panel(); await flushPromises()
-    expect(w.get('[role="alert"]').text()).toContain('API externa')
+    expect(w.get('[role="alert"]').text()).toContain('No se pudieron consultar las facturas')
     await w.get('button').trigger('click'); await flushPromises()
     expect(w.text()).toContain('No hay facturas para estos filtros.')
   })

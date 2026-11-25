@@ -10,14 +10,22 @@ export interface Contacto {
   origen: string
 }
 export type ContactoRequest = Omit<Contacto, 'id'> & { id?: number }
-export async function obtenerContactos(cm: string, signal?: AbortSignal, origen: OrigenDatos = 'INTENDENCIA') {
+export async function obtenerContactos(
+  cm: string,
+  signal?: AbortSignal,
+  origen: OrigenDatos = 'INTENDENCIA',
+) {
   const { data } = await http.get<Contacto[]>(
     `/contribuyentes/${encodeURIComponent(cm)}/contactos`,
     { signal, ...(origen === 'SUCIVE' ? { params: { origen } } : {}) },
   )
   return data
 }
-export async function guardarContacto(cm: string, request: ContactoRequest, origen: OrigenDatos = 'INTENDENCIA') {
+export async function guardarContacto(
+  cm: string,
+  request: ContactoRequest,
+  origen: OrigenDatos = 'INTENDENCIA',
+) {
   const { data } = await http.put<Contacto>(
     `/contribuyentes/${encodeURIComponent(cm)}/contactos`,
     request,

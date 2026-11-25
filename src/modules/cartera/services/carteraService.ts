@@ -53,7 +53,12 @@ function parametros(pagina: number, tamanio: number, filtros: FiltrosCarteraApi)
     contribuyente: filtros.busqueda?.trim() || undefined,
     segmento: filtros.segmento ? idsSegmentos[filtros.segmento] : undefined,
     tipoPadron: filtros.tipoPadron || undefined,
-    origen: filtros.origen === 'sucive' ? 'SUCIVE' : filtros.origen === 'intendencia' ? 'INTENDENCIA' : undefined,
+    origen:
+      filtros.origen === 'sucive'
+        ? 'SUCIVE'
+        : filtros.origen === 'intendencia'
+          ? 'INTENDENCIA'
+          : undefined,
     conContacto: filtros.contacto === 'con' ? true : filtros.contacto === 'sin' ? false : undefined,
   }
 }

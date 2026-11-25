@@ -45,7 +45,9 @@ function actualizarReloj() {
   if (!bloqueos.size) detenerReloj()
 }
 
-watch(username, () => { error.value = '' })
+watch(username, () => {
+  error.value = ''
+})
 onScopeDispose(detenerReloj)
 
 async function onSubmit() {
@@ -111,7 +113,8 @@ async function onSubmit() {
 
         <p v-if="segundosRestantes > 0" class="login__error">
           Demasiados intentos de inicio de sesión. Volvé a intentarlo en
-          <span role="timer">{{ esperaFormateada }}</span>.
+          <span role="timer">{{ esperaFormateada }}</span
+          >.
         </p>
         <p v-else-if="error" class="login__error" role="alert">{{ error }}</p>
 

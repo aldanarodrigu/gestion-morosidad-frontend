@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, onScopeDispose, ref } from 'vue'
+import { vEnfocar } from '@/shared/directives/enfocar'
+import { computed, onMounted, onScopeDispose, ref, reactive } from 'vue'
 import { isAxiosError } from 'axios'
 import AvisoCarga from '@/shared/components/esqueleto/AvisoCarga.vue'
 import SkeletonFilas from '@/shared/components/esqueleto/SkeletonFilas.vue'
@@ -23,10 +24,11 @@ const puedeAdministrar = computed(() => auth.tieneRol('ADMINISTRADOR'))
 const usuarios = ref<Usuario[]>([])
 const cargando = ref(false)
 const esqueleto = useEsqueleto(() => cargando.value)
-const guardando = ref(false)
 const errorCarga = ref('')
+const guardando = ref(false)
 const errorFormulario = ref('')
 const errorPassword = ref('')
+const errores = reactive<{ username?: string; roles?: string }>({})
 const mensaje = ref('')
 const usuarioParaReset = ref<Usuario | null>(null)
 const formulario = ref<{
@@ -36,10 +38,10 @@ const formulario = ref<{
   roles: Rol[]
   activo: boolean
 } | null>(null)
-let controller: AbortController | null = null
 function errorApi(e: unknown, defecto: string) {
   return isAxiosError<{ mensaje?: string }>(e) ? (e.response?.data?.mensaje ?? defecto) : defecto
 }
+let controller: AbortController | null = null
 async function cargar() {
   if (!puedeAdministrar.value) return
   controller?.abort()
@@ -56,9 +58,10 @@ async function cargar() {
     if (controller === ctrl) cargando.value = false
   }
 }
-onMounted(cargar)
 onScopeDispose(() => controller?.abort())
+onMounted(cargar)
 function abrir(usuario?: Usuario) {
+  errores.username = errores.roles = undefined
   formulario.value = usuario
     ? { ...usuario, roles: [...usuario.roles], password: '' }
     : { username: '', password: '', roles: [], activo: true }
@@ -77,10 +80,9 @@ async function guardar() {
   const username = datos.username.trim()
   errorFormulario.value = ''
   errorPassword.value = ''
-  if (!username || !datos.roles.length) {
-    errorFormulario.value = 'Ingresá el nombre de usuario y seleccioná al menos un rol.'
-    return
-  }
+  errores.username = username ? undefined : 'Ingresá el nombre de usuario.'
+  errores.roles = datos.roles.length ? undefined : 'Seleccioná al menos un rol.'
+  if (errores.username || errores.roles) return
   if (!datos.id) {
     const errorLongitud = validarLongitudPassword(datos.password)
     if (errorLongitud) {
@@ -138,15 +140,29 @@ function nombresRoles(roles: Rol[]) {
         <p class="ayuda">
           Usuarios del sistema y sus roles. Cada cuenta puede tener uno o varios roles.
         </p>
-        <button v-if="!formulario && !usuarioParaReset" type="button" class="primario" @click="abrir()">
+        <button
+          v-if="!formulario && !usuarioParaReset"
+          type="button"
+          class="primario"
+          @click="abrir()"
+        >
           + Crear usuario
         </button>
       </header>
       <AvisoCarga :activo="cargando" texto="Cargando usuarios" />
       <div v-if="esqueleto" class="tabla-contenedor" aria-hidden="true">
-        <table>
-          <thead><tr><th>Usuario</th><th>Roles</th><th>Estado</th><th><span class="sr-only">Opciones</span></th></tr></thead>
-          <tbody><SkeletonFilas :columnas="4" :filas="5" :anchos="['7em', '10em', '4em', '12em']" /></tbody>
+        <table class="tabla-datos">
+          <thead>
+            <tr>
+              <th scope="col">Usuario</th>
+              <th scope="col">Roles</th>
+              <th scope="col">Estado</th>
+              <th scope="col"><span class="sr-only">Opciones</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            <SkeletonFilas :columnas="4" :filas="5" :anchos="['7em', '10em', '4em', '12em']" />
+          </tbody>
         </table>
       </div>
       <template v-else-if="cargando" />
@@ -156,12 +172,12 @@ function nombresRoles(roles: Rol[]) {
       </div>
       <template v-else>
         <p v-if="mensaje" role="status" class="confirmacion">{{ mensaje }}</p>
-        <form v-if="formulario" class="formulario" @submit.prevent="guardar">
+        <form v-enfocar v-if="formulario" class="formulario" @submit.prevent="guardar">
           <h3>{{ formulario.id ? 'Editar usuario' : 'Crear usuario' }}</h3>
           <fieldset :disabled="guardando">
             <div class="campos">
               <div>
-                <label for="usuario-nombre">Nombre de usuario</label
+                <label for="usuario-nombre" class="requerido">Nombre de usuario</label
                 ><input
                   id="usuario-nombre"
                   v-model="formulario.username"
@@ -169,10 +185,20 @@ function nombresRoles(roles: Rol[]) {
                   autocomplete="off"
                   required
                   maxlength="255"
+                  :aria-invalid="!!errores.username"
+                  :aria-describedby="errores.username ? 'usuario-nombre-error' : undefined"
                 />
+                <p
+                  v-if="errores.username"
+                  id="usuario-nombre-error"
+                  role="alert"
+                  class="error-campo"
+                >
+                  {{ errores.username }}
+                </p>
               </div>
               <div v-if="!formulario.id">
-                <label for="usuario-password">Contraseña temporal</label
+                <label for="usuario-password" class="requerido">Contraseña temporal</label
                 ><input
                   id="usuario-password"
                   v-model="formulario.password"
@@ -185,16 +211,20 @@ function nombresRoles(roles: Rol[]) {
                   :aria-invalid="!!errorPassword"
                 />
                 <p id="usuario-password-ayuda" class="ayuda-campo">
-                  Al menos {{ PASSWORD_MIN_CARACTERES }} caracteres. Es temporal: el usuario la cambia
-                  en su primer ingreso y vence en 24 h.
+                  Al menos {{ PASSWORD_MIN_CARACTERES }} caracteres. Es temporal: el usuario la
+                  cambia en su primer ingreso y vence en 24 h.
                 </p>
                 <p v-if="errorPassword" role="alert" class="error ayuda-campo">
                   {{ errorPassword }}
                 </p>
               </div>
             </div>
-            <fieldset class="roles">
-              <legend>Roles (al menos uno)</legend>
+            <fieldset
+              class="roles"
+              :aria-invalid="!!errores.roles"
+              :aria-describedby="errores.roles ? 'usuario-roles-error' : undefined"
+            >
+              <legend class="requerido">Roles (al menos uno)</legend>
               <label v-for="rol in rolesDisponibles" :key="rol.value" class="opcion"
                 ><input
                   v-model="formulario.roles"
@@ -203,7 +233,11 @@ function nombresRoles(roles: Rol[]) {
                   :data-rol="rol.value"
                 />{{ rol.label }}</label
               >
+              <p v-if="errores.roles" id="usuario-roles-error" role="alert" class="error-campo">
+                {{ errores.roles }}
+              </p>
             </fieldset>
+            <p class="aviso-obligatorios">Los campos con * son obligatorios.</p>
             <label v-if="formulario.id" class="opcion"
               ><input id="usuario-activo" v-model="formulario.activo" type="checkbox" />Usuario
               activo</label
@@ -218,16 +252,19 @@ function nombresRoles(roles: Rol[]) {
             </button>
           </div>
         </form>
-        <RestablecerPasswordPanel v-if="usuarioParaReset" :usuario="usuarioParaReset"
-          @cerrar="usuarioParaReset = null" />
+        <RestablecerPasswordPanel
+          v-if="usuarioParaReset"
+          :usuario="usuarioParaReset"
+          @cerrar="usuarioParaReset = null"
+        />
         <div v-if="usuarios.length" class="tabla-contenedor">
-          <table>
+          <table class="tabla-datos">
             <thead>
               <tr>
-                <th>Usuario</th>
-                <th>Roles</th>
-                <th>Estado</th>
-                <th><span class="sr-only">Opciones</span></th>
+                <th scope="col">Usuario</th>
+                <th scope="col">Roles</th>
+                <th scope="col">Estado</th>
+                <th scope="col"><span class="sr-only">Opciones</span></th>
               </tr>
             </thead>
             <tbody>
@@ -249,10 +286,13 @@ function nombresRoles(roles: Rol[]) {
                   </button>
                   <template v-if="usuario.id !== auth.user?.id">
                     <span class="separador-acciones" aria-hidden="true">·</span>
-                    <button type="button" class="enlace reset-password"
+                    <button
+                      type="button"
+                      class="enlace reset-password"
                       :disabled="guardando || !!formulario || !!usuarioParaReset"
                       :aria-label="`Restablecer contraseña de ${usuario.username}`"
-                      @click="usuarioParaReset = usuario">
+                      @click="usuarioParaReset = usuario"
+                    >
                       Restablecer contraseña
                     </button>
                   </template>
@@ -272,7 +312,7 @@ function nombresRoles(roles: Rol[]) {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-lg);
-  font-size: 13px;
+  font-size: var(--texto-base);
 }
 .cabecera {
   display: flex;
@@ -282,7 +322,7 @@ function nombresRoles(roles: Rol[]) {
 }
 .ayuda {
   color: var(--color-text-secondary);
-  font-size: 12px;
+  font-size: var(--texto-sm);
   margin: 0;
 }
 .tabla-contenedor {
@@ -290,26 +330,7 @@ function nombresRoles(roles: Rol[]) {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
 }
-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-  --esqueleto-celda-padding: 11px 14px;
-}
-th,
-td {
-  padding: 11px 14px;
-  text-align: left;
-  border-bottom: 1px solid var(--color-border);
-}
-th {
-  background: var(--color-background);
-  color: var(--color-text-secondary);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.035em;
-  text-transform: uppercase;
-}
+/* Tabla: estilo común .tabla-datos (main.css) */
 tbody tr:last-child td {
   border-bottom: 0;
 }
@@ -345,13 +366,14 @@ fieldset {
 }
 .campos {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  /* Tantas columnas como entren (mín. 220px); una sola en móvil */
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: var(--spacing-md);
 }
 label,
 legend {
   color: var(--color-text-secondary);
-  font-size: 12px;
+  font-size: var(--texto-sm);
 }
 label {
   display: block;
@@ -364,7 +386,7 @@ input:not([type='checkbox']) {
   padding: 10px 12px;
   background: var(--color-surface);
   color: var(--color-text);
-  font-size: 13px;
+  font-size: var(--texto-base);
 }
 input[readonly] {
   background: var(--color-background);
@@ -390,26 +412,6 @@ legend {
   gap: 10px;
   margin-top: 20px;
 }
-button {
-  padding: 9px 14px;
-  border-radius: var(--radius-sm);
-  font-size: 13px;
-}
-.primario {
-  background: var(--color-primary);
-  color: white;
-  border: 1px solid var(--color-primary);
-  font-weight: 600;
-  white-space: nowrap;
-}
-.primario:hover {
-  background: var(--color-primary-dark);
-}
-.secundario {
-  background: var(--color-surface);
-  color: var(--color-text);
-  border: 1px solid var(--color-border);
-}
 .separador-acciones {
   margin-inline: var(--spacing-xs);
   color: var(--color-text-secondary);
@@ -425,7 +427,7 @@ button {
 }
 .ayuda-campo {
   margin: 4px 0 0;
-  font-size: 12px;
+  font-size: var(--texto-sm);
   color: var(--color-text-secondary);
   max-width: 32ch;
 }
@@ -436,23 +438,12 @@ button {
   color: var(--color-temprana);
   margin: 0;
 }
-button:disabled {
-  opacity: 0.6;
-  cursor: wait;
-}
 button:focus-visible,
 input:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-}
-@media (max-width: 600px) {
+@media (max-width: 599px) {
   .campos {
     grid-template-columns: 1fr;
   }

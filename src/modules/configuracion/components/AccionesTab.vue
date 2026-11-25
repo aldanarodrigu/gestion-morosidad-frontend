@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, onScopeDispose, ref } from 'vue'
+import { vEnfocar } from '@/shared/directives/enfocar'
+import { computed, onMounted, onScopeDispose, ref, reactive } from 'vue'
 import { useAuthStore } from '@/modules/autenticacion/stores/auth.store'
 import { isAxiosError } from 'axios'
 import AvisoCarga from '@/shared/components/esqueleto/AvisoCarga.vue'
@@ -20,6 +21,7 @@ const guardando = ref(new Set<number>())
 const erroresEstado = ref<Record<number, string>>({})
 const acciones = ref<Accion[]>([])
 const cargando = ref(true)
+const errores = reactive<{ nombre?: string; segmento?: string }>({})
 const esqueleto = useEsqueleto(() => cargando.value)
 const error = ref('')
 const formulario = ref(false)
@@ -92,6 +94,7 @@ function abrirFormulario() {
   errorFormulario.value = ''
   mensaje.value = ''
   formulario.value = true
+  errores.nombre = errores.segmento = undefined
   cargarSegmentos()
 }
 function cancelarCreacion() {
@@ -106,10 +109,12 @@ async function guardarNueva() {
   if (!puedeAdministrar.value || creando.value) return
   const nombre = nombreNuevo.value.trim()
   errorFormulario.value = ''
-  if (!nombre || nombre.length > 100 || !segmentos.value.some((s) => s.id === segmentoId.value)) {
-    errorFormulario.value = 'Ingresá un nombre de hasta 100 caracteres y elegí un segmento de mora.'
-    return
-  }
+  errores.nombre =
+    !nombre || nombre.length > 100 ? 'Ingresá un nombre de hasta 100 caracteres.' : undefined
+  errores.segmento = !segmentos.value.some((s) => s.id === segmentoId.value)
+    ? 'Elegí un segmento de mora.'
+    : undefined
+  if (errores.nombre || errores.segmento) return
   const contexto = controller
   creando.value = true
   try {
@@ -150,29 +155,50 @@ onScopeDispose(() => {
       </button>
     </header>
     <p v-if="mensaje" role="status" class="confirmacion">{{ mensaje }}</p>
-    <form v-if="formulario && puedeAdministrar" class="formulario" @submit.prevent="guardarNueva">
+    <form
+      v-enfocar
+      v-if="formulario && puedeAdministrar"
+      class="formulario"
+      @submit.prevent="guardarNueva"
+    >
       <h3>Crear acción</h3>
       <fieldset :disabled="creando">
         <div class="campos">
           <div>
-            <label for="accion-nombre">Nombre</label
-            ><input id="accion-nombre" v-model="nombreNuevo" required maxlength="100" />
+            <label for="accion-nombre" class="requerido">Nombre</label
+            ><input
+              id="accion-nombre"
+              v-model="nombreNuevo"
+              required
+              maxlength="100"
+              :aria-invalid="!!errores.nombre"
+              :aria-describedby="errores.nombre ? 'accion-nombre-error' : undefined"
+            />
+            <p v-if="errores.nombre" id="accion-nombre-error" role="alert" class="error-campo">
+              {{ errores.nombre }}
+            </p>
           </div>
           <div>
-            <label for="accion-segmento">Segmento de mora</label>
+            <label for="accion-segmento" class="requerido">Segmento de mora</label>
             <select
               id="accion-segmento"
               v-model="segmentoId"
               required
               :disabled="cargandoSegmentos || !!errorSegmentos"
+              :aria-invalid="!!errores.segmento"
+              :aria-describedby="errores.segmento ? 'accion-segmento-error' : undefined"
             >
               <option :value="null" disabled>Elegí un segmento</option>
               <option v-for="segmento in segmentos" :key="segmento.id" :value="segmento.id">
                 {{ segmento.nombre }}
               </option>
             </select>
+            <p v-if="errores.segmento" id="accion-segmento-error" role="alert" class="error-campo">
+              {{ errores.segmento }}
+            </p>
           </div>
         </div>
+        <p class="aviso-obligatorios">Los campos con * son obligatorios.</p>
       </fieldset>
       <p v-if="cargandoSegmentos" role="status" class="ayuda">Cargando segmentos...</p>
       <div v-else-if="errorSegmentos" role="alert" class="error">
@@ -197,7 +223,9 @@ onScopeDispose(() => {
     <ul v-if="esqueleto" class="lista" aria-hidden="true">
       <li v-for="n in 4" :key="n" class="accion">
         <div class="informacion">
-          <div class="titulo"><SkeletonBloque class="nombre" :ancho="['12em', '9em', '14em', '10em'][n - 1]" /></div>
+          <div class="titulo">
+            <SkeletonBloque class="nombre" :ancho="['12em', '9em', '14em', '10em'][n - 1]" />
+          </div>
           <p class="mora"><SkeletonBloque ancho="11em" /></p>
         </div>
         <SkeletonBloque forma="rect" ancho="34px" alto="18px" class="interruptor-esqueleto" />
@@ -277,14 +305,15 @@ fieldset {
 }
 .campos {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  /* Tantas columnas como entren (mín. 220px); una sola en móvil */
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 16px;
 }
 label {
   display: block;
   margin-bottom: 6px;
   color: var(--color-text-secondary);
-  font-size: 12px;
+  font-size: var(--texto-sm);
 }
 input,
 select {
@@ -294,22 +323,13 @@ select {
   border-radius: var(--radius-sm);
   background: var(--color-surface);
   color: var(--color-text);
-  font-size: 13px;
+  font-size: var(--texto-base);
 }
 .botones {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
   margin-top: 20px;
-}
-.primario {
-  padding: 9px 14px;
-  border: 1px solid var(--color-primary);
-  border-radius: var(--radius-sm);
-  background: var(--color-primary);
-  color: white;
-  font-size: 13px;
-  font-weight: 600;
 }
 .confirmacion {
   margin: 0;
@@ -318,13 +338,9 @@ select {
 .mora {
   margin: 4px 0 0;
   color: var(--color-text-secondary);
-  font-size: 12px;
+  font-size: var(--texto-sm);
 }
-button:disabled {
-  opacity: 0.6;
-  cursor: wait;
-}
-@media (max-width: 600px) {
+@media (max-width: 599px) {
   .campos {
     grid-template-columns: 1fr;
   }
@@ -333,12 +349,12 @@ button:disabled {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-md);
-  font-size: 13px;
+  font-size: var(--texto-base);
 }
 .descripcion,
 .ayuda {
   color: var(--color-text-secondary);
-  font-size: 12px;
+  font-size: var(--texto-sm);
   margin: 0;
 }
 .lista {
@@ -371,7 +387,7 @@ button:disabled {
 .error-estado {
   margin: 8px 0 0;
   color: var(--color-tardia);
-  font-size: 12px;
+  font-size: var(--texto-sm);
 }
 .nombre {
   color: var(--color-text);
@@ -381,7 +397,7 @@ button:disabled {
 }
 .estado {
   color: var(--color-primary);
-  font-size: 12px;
+  font-size: var(--texto-sm);
   flex-shrink: 0;
 }
 .estado.inactiva {
@@ -392,14 +408,6 @@ button:disabled {
 }
 .error p {
   margin: 0 0 12px;
-}
-.secundario {
-  padding: 9px 14px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface);
-  color: var(--color-text);
-  font-size: 13px;
 }
 .interruptor-esqueleto {
   flex-shrink: 0;

@@ -57,7 +57,8 @@ export interface DeudaApi {
     orden: number
   } | null
   fechaUltimoCobro: string | null
-  motivoUltimoCobro?: string | null; importeUltimoCobro: number | null
+  motivoUltimoCobro?: string | null
+  importeUltimoCobro: number | null
   estado: string
   fechaSincronizacion: string | null
 }

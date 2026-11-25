@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, onScopeDispose, ref } from 'vue'
+import { useConsulta } from '@/shared/composables/useConsulta'
+import { computed, onMounted, ref } from 'vue'
 import { XMarkIcon } from '@heroicons/vue/20/solid'
 import { obtenerTiposPadron } from '../services/carteraService'
 
@@ -21,25 +22,22 @@ defineProps<{ exportando?: boolean; puedeExportar?: boolean }>()
 const emit = defineEmits<{ export: [] }>()
 
 const tiposPadron = ref<string[]>([])
-const cargandoTipos = ref(false)
-const errorTipos = ref(false)
-const tiposController = new AbortController()
+const {
+  cargando: cargandoTipos,
+  error: errorCargaTipos,
+  ejecutar: consultarTipos,
+} = useConsulta<string[]>()
+const errorTipos = computed(() => !!errorCargaTipos.value)
 
 async function cargarTiposPadron() {
-  cargandoTipos.value = true
-  errorTipos.value = false
-  try {
-    const tipos = await obtenerTiposPadron(tiposController.signal)
-    if (!tiposController.signal.aborted) tiposPadron.value = tipos
-  } catch {
-    if (!tiposController.signal.aborted) errorTipos.value = true
-  } finally {
-    cargandoTipos.value = false
-  }
+  const tipos = await consultarTipos(
+    (signal) => obtenerTiposPadron(signal),
+    'No se pudieron cargar los PadTipo.',
+  )
+  if (tipos) tiposPadron.value = tipos
 }
 
 onMounted(cargarTiposPadron)
-onScopeDispose(() => tiposController.abort())
 
 // Filtros de la fila superior; agrupar y ordenar son opciones de la tabla y no cuentan.
 const CAMPOS_FILTRO = ['search', 'segmento', 'tipoPadron', 'origen', 'multa', 'contacto'] as const
@@ -117,9 +115,16 @@ const opcionesOrden = [
 
       <div class="campo">
         <label class="etiqueta" for="filtro-padtipo">PadTipo</label>
-        <select id="filtro-padtipo" v-model="filters.tipoPadron" :disabled="cargandoTipos || errorTipos">
+        <select
+          id="filtro-padtipo"
+          v-model="filters.tipoPadron"
+          :disabled="cargandoTipos || errorTipos"
+        >
           <option value="">{{ cargandoTipos ? 'Cargando...' : 'Todos' }}</option>
-          <option v-if="filters.tipoPadron && !tiposPadron.includes(filters.tipoPadron)" :value="filters.tipoPadron">
+          <option
+            v-if="filters.tipoPadron && !tiposPadron.includes(filters.tipoPadron)"
+            :value="filters.tipoPadron"
+          >
             {{ filters.tipoPadron }}
           </option>
           <option v-for="tipo in tiposPadron" :key="tipo" :value="tipo">{{ tipo }}</option>
@@ -160,7 +165,11 @@ const opcionesOrden = [
         type="button"
         class="limpiar"
         :disabled="filtrosActivos === 0"
-        :aria-label="filtrosActivos ? `Limpiar filtros, ${filtrosActivos} activos` : 'Limpiar filtros, ninguno activo'"
+        :aria-label="
+          filtrosActivos
+            ? `Limpiar filtros, ${filtrosActivos} activos`
+            : 'Limpiar filtros, ninguno activo'
+        "
         @click="limpiarFiltros"
       >
         Limpiar filtros<template v-if="filtrosActivos"> ({{ filtrosActivos }})</template>
@@ -196,21 +205,27 @@ const opcionesOrden = [
           <span id="orden-label" class="option-label">Ordenar por</span>
 
           <div class="segmentado">
-          <button
-            v-for="opcion in opcionesOrden"
-            :key="opcion.value"
-            type="button"
-            class="sort-button"
-            :class="{ active: filters.ordenarPor === opcion.value }"
-            :aria-pressed="filters.ordenarPor === opcion.value"
-            @click="filters.ordenarPor = opcion.value"
-          >
-            {{ opcion.label }}
-          </button>
+            <button
+              v-for="opcion in opcionesOrden"
+              :key="opcion.value"
+              type="button"
+              class="sort-button"
+              :class="{ active: filters.ordenarPor === opcion.value }"
+              :aria-pressed="filters.ordenarPor === opcion.value"
+              @click="filters.ordenarPor = opcion.value"
+            >
+              {{ opcion.label }}
+            </button>
           </div>
         </div>
 
-        <button v-if="puedeExportar" type="button" class="export-button" :disabled="exportando" @click="emit('export')">
+        <button
+          v-if="puedeExportar"
+          type="button"
+          class="export-button"
+          :disabled="exportando"
+          @click="emit('export')"
+        >
           {{ exportando ? 'Exportando...' : 'Exportar' }}
         </button>
       </div>
@@ -468,8 +483,6 @@ const opcionesOrden = [
   height: 14px;
 }
 
-
-
 .sort-button:focus-visible,
 .export-button:focus-visible,
 .quitar:focus-visible,
@@ -495,7 +508,7 @@ const opcionesOrden = [
   cursor: pointer;
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 1279px) {
   .filters {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -509,7 +522,7 @@ const opcionesOrden = [
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 599px) {
   .filters {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

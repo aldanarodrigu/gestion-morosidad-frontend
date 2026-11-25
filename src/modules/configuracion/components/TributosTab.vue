@@ -1,5 +1,9 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onScopeDispose, ref, watch } from 'vue'
+import DialogoConfirmacion from '@/shared/components/DialogoConfirmacion.vue'
+import PaginacionTabla from '@/shared/components/PaginacionTabla.vue'
+import { origen as nombreOrigen } from '@/shared/utils/formato'
+import { vEnfocar } from '@/shared/directives/enfocar'
+import { computed, onMounted, onScopeDispose, reactive, ref, watch } from 'vue'
 import { isAxiosError } from 'axios'
 import AvisoCarga from '@/shared/components/esqueleto/AvisoCarga.vue'
 import SkeletonBloque from '@/shared/components/esqueleto/SkeletonBloque.vue'
@@ -22,13 +26,15 @@ const errorFormulario = ref('')
 const mensaje = ref('')
 const pendienteEliminar = ref<Tributo | null>(null)
 const errorEliminar = ref('')
-const dialogoEliminar = ref<HTMLDialogElement | null>(null)
+const errores = reactive<{ codigo?: string; descripcion?: string }>({})
 const tributos = ref<Tributo[]>([])
 const cargando = ref(true)
 const esqueleto = useEsqueleto(() => cargando.value)
 // Hasta la primera respuesta no hay total que mostrar
 const primeraCarga = ref(true)
-watch(cargando, (activo) => { if (!activo) primeraCarga.value = false })
+watch(cargando, (activo) => {
+  if (!activo) primeraCarga.value = false
+})
 const errorCarga = ref('')
 const busqueda = ref('')
 const origen = ref('')
@@ -41,7 +47,10 @@ function cambiarPagina(nueva: number) {
   pagina.value = nueva
   cargar()
 }
-function limpiarFiltros() { busqueda.value = ''; origen.value = '' }
+function limpiarFiltros() {
+  busqueda.value = ''
+  origen.value = ''
+}
 function programarCarga(demora: number) {
   clearTimeout(timer)
   controller?.abort()
@@ -58,7 +67,11 @@ async function cargar() {
   cargando.value = true
   errorCarga.value = ''
   try {
-    const datos = await obtenerTributosPaginados(pagina.value, { busqueda: busqueda.value, origen: origen.value }, ctrl.signal)
+    const datos = await obtenerTributosPaginados(
+      pagina.value,
+      { busqueda: busqueda.value, origen: origen.value },
+      ctrl.signal,
+    )
     if (ctrl.signal.aborted) return
     totalElementos.value = datos.totalElementos
     totalPaginas.value = datos.totalPaginas
@@ -79,17 +92,14 @@ async function cargar() {
 function agregar() {
   editar({ id: 0, codigo: '', descripcion: '' })
 }
-async function pedirEliminar(tributo: Tributo) {
+function pedirEliminar(tributo: Tributo) {
   pendienteEliminar.value = tributo
   errorEliminar.value = ''
   formulario.value = null
   mensaje.value = ''
-  await nextTick()
-  dialogoEliminar.value?.showModal()
 }
 function cancelarEliminacion() {
   if (guardando.value) return
-  dialogoEliminar.value?.close()
   pendienteEliminar.value = null
 }
 async function confirmarEliminar() {
@@ -101,7 +111,6 @@ async function confirmarEliminar() {
   try {
     await eliminarTributo(tributo.id)
     if (contexto?.signal.aborted) return
-    dialogoEliminar.value?.close()
     pendienteEliminar.value = null
     mensaje.value = 'Tributo eliminado correctamente.'
     await cargar()
@@ -116,6 +125,7 @@ async function confirmarEliminar() {
 }
 function editar(tributo: Tributo) {
   pendienteEliminar.value = null
+  errores.codigo = errores.descripcion = undefined
   formulario.value = { ...tributo }
   errorFormulario.value = ''
   mensaje.value = ''
@@ -129,10 +139,13 @@ async function guardar() {
   const descripcion = formulario.value.descripcion?.trim() ?? ''
   const codigo = formulario.value.codigo.trim()
   errorFormulario.value = ''
-  if (!descripcion || descripcion.length > 200 || !codigo || codigo.length > 20) {
-    errorFormulario.value = 'Completá el código (hasta 20 caracteres) y la descripción (hasta 200).'
-    return
-  }
+  errores.codigo =
+    !codigo || codigo.length > 20 ? 'Completá el código (hasta 20 caracteres).' : undefined
+  errores.descripcion =
+    !descripcion || descripcion.length > 200
+      ? 'Completá la descripción (hasta 200 caracteres).'
+      : undefined
+  if (errores.codigo || errores.descripcion) return
   clearTimeout(timer)
   const contexto = controller
   guardando.value = true
@@ -153,7 +166,10 @@ async function guardar() {
   }
 }
 onMounted(cargar)
-onScopeDispose(() => { clearTimeout(timer); controller?.abort() })
+onScopeDispose(() => {
+  clearTimeout(timer)
+  controller?.abort()
+})
 </script>
 
 <template>
@@ -171,9 +187,28 @@ onScopeDispose(() => { clearTimeout(timer); controller?.abort() })
       </button>
     </header>
     <div class="filtros-catalogo" role="search" aria-label="Buscar tributos">
-      <label>Buscar por código o descripción<input v-model="busqueda" type="search" placeholder="Ej.: 2800 o contribución" :disabled="guardando" /></label>
-      <label>Origen<select v-model="origen" :disabled="guardando"><option value="">Todos los orígenes</option><option value="INTENDENCIA">Intendencia</option><option value="SUCIVE">SUCIVE</option></select></label>
-      <button type="button" class="secundario" :disabled="guardando || (!busqueda && !origen)" @click="limpiarFiltros">Limpiar filtros</button>
+      <label
+        >Buscar por código o descripción<input
+          v-model="busqueda"
+          type="search"
+          placeholder="Ej.: 2800 o contribución"
+          :disabled="guardando"
+      /></label>
+      <label
+        >Origen<select v-model="origen" :disabled="guardando">
+          <option value="">Todos los orígenes</option>
+          <option value="INTENDENCIA">Intendencia</option>
+          <option value="SUCIVE">SUCIVE</option>
+        </select></label
+      >
+      <button
+        type="button"
+        class="secundario"
+        :disabled="guardando || (!busqueda && !origen)"
+        @click="limpiarFiltros"
+      >
+        Limpiar filtros
+      </button>
     </div>
     <AvisoCarga :activo="cargando" texto="Cargando tributos" />
     <div v-if="errorCarga && !cargando" role="alert" class="error">
@@ -182,25 +217,42 @@ onScopeDispose(() => { clearTimeout(timer); controller?.abort() })
     </div>
     <template v-else>
       <p v-if="mensaje" role="status" class="confirmacion">{{ mensaje }}</p>
-      <form v-if="formulario && puedeEditar" class="formulario" @submit.prevent="guardar">
+      <form v-enfocar v-if="formulario && puedeEditar" class="formulario" @submit.prevent="guardar">
         <h3>{{ formulario.id ? `Editar tributo ${formulario.codigo}` : 'Agregar tributo' }}</h3>
         <template v-if="!formulario.id"
-          ><label for="tributo-codigo">Código</label
+          ><label for="tributo-codigo" class="requerido">Código</label
           ><input
             id="tributo-codigo"
             v-model="formulario.codigo"
             required
             maxlength="20"
             :disabled="guardando"
-        /></template>
-        <label for="tributo-descripcion">Descripción</label>
+            :aria-invalid="!!errores.codigo"
+            :aria-describedby="errores.codigo ? 'tributo-codigo-error' : undefined"
+          />
+          <p v-if="errores.codigo" id="tributo-codigo-error" role="alert" class="error-campo">
+            {{ errores.codigo }}
+          </p></template
+        >
+        <label for="tributo-descripcion" class="requerido">Descripción</label>
         <input
           id="tributo-descripcion"
           v-model="formulario.descripcion"
           required
           maxlength="200"
           :disabled="guardando"
+          :aria-invalid="!!errores.descripcion"
+          :aria-describedby="errores.descripcion ? 'tributo-descripcion-error' : undefined"
         />
+        <p
+          v-if="errores.descripcion"
+          id="tributo-descripcion-error"
+          role="alert"
+          class="error-campo"
+        >
+          {{ errores.descripcion }}
+        </p>
+        <p class="aviso-obligatorios">Los campos con * son obligatorios.</p>
         <p v-if="errorFormulario" role="alert" class="error">{{ errorFormulario }}</p>
         <div class="botones">
           <button class="secundario" type="button" :disabled="guardando" @click="cancelar">
@@ -210,9 +262,18 @@ onScopeDispose(() => { clearTimeout(timer); controller?.abort() })
           </button>
         </div>
       </form>
-      <p class="ayuda resultados-catalogo" aria-live="polite"><SkeletonBloque v-if="primeraCarga" ancho="9em" /><template v-else>{{ totalElementos }} {{ totalElementos === 1 ? 'tributo encontrado' : 'tributos encontrados' }}</template></p>
-      <div v-if="tributos.length || esqueleto" class="tabla-contenedor" :aria-busy="cargando || undefined">
-        <table>
+      <p class="ayuda resultados-catalogo" aria-live="polite">
+        <SkeletonBloque v-if="primeraCarga" ancho="9em" /><template v-else
+          >{{ totalElementos }}
+          {{ totalElementos === 1 ? 'tributo encontrado' : 'tributos encontrados' }}</template
+        >
+      </p>
+      <div
+        v-if="tributos.length || esqueleto"
+        class="tabla-contenedor"
+        :aria-busy="cargando || undefined"
+      >
+        <table class="tabla-datos">
           <thead>
             <tr>
               <th scope="col">Origen</th>
@@ -222,94 +283,125 @@ onScopeDispose(() => { clearTimeout(timer); controller?.abort() })
             </tr>
           </thead>
           <tbody>
-            <SkeletonFilas v-if="esqueleto" :columnas="puedeEditar ? 4 : 3" :filas="20" :anchos="['6em', '4em', '16em', '8em']" />
+            <SkeletonFilas
+              v-if="esqueleto"
+              :columnas="puedeEditar ? 4 : 3"
+              :filas="20"
+              :anchos="['6em', '4em', '16em', '8em']"
+            />
             <template v-else>
-            <tr v-for="tributo in tributos" :key="tributo.id">
-              <td class="origen-tributo">{{ tributo.origen === 'SUCIVE' ? 'SUCIVE' : 'Intendencia' }}</td>
-              <td class="codigo">{{ tributo.codigo }}</td>
-              <td :class="{ 'sin-descripcion': !tributo.descripcion }">
-                <span class="descripcion-tributo" :title="tributo.descripcion || 'Sin descripción'">{{ tributo.descripcion || 'Sin descripción' }}</span>
-              </td>
-              <td v-if="puedeEditar" class="acciones-tributo">
-                <button
-                  type="button"
-                  class="enlace editar"
-                  :disabled="guardando"
-                  :aria-label="`Editar tributo ${tributo.codigo}`"
-                  @click="editar(tributo)"
-                >
-                  Editar
-                </button>
-                <button
-                  type="button"
-                  class="enlace eliminar"
-                  :disabled="guardando"
-                  :aria-label="`Eliminar tributo ${tributo.codigo}`"
-                  @click="pedirEliminar(tributo)"
-                >
-                  Eliminar
-                </button>
-              </td>
-            </tr>
+              <tr v-for="tributo in tributos" :key="tributo.id">
+                <td class="origen-tributo">{{ nombreOrigen(tributo.origen) }}</td>
+                <td class="codigo">{{ tributo.codigo }}</td>
+                <td :class="{ 'sin-descripcion': !tributo.descripcion }">
+                  <span
+                    class="descripcion-tributo"
+                    :title="tributo.descripcion || 'Sin descripción'"
+                    >{{ tributo.descripcion || 'Sin descripción' }}</span
+                  >
+                </td>
+                <td v-if="puedeEditar" class="acciones-tributo">
+                  <button
+                    type="button"
+                    class="enlace editar"
+                    :disabled="guardando"
+                    :aria-label="`Editar tributo ${tributo.codigo}`"
+                    @click="editar(tributo)"
+                  >
+                    Editar
+                  </button>
+                  <button
+                    type="button"
+                    class="enlace eliminar"
+                    :disabled="guardando"
+                    :aria-label="`Eliminar tributo ${tributo.codigo}`"
+                    @click="pedirEliminar(tributo)"
+                  >
+                    Eliminar
+                  </button>
+                </td>
+              </tr>
             </template>
           </tbody>
         </table>
       </div>
-      <p v-else-if="!cargando" class="ayuda">{{ busqueda || origen ? 'No hay tributos que coincidan con estos filtros.' : 'No hay tributos registrados.' }}</p>
-      <nav v-if="totalElementos" class="paginacion-catalogo" aria-label="Paginación de tributos">
-        <span>20 por página · Página {{ pagina + 1 }} de {{ totalPaginas }}</span>
-        <div><button type="button" class="secundario" :disabled="pagina === 0 || guardando" @click="cambiarPagina(pagina - 1)">Anterior</button>
-        <button type="button" class="secundario" :disabled="pagina + 1 >= totalPaginas || guardando" @click="cambiarPagina(pagina + 1)">Siguiente</button></div>
-      </nav>
-      <dialog
-        ref="dialogoEliminar"
-        class="modal-eliminar"
-        aria-labelledby="eliminar-tributo-titulo"
-        aria-describedby="eliminar-tributo-descripcion"
-        @cancel.prevent="cancelarEliminacion"
-        @close="pendienteEliminar = null"
+      <p v-else-if="!cargando" class="ayuda">
+        {{
+          busqueda || origen
+            ? 'No hay tributos que coincidan con estos filtros.'
+            : 'No hay tributos registrados.'
+        }}
+      </p>
+      <PaginacionTabla
+        v-if="totalElementos"
+        class="paginacion-catalogo"
+        :pagina="pagina"
+        :total-paginas="totalPaginas"
+        :total-elementos="totalElementos"
+        :tamanio="20"
+        :tamanios="[20]"
+        elementos="tributos"
+        :deshabilitado="guardando || cargando"
+        @cambiar-pagina="cambiarPagina"
+      />
+      <DialogoConfirmacion
+        :abierto="!!pendienteEliminar"
+        :titulo="`Eliminar tributo ${pendienteEliminar?.codigo ?? ''}`"
+        texto-confirmar="Eliminar tributo"
+        texto-procesando="Eliminando..."
+        :procesando="guardando"
+        :error="errorEliminar"
+        clase-confirmar="confirmar-eliminar"
+        @confirmar="confirmarEliminar"
+        @cancelar="cancelarEliminacion"
       >
-        <template v-if="pendienteEliminar">
-          <h3 id="eliminar-tributo-titulo">Eliminar tributo {{ pendienteEliminar.codigo }}</h3>
-          <p v-if="pendienteEliminar.descripcion" class="ayuda">
-            {{ pendienteEliminar.descripcion }}
-          </p>
-          <p id="eliminar-tributo-descripcion">¿Querés eliminar este tributo del catálogo?</p>
-          <p v-if="errorEliminar" role="alert" class="error">{{ errorEliminar }}</p>
-          <div class="botones">
-            <button
-              class="secundario"
-              type="button"
-              autofocus
-              :disabled="guardando"
-              @click="cancelarEliminacion"
-            >
-              Cancelar
-            </button>
-            <button
-              class="primario confirmar-eliminar"
-              type="button"
-              :disabled="guardando"
-              @click="confirmarEliminar"
-            >
-              {{ guardando ? 'Eliminando...' : 'Eliminar tributo' }}
-            </button>
-          </div>
-        </template>
-      </dialog>
+        <p v-if="pendienteEliminar?.descripcion" class="ayuda">
+          {{ pendienteEliminar.descripcion }}
+        </p>
+        <p>¿Querés eliminar este tributo del catálogo?</p>
+      </DialogoConfirmacion>
     </template>
   </section>
 </template>
 
 <style scoped>
-.filtros-catalogo { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto; gap: 14px; align-items: end; }
-.filtros-catalogo label { margin: 0; }
-.filtros-catalogo input, .filtros-catalogo select { margin-top: 6px; }
-.filtros-catalogo select { width: 100%; padding: 10px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-surface); color: var(--color-text); font: inherit; }
-.descripcion-tributo { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; max-width: 55ch; }
-.origen-tributo, .acciones-tributo { white-space: nowrap; }
-.paginacion-catalogo { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; color: var(--color-text-secondary); font-size: 12px; }
-.paginacion-catalogo > div { display: flex; gap: 8px; }
+.filtros-catalogo {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: end;
+}
+.filtros-catalogo label {
+  margin: 0;
+}
+.filtros-catalogo input,
+.filtros-catalogo select {
+  margin-top: 6px;
+}
+.filtros-catalogo select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+}
+.descripcion-tributo {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  max-width: 55ch;
+}
+.origen-tributo,
+.acciones-tributo {
+  white-space: nowrap;
+}
+.paginacion-catalogo {
+  padding-inline: 0;
+}
 .cabecera {
   display: flex;
   align-items: center;
@@ -327,38 +419,19 @@ onScopeDispose(() => { clearTimeout(timer); controller?.abort() })
   display: flex;
   flex-direction: column;
   gap: var(--spacing-lg);
-  font-size: 13px;
+  font-size: var(--texto-base);
 }
 .ayuda {
   margin: 0;
   color: var(--color-text-secondary);
-  font-size: 12px;
+  font-size: var(--texto-sm);
 }
 .tabla-contenedor {
   overflow-x: auto;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
 }
-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-  --esqueleto-celda-padding: 11px 14px;
-}
-th,
-td {
-  padding: 11px 14px;
-  text-align: left;
-  border-bottom: 1px solid var(--color-border);
-}
-th {
-  background: var(--color-background);
-  color: var(--color-text-secondary);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.035em;
-  text-transform: uppercase;
-}
+/* Tabla: estilo común .tabla-datos (main.css) */
 tbody tr:last-child td {
   border-bottom: 0;
 }
@@ -379,44 +452,12 @@ td {
 .error {
   color: var(--color-tardia);
 }
-.secundario {
-  padding: 9px 14px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface);
-  color: var(--color-text);
-  font-size: 13px;
-}
 .enlace {
   padding: 0;
   border: 0;
   background: none;
   color: var(--color-primary);
-  font-size: 13px;
-}
-.modal-eliminar {
-  position: fixed;
-  inset: 0;
-  width: min(440px, calc(100vw - 32px));
-  max-height: calc(100dvh - 32px);
-  margin: auto;
-  padding: var(--spacing-lg);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  background: var(--color-surface);
-  color: var(--color-text);
-  box-shadow: var(--shadow-md);
-  font-size: 13px;
-  overflow-y: auto;
-}
-.modal-eliminar::backdrop {
-  background: rgb(16 24 40 / 45%);
-}
-.modal-eliminar h3 {
-  margin-bottom: 12px;
-}
-.modal-eliminar .ayuda {
-  overflow-wrap: anywhere;
+  font-size: var(--texto-base);
 }
 .formulario {
   padding: var(--spacing-lg);
@@ -433,7 +474,7 @@ label {
   display: block;
   margin-bottom: 6px;
   color: var(--color-text-secondary);
-  font-size: 12px;
+  font-size: var(--texto-sm);
 }
 input {
   width: 100%;
@@ -442,7 +483,7 @@ input {
   border-radius: var(--radius-sm);
   background: var(--color-surface);
   color: var(--color-text);
-  font-size: 13px;
+  font-size: var(--texto-base);
 }
 .botones {
   display: flex;
@@ -450,29 +491,9 @@ input {
   gap: 10px;
   margin-top: 20px;
 }
-.primario {
-  padding: 9px 14px;
-  border: 1px solid var(--color-primary);
-  border-radius: var(--radius-sm);
-  background: var(--color-primary);
-  color: white;
-  font-weight: 600;
-  font-size: 13px;
-}
 .confirmacion {
   margin: 0;
   color: var(--color-temprana);
-}
-button:disabled {
-  opacity: 0.6;
-  cursor: wait;
-}
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
 }
 button:focus-visible,
 input:focus-visible,
@@ -480,8 +501,10 @@ select:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
-@media (max-width: 600px) {
-  .filtros-catalogo { grid-template-columns: 1fr; }
+@media (max-width: 599px) {
+  .filtros-catalogo {
+    grid-template-columns: 1fr;
+  }
   th,
   td {
     padding: 10px 12px;

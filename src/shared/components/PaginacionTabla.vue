@@ -4,6 +4,7 @@
  * Trabaja con páginas desde 0, como la API; al usuario se le muestran desde 1.
  */
 import { computed, ref, useId } from 'vue'
+import { numero as formatoNumero } from '@/shared/utils/formato'
 
 const props = withDefaults(
   defineProps<{
@@ -26,7 +27,7 @@ const destino = ref<number | ''>('')
 
 const desde = computed(() => (props.totalElementos ? props.pagina * props.tamanio + 1 : 0))
 const hasta = computed(() => Math.min((props.pagina + 1) * props.tamanio, props.totalElementos))
-const numero = (n: number) => n.toLocaleString('es-UY')
+const numero = (n: number) => formatoNumero(n)
 
 // Un número fuera de rango se lleva a la primera o la última página en lugar de fallar.
 function irAPagina() {
@@ -39,7 +40,7 @@ function irAPagina() {
 
 <template>
   <nav class="paginacion" aria-label="Paginación">
-    <label class="tamanio">
+    <label v-if="tamanios.length > 1" class="tamanio">
       Filas por página
       <select
         :value="tamanio"
@@ -55,7 +56,11 @@ function irAPagina() {
     </span>
 
     <div v-if="totalPaginas > 1" class="navegacion">
-      <button type="button" :disabled="pagina === 0 || deshabilitado" @click="emit('cambiarPagina', pagina - 1)">
+      <button
+        type="button"
+        :disabled="pagina === 0 || deshabilitado"
+        @click="emit('cambiarPagina', pagina - 1)"
+      >
         Anterior
       </button>
       <span class="actual">Página {{ numero(pagina + 1) }} de {{ numero(totalPaginas) }}</span>
@@ -92,8 +97,8 @@ function irAPagina() {
   align-items: center;
   justify-content: flex-end;
   gap: 12px 20px;
-  padding: 16px;
-  font-size: 13px;
+  padding: var(--spacing-md) var(--spacing-lg);
+  font-size: var(--texto-base);
   color: var(--color-text);
 }
 
@@ -130,7 +135,7 @@ button {
   background: var(--color-surface);
   color: var(--color-text);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--texto-base);
 }
 
 select {
@@ -143,20 +148,17 @@ input {
   font-variant-numeric: tabular-nums;
 }
 
+/* Botón secundario del sistema */
 button {
-  padding: 0 10px;
+  padding: 0 12px;
+  color: var(--color-primary);
   font-weight: 500;
   cursor: pointer;
-  transition:
-    background-color 0.2s,
-    border-color 0.2s,
-    color 0.2s;
+  transition: border-color 0.2s;
 }
 
 button:hover:not(:disabled) {
-  background: var(--color-primary);
   border-color: var(--color-primary);
-  color: var(--color-surface);
 }
 
 button:disabled,
@@ -173,7 +175,7 @@ button:focus-visible {
   outline-offset: 2px;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 599px) {
   .paginacion {
     justify-content: flex-start;
   }
