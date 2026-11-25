@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onScopeDispose, ref } from 'vue'
+import { computed, onMounted, onScopeDispose, ref } from 'vue'
 import { obtenerTiposPadron } from '../services/carteraService'
 
 export interface CarteraFilters {
@@ -40,6 +40,17 @@ async function cargarTiposPadron() {
 onMounted(cargarTiposPadron)
 onScopeDispose(() => tiposController.abort())
 
+// Filtros de la fila superior; agrupar y ordenar son opciones de la tabla y no cuentan.
+const CAMPOS_FILTRO = ['search', 'segmento', 'tipoPadron', 'origen', 'multa', 'contacto'] as const
+
+const filtrosActivos = computed(
+  () => CAMPOS_FILTRO.filter((campo) => filters.value[campo].trim() !== '').length,
+)
+
+function limpiarFiltros() {
+  for (const campo of CAMPOS_FILTRO) filters.value[campo] = ''
+}
+
 const opcionesOrden = [
   { value: 'antiguedad', label: 'Antigüedad' },
   { value: 'importe', label: 'Importe' },
@@ -50,61 +61,76 @@ const opcionesOrden = [
 <template>
   <div class="morosidad-filters">
     <section class="filters" role="search" aria-label="Filtros de cartera">
-      <div class="search-box">
+      <label class="campo search-box">
+        <span class="etiqueta">Buscar</span>
         <input
           v-model="filters.search"
-          type="text"
-          placeholder="Buscar por CM, documento, contribuyente o matrícula..."
-          aria-label="Buscar por CM, documento, contribuyente o matrícula"
+          type="search"
+          placeholder="CM, documento, contribuyente o matrícula"
           autocomplete="off"
         />
-      </div>
+      </label>
 
-      <div class="filter">
-        <select v-model="filters.segmento" aria-label="Segmento">
-          <option value="">Todos los segmentos</option>
+      <label class="campo">
+        <span class="etiqueta">Segmento</span>
+        <select v-model="filters.segmento">
+          <option value="">Todos</option>
           <option value="temprana">Mora Temprana</option>
           <option value="inicial">Mora Inicial</option>
           <option value="tardia">Mora Tardía</option>
         </select>
-      </div>
+      </label>
 
-      <div class="filter">
-        <select v-model="filters.tipoPadron" aria-label="PadTipo" :disabled="cargandoTipos || errorTipos">
-          <option value="">{{ cargandoTipos ? 'Cargando PadTipo...' : 'Todos los PadTipo' }}</option>
+      <div class="campo">
+        <label class="etiqueta" for="filtro-padtipo">PadTipo</label>
+        <select id="filtro-padtipo" v-model="filters.tipoPadron" :disabled="cargandoTipos || errorTipos">
+          <option value="">{{ cargandoTipos ? 'Cargando...' : 'Todos' }}</option>
           <option v-if="filters.tipoPadron && !tiposPadron.includes(filters.tipoPadron)" :value="filters.tipoPadron">
             {{ filters.tipoPadron }}
           </option>
           <option v-for="tipo in tiposPadron" :key="tipo" :value="tipo">{{ tipo }}</option>
         </select>
-        <button v-if="errorTipos" type="button" @click="cargarTiposPadron">
+        <button v-if="errorTipos" type="button" class="reintentar" @click="cargarTiposPadron">
           No se pudieron cargar los PadTipo. Reintentar
         </button>
       </div>
 
-      <div class="filter">
-        <select v-model="filters.origen" aria-label="Origen">
-          <option value="">Origen</option>
+      <label class="campo">
+        <span class="etiqueta">Origen</span>
+        <select v-model="filters.origen">
+          <option value="">Todos</option>
           <option value="intendencia">Intendencia</option>
           <option value="sucive">SUCIVE</option>
         </select>
-      </div>
+      </label>
 
-      <div class="filter">
-        <select v-model="filters.multa" aria-label="Multa">
-          <option value="">Multa</option>
+      <label class="campo">
+        <span class="etiqueta">Multa</span>
+        <select v-model="filters.multa">
+          <option value="">Todos</option>
           <option value="con">Con multa</option>
           <option value="sin">Sin multa</option>
         </select>
-      </div>
+      </label>
 
-      <div class="filter">
-        <select v-model="filters.contacto" aria-label="Contacto">
-          <option value="">Contacto</option>
+      <label class="campo">
+        <span class="etiqueta">Contacto</span>
+        <select v-model="filters.contacto">
+          <option value="">Todos</option>
           <option value="con">Con contacto</option>
           <option value="sin">Sin contacto</option>
         </select>
-      </div>
+      </label>
+
+      <button
+        type="button"
+        class="limpiar"
+        :disabled="filtrosActivos === 0"
+        :aria-label="filtrosActivos ? `Limpiar filtros, ${filtrosActivos} activos` : 'Limpiar filtros, ninguno activo'"
+        @click="limpiarFiltros"
+      >
+        Limpiar filtros<template v-if="filtrosActivos"> ({{ filtrosActivos }})</template>
+      </button>
     </section>
 
     <section class="table-options" aria-label="Opciones de la tabla">
@@ -151,14 +177,63 @@ const opcionesOrden = [
 
 .filters {
   display: grid;
-  grid-template-columns: 3fr repeat(5, 0.8fr);
-  gap: var(--spacing-sm);
+  grid-template-columns: 3fr repeat(5, minmax(0, 1fr)) auto;
+  align-items: end;
+  gap: var(--spacing-sm) var(--spacing-sm);
   padding: var(--spacing-xs) 0;
 }
 
-.search-box,
-.filter {
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   min-width: 0;
+}
+
+.etiqueta {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.reintentar {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-primary);
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.limpiar {
+  height: 40px;
+  padding: 0 var(--spacing-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-surface);
+  color: var(--color-primary);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+
+.limpiar:hover:not(:disabled) {
+  border-color: var(--color-primary);
+}
+
+.limpiar:disabled {
+  color: var(--color-text-light);
+  cursor: default;
+}
+
+.limpiar:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 .filters input,
@@ -281,17 +356,21 @@ const opcionesOrden = [
 
 @media (max-width: 1100px) {
   .filters {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .search-box {
     grid-column: 1 / -1;
   }
+
+  .limpiar {
+    justify-self: start;
+  }
 }
 
 @media (max-width: 640px) {
   .filters {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 </style>
