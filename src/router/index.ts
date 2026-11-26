@@ -69,6 +69,13 @@ const router = createRouter({
           meta: { titulo: 'Ficha del contribuyente', requiereCartera: true },
           component: () => import('@/modules/contribuyentes/views/ContribuyenteDetalleView.vue'),
         },
+        {
+          // Cualquier dirección que no coincide con las anteriores (va al final a propósito)
+          path: ':pathMatch(.*)*',
+          name: 'no-encontrada',
+          meta: { titulo: 'Página no encontrada' },
+          component: () => import('@/shared/views/NoEncontradaView.vue'),
+        },
       ],
     },
   ],

@@ -66,3 +66,18 @@ describe('título de la pestaña del navegador', () => {
     expect(document.title).toBe('Reportes · Gestión de Morosidad')
   })
 })
+
+describe('dirección inexistente', () => {
+  it('con sesión muestra «Página no encontrada» dentro del sistema', async () => {
+    sesion(['ANALISTA'])
+    await router.push('/esto-no-existe/123')
+    expect(router.currentRoute.value.name).toBe('no-encontrada')
+    expect(router.currentRoute.value.path).toBe('/esto-no-existe/123')
+    expect(document.title).toBe('Página no encontrada · Gestión de Morosidad')
+  })
+
+  it('sin sesión pide ingresar', async () => {
+    await router.push('/esto-no-existe')
+    expect(router.currentRoute.value.name).toBe('login')
+  })
+})
