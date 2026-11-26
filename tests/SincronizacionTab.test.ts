@@ -6,7 +6,7 @@ let admin=true
 vi.mock('../src/modules/autenticacion/stores/auth.store',()=>({useAuthStore:()=>({tieneRol:()=>admin})}))
 vi.mock('../src/modules/configuracion/services/sincronizacionService',()=>({obtenerPeriodo:vi.fn(),guardarPeriodo:vi.fn(),obtenerEjecucion:vi.fn(),iniciarSincronizacion:vi.fn(),cancelarSincronizacion:vi.fn()}))
 enableAutoUnmount(afterEach)
-const trabajo={estado:'EN_CURSO' as const,origen:'SUCIVE' as const,anioMinimo:2013,inicio:'2026-11-11T12:00:00',fin:null,mensaje:'Descargando',resultado:null}
+const trabajo={id:'cfbe9cc7-f197-4788-afc5-26b1eb7ecb76',estado:'EN_CURSO' as const,origen:'SUCIVE' as const,anioMinimo:2013,inicio:'2026-11-11T12:00:00',fin:null,mensaje:'Descargando',resultado:null}
 beforeEach(()=>{vi.resetAllMocks();admin=true;vi.mocked(api.obtenerPeriodo).mockResolvedValue({anioMinimo:2013});vi.mocked(api.obtenerEjecucion).mockResolvedValue(null)})
 it('guarda el año y usa el origen elegido sin enviar otro período al iniciar',async()=>{
  vi.mocked(api.guardarPeriodo).mockResolvedValue({anioMinimo:2015});vi.mocked(api.iniciarSincronizacion).mockResolvedValue(trabajo)
@@ -45,9 +45,50 @@ it('solicita cancelar y sigue consultando hasta que se confirma',async()=>{
  vi.useFakeTimers();vi.mocked(api.obtenerEjecucion).mockResolvedValueOnce(trabajo).mockResolvedValue({...trabajo,estado:'CANCELADA',mensaje:'Se descartó la descarga'})
  vi.mocked(api.cancelarSincronizacion).mockResolvedValue({...trabajo,estado:'CANCELANDO',mensaje:'Esperando petición actual'})
  const w=mount(Tab);await flushPromises();await w.get('button.cancelar').trigger('click');await flushPromises()
- expect(api.cancelarSincronizacion).toHaveBeenCalledOnce();expect(w.text()).toContain('Cancelando…');expect(w.get('input').attributes('disabled')).toBeDefined()
+ expect(api.cancelarSincronizacion).toHaveBeenCalledExactlyOnceWith(trabajo.id, expect.any(AbortSignal));expect(w.text()).toContain('Cancelando…');expect(w.get('input').attributes('disabled')).toBeDefined()
  await vi.advanceTimersByTimeAsync(2000);await flushPromises();expect(w.text()).toContain('Cancelada');expect(w.get('input').attributes('disabled')).toBeUndefined();w.unmount();vi.useRealTimers()
 })
+it('refresca el estado si la ejecución cambió y cancela solo ante un nuevo clic', async () => {
+  const nueva = { ...trabajo, id: 'd259920f-cdb8-4422-ac28-a92a0d4a0909', origen: 'INTENDENCIA' as const }
+  vi.mocked(api.obtenerEjecucion).mockResolvedValueOnce(trabajo).mockResolvedValue(nueva)
+  vi.mocked(api.cancelarSincronizacion)
+    .mockRejectedValueOnce({
+      isAxiosError: true,
+      response: { status: 409, data: { mensaje: 'La ejecución cambió.' } },
+    })
+    .mockResolvedValueOnce({ ...nueva, estado: 'CANCELANDO' })
+  const w = mount(Tab)
+  await flushPromises()
+  await w.get('button.cancelar').trigger('click')
+  await flushPromises()
+
+  expect(api.cancelarSincronizacion).toHaveBeenCalledExactlyOnceWith(trabajo.id, expect.any(AbortSignal))
+  expect(w.get('[role=alert]').text()).toContain('La ejecución cambió.')
+  expect(w.get('.resultado').text()).toContain('Intendencia')
+  expect(w.get('.resultado').text()).toContain('En curso')
+
+  await w.get('button.cancelar').trigger('click')
+  await flushPromises()
+  expect(api.cancelarSincronizacion).toHaveBeenLastCalledWith(nueva.id, expect.any(AbortSignal))
+})
+
+it('mientras muestra Cancelando acepta el progreso de una ejecución nueva', async () => {
+  vi.useFakeTimers()
+  const anterior = { ...trabajo, estado: 'CANCELANDO' as const }
+  const nueva = { ...trabajo, id: 'd259920f-cdb8-4422-ac28-a92a0d4a0909', origen: 'INTENDENCIA' as const }
+  vi.mocked(api.obtenerEjecucion).mockResolvedValueOnce(anterior).mockResolvedValue(nueva)
+  const w = mount(Tab)
+  await flushPromises()
+  expect(w.get('.resultado').text()).toContain('Cancelando')
+  await vi.advanceTimersByTimeAsync(2000)
+  await flushPromises()
+  expect(w.get('.resultado').text()).toContain('Intendencia')
+  expect(w.get('.resultado').text()).toContain('En curso')
+  expect(api.cancelarSincronizacion).not.toHaveBeenCalled()
+  w.unmount()
+  vi.useRealTimers()
+})
+
 it('deshabilita cancelar al comenzar a guardar',async()=>{
  vi.mocked(api.obtenerEjecucion).mockResolvedValue({...trabajo,progreso:{etapa:'GUARDANDO',paginasDescargadas:0,paginaActual:null,registrosDescargados:22081,totalRegistros:null,totalPaginas:null,intento:1,detalle:'Guardando'}})
  const w=mount(Tab);await flushPromises();expect(w.get('button.cancelar').attributes('disabled')).toBeDefined();expect(w.text()).toContain('la cancelación está deshabilitada')

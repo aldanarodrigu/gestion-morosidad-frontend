@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onScopeDispose, ref } from 'vue'
+import { isAxiosError } from 'axios'
 import SincronizacionProgreso from './SincronizacionProgreso.vue'
 import { mensajeDeError, useAlSalir } from '@/shared/composables/useConsulta'
 import AvisoCarga from '@/shared/components/esqueleto/AvisoCarga.vue'
@@ -33,6 +34,7 @@ const ocupada = computed(
 const puedeCancelar = computed(
   () =>
     ejecucion.value?.estado === 'EN_CURSO' &&
+    !!ejecucion.value.id &&
     !['GUARDANDO', 'FINALIZADA'].includes(ejecucion.value.progreso?.etapa || '') &&
     !cancelando.value,
 )
@@ -82,16 +84,20 @@ async function actualizar() {
     if (salida.aborted || version !== revision) return
     if (
       !cancelando.value &&
-      !(ejecucion.value?.estado === 'CANCELANDO' && estado?.estado === 'EN_CURSO')
+      !(
+        ejecucion.value?.estado === 'CANCELANDO' &&
+        estado?.estado === 'EN_CURSO' &&
+        ejecucion.value.id === estado.id
+      )
     )
       ejecucion.value = estado
     error.value = ''
   } catch {
-    if (!salida.aborted)
+    if (!salida.aborted && version === revision)
       error.value =
         'No se pudo actualizar el progreso. La sincronización puede seguir en segundo plano; se reintentará la consulta.'
   } finally {
-    programar()
+    if (version === revision) programar()
   }
 }
 async function guardar() {
@@ -125,17 +131,27 @@ async function iniciar() {
   }
 }
 async function cancelar() {
+  const id = ejecucion.value?.id
+  if (!id || !puedeCancelar.value) return
   error.value = ''
   cancelando.value = true
   revision++
   // Evita que una consulta de progreso anterior reemplace la respuesta de cancelación.
   clearTimeout(timer)
   try {
-    const estado = await cancelarSincronizacion()
-    if (salida.aborted) return
-    ejecucion.value = estado
+    const estado = await cancelarSincronizacion(id, salida)
+    if (!salida.aborted) ejecucion.value = estado
   } catch (e) {
-    if (!salida.aborted) error.value = detalleError(e)
+    if (salida.aborted) return
+    error.value = detalleError(e)
+    if (isAxiosError(e) && e.response?.status === 409) {
+      try {
+        const estado = await obtenerEjecucion(salida)
+        if (!salida.aborted) ejecucion.value = estado
+      } catch {
+        // Se conserva el mensaje del conflicto y se reintenta con el seguimiento habitual.
+      }
+    }
   } finally {
     cancelando.value = false
     programar()

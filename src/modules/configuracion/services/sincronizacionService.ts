@@ -10,6 +10,7 @@ export interface ProgresoSincronizacion {
   detalle: string
 }
 export interface EjecucionSincronizacion {
+  id: string
   progreso?: ProgresoSincronizacion | null
   estado: 'EN_CURSO' | 'CANCELANDO' | 'CANCELADA' | 'COMPLETADA' | 'ERROR'
   origen: 'INTENDENCIA' | 'SUCIVE'
@@ -51,7 +52,15 @@ export async function iniciarSincronizacion(origen: string) {
   ).data
 }
 
-export async function cancelarSincronizacion(): Promise<EjecucionSincronizacion | null> {
-  const r = await http.post<EjecucionSincronizacion>('/sincronizaciones/ejecucion/cancelar')
-  return r.status === 204 ? null : r.data
+export async function cancelarSincronizacion(
+  id: string,
+  signal?: AbortSignal,
+): Promise<EjecucionSincronizacion> {
+  return (
+    await http.post<EjecucionSincronizacion>(
+      '/sincronizaciones/ejecucion/cancelar',
+      { id },
+      { signal },
+    )
+  ).data
 }
