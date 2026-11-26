@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
+import { reactive } from 'vue'
 import MorosidadFilters from '../src/modules/cartera/components/MorosidadFilters.vue'
 import type { CarteraFilters } from '../src/modules/cartera/components/MorosidadFilters.vue'
 import { obtenerTiposPadron } from '../src/modules/cartera/services/carteraService'
@@ -14,7 +15,8 @@ const vacios: CarteraFilters = {
 function montar(filtros: Partial<CarteraFilters> = {}) {
   const w = mount(MorosidadFilters, {
     props: {
-      modelValue: { ...vacios, ...filtros },
+      // Reactivo, como el ref de filtros que le pasa Cartera: el componente modifica sus campos.
+      modelValue: reactive({ ...vacios, ...filtros }),
       'onUpdate:modelValue': (v: CarteraFilters) => w.setProps({ modelValue: v }),
     },
   })
