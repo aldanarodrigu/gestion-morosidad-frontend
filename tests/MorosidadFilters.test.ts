@@ -9,7 +9,7 @@ vi.mock('../src/modules/cartera/services/carteraService', () => ({ obtenerTiposP
 
 const vacios: CarteraFilters = {
   search: '', segmento: '', tipoPadron: '', origen: '', multa: '', contacto: '',
-  agruparPor: false, ordenarPor: 'antiguedad',
+  desde: '', hasta: '', agruparPor: false, ordenarPor: 'antiguedad',
 }
 
 function montar(filtros: Partial<CarteraFilters> = {}) {
@@ -34,7 +34,9 @@ describe('filtros de cartera', () => {
     const w = montar()
     await flushPromises()
     const etiquetas = w.findAll('.etiqueta').map((e) => e.text())
-    expect(etiquetas).toEqual(['Buscar', 'Segmento', 'PadTipo', 'Origen', 'Multa', 'Contacto'])
+    expect(etiquetas).toEqual([
+      'Buscar', 'Segmento', 'PadTipo', 'Origen', 'Multa', 'Contacto', 'Deuda desde', 'Deuda hasta',
+    ])
     for (const select of w.findAll('select')) {
       expect(select.findAll('option')[0]!.text()).toBe('Todos')
       // El nombre accesible sale de la etiqueta visible, no de la primera opción.
@@ -99,5 +101,15 @@ describe('filtros aplicados', () => {
     await botones[1]!.trigger('click')
     expect(w.props('modelValue').ordenarPor).toBe('importe')
     expect(botones.map((b) => b.attributes('aria-pressed'))).toEqual(['false', 'true', 'false'])
+  })
+
+  it('muestra el rango de fechas como etiquetas y avisa si desde es posterior a hasta', async () => {
+    const w = montar({ desde: '2024-12-31', hasta: '2024-01-01' })
+    await flushPromises()
+    expect(w.text()).toContain('Deuda desde: 31/12/2024')
+    expect(w.text()).toContain('Deuda hasta: 01/01/2024')
+    expect(w.get('[role="alert"]').text()).toContain('posterior a la fecha desde')
+    await limpiar(w).trigger('click')
+    expect(w.find('[role="alert"]').exists()).toBe(false)
   })
 })

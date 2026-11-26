@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { vEnfocar } from '@/shared/directives/enfocar'
 import { computed, ref } from 'vue'
+import { fecha } from '@/shared/utils/formato'
 import type { FormatoExportacion } from '../services/carteraService'
 import type { CarteraFilters } from './MorosidadFilters.vue'
 
@@ -25,6 +26,8 @@ const filtrosActivos = computed(() => {
     f.tipoPadron && { etiqueta: 'PadTipo', valor: f.tipoPadron },
     f.origen && { etiqueta: 'Origen', valor: origenes[f.origen] ?? f.origen },
     f.contacto && { etiqueta: 'Contacto', valor: contactos[f.contacto] ?? f.contacto },
+    f.desde && { etiqueta: 'Deuda desde', valor: fecha(f.desde) },
+    f.hasta && { etiqueta: 'Deuda hasta', valor: fecha(f.hasta) },
   ].filter((x): x is { etiqueta: string; valor: string } => !!x)
 })
 </script>

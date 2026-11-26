@@ -13,6 +13,9 @@ export interface FiltrosCarteraApi {
   tipoPadron?: string
   origen?: string
   contacto?: string
+  /** Rango de «deuda desde», en formato aaaa-mm-dd. */
+  desde?: string
+  hasta?: string
   ordenarPor?: 'antiguedad' | 'importe' | 'nombre'
 }
 
@@ -60,6 +63,8 @@ function parametros(pagina: number, tamanio: number, filtros: FiltrosCarteraApi)
           ? 'INTENDENCIA'
           : undefined,
     conContacto: filtros.contacto === 'con' ? true : filtros.contacto === 'sin' ? false : undefined,
+    desde: filtros.desde || undefined,
+    hasta: filtros.hasta || undefined,
   }
 }
 

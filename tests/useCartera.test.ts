@@ -41,6 +41,34 @@ beforeEach(() => {
   })
 })
 afterEach(() => vi.useRealTimers())
+describe('rango de fechas', () => {
+  it('lee desde/hasta de la URL, los envía a la API y descarta fechas mal formadas', async () => {
+    route.query = { desde: '2024-01-01', hasta: 'ayer' }
+    const w = montar()
+    await flushPromises()
+    expect(estado.filtros.value.hasta).toBe('')
+    expect(api.obtenerCartera).toHaveBeenLastCalledWith(0, 20,
+      expect.objectContaining({ desde: '2024-01-01', hasta: '' }), expect.any(AbortSignal))
+    estado.filtros.value.hasta = '2024-06-30'
+    await vi.advanceTimersByTimeAsync(0)
+    await flushPromises()
+    expect(api.obtenerCartera).toHaveBeenLastCalledWith(0, 20,
+      expect.objectContaining({ desde: '2024-01-01', hasta: '2024-06-30' }), expect.any(AbortSignal))
+    expect(replace).toHaveBeenLastCalledWith({ query: { desde: '2024-01-01', hasta: '2024-06-30' } })
+    w.unmount()
+  })
+  it('no consulta mientras desde es posterior a hasta', async () => {
+    const w = montar()
+    await flushPromises()
+    vi.mocked(api.obtenerCartera).mockClear()
+    estado.filtros.value.desde = '2024-12-31'
+    estado.filtros.value.hasta = '2024-01-01'
+    await vi.advanceTimersByTimeAsync(0)
+    await flushPromises()
+    expect(api.obtenerCartera).not.toHaveBeenCalled()
+    w.unmount()
+  })
+})
 describe('checkbox de agrupación', () => {
   it('restaura el origen y lo mantiene al cambiar de vista', async () => {
     route.query = { origen: 'sucive' }

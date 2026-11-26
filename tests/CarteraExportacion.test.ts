@@ -125,7 +125,7 @@ describe('filtros de la exportación', () => {
   it('sin filtros avisa que se exporta toda la cartera', async () => {
     vi.mocked(exportarCartera).mockResolvedValue(new Blob(['excel']))
     filtrosListado.value = { search: '', segmento: '', tipoPadron: '', origen: '', multa: '', contacto: '',
-      agruparPor: false, ordenarPor: 'antiguedad' }
+      desde: '', hasta: '', agruparPor: false, ordenarPor: 'antiguedad' }
     const w = montar()
     await w.get('button').trigger('click')
     await flushPromises()
@@ -134,7 +134,7 @@ describe('filtros de la exportación', () => {
     await w.get('form.exportacion-panel').trigger('submit')
     await flushPromises()
     expect(exportarCartera).toHaveBeenCalledExactlyOnceWith({ busqueda: '', segmento: '', tipoPadron: '', origen: '',
-      contacto: '', ordenarPor: 'antiguedad' }, false, 'xlsx')
+      contacto: '', desde: '', hasta: '', ordenarPor: 'antiguedad' }, false, 'xlsx')
     w.unmount()
   })
 

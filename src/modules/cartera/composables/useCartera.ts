@@ -6,6 +6,7 @@ import type { FiltrosCarteraApi } from '../services/carteraService'
 import type { CarteraFilters } from '../components/MorosidadFilters.vue'
 import type { CarteraItem, CarteraGrupo, PaginaResponse } from '../types/cartera'
 import { useConsulta } from '@/shared/composables/useConsulta'
+import { rangoFechasInvalido } from '../rangoFechas'
 
 const ORDENES = ['antiguedad', 'importe', 'nombre'] as const
 const SEGMENTOS = ['temprana', 'inicial', 'tardia']
@@ -22,6 +23,12 @@ function permitido(valor: string, validos: readonly string[]) {
   return validos.includes(valor) ? valor : ''
 }
 
+const FECHA_ISO = /^\d{4}-\d{2}-\d{2}$/
+
+function fechaDesdeUrl(valor: string) {
+  return FECHA_ISO.test(valor) && !Number.isNaN(Date.parse(valor)) ? valor : ''
+}
+
 function filtrosDesdeUrl(q: LocationQuery): CarteraFilters {
   const orden = leerParam(q.orden)
 
@@ -32,6 +39,8 @@ function filtrosDesdeUrl(q: LocationQuery): CarteraFilters {
     origen: permitido(leerParam(q.origen), ORIGENES),
     multa: permitido(leerParam(q.multa), CON_SIN),
     contacto: permitido(leerParam(q.contacto), CON_SIN),
+    desde: fechaDesdeUrl(leerParam(q.desde)),
+    hasta: fechaDesdeUrl(leerParam(q.hasta)),
     agruparPor: leerParam(q.agrupar) === 'true',
     ordenarPor: (ORDENES as readonly string[]).includes(orden)
       ? (orden as CarteraFilters['ordenarPor'])
@@ -47,6 +56,8 @@ export function filtrosApiDesde(f: CarteraFilters): FiltrosCarteraApi {
     tipoPadron: f.tipoPadron,
     origen: f.origen,
     contacto: f.contacto,
+    desde: f.desde,
+    hasta: f.hasta,
     ordenarPor: f.ordenarPor,
   }
 }
@@ -97,6 +108,8 @@ export function useCartera(tamanio = 20) {
     if (f.origen) query.origen = f.origen
     if (f.multa) query.multa = f.multa
     if (f.contacto) query.contacto = f.contacto
+    if (f.desde) query.desde = f.desde
+    if (f.hasta) query.hasta = f.hasta
     if (f.agruparPor) query.agrupar = 'true'
     if (f.ordenarPor !== 'antiguedad') query.orden = f.ordenarPor
     if (tamanioPagina.value !== tamanio) query.filas = String(tamanioPagina.value)
@@ -108,6 +121,7 @@ export function useCartera(tamanio = 20) {
   async function cargar(): Promise<void> {
     clearTimeout(timer)
     sincronizarUrl()
+    if (rangoFechasInvalido(filtros.value)) return
 
     const filtrosApi = filtrosApiDesde(filtros.value)
     const agrupada = filtros.value.agruparPor
@@ -166,7 +180,17 @@ export function useCartera(tamanio = 20) {
   watch(
     () => {
       const f = filtros.value
-      return [f.segmento, f.tipoPadron, f.origen, f.multa, f.contacto, f.ordenarPor, f.agruparPor]
+      return [
+        f.segmento,
+        f.tipoPadron,
+        f.origen,
+        f.multa,
+        f.contacto,
+        f.desde,
+        f.hasta,
+        f.ordenarPor,
+        f.agruparPor,
+      ]
     },
     () => programarCarga(0),
   )

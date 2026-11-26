@@ -114,6 +114,25 @@ describe('consulta de cartera', () => {
       }),
     )
   })
+  it('envía el rango de fechas al backend en ambos modos y omite los vacíos', async () => {
+    vi.mocked(http.get).mockResolvedValueOnce({ data: pagina([deuda()]) })
+    await obtenerCartera(0, 20, { desde: '2024-01-01', hasta: '' })
+    expect(http.get).toHaveBeenLastCalledWith(
+      '/deudas',
+      expect.objectContaining({
+        params: expect.objectContaining({ desde: '2024-01-01', hasta: undefined }),
+      }),
+    )
+    vi.mocked(http.get).mockResolvedValueOnce({ data: pagina([grupo()]) })
+    await obtenerCarteraAgrupada(0, 20, { desde: '2024-01-01', hasta: '2024-12-31' })
+    expect(http.get).toHaveBeenLastCalledWith(
+      '/deudas/agrupadas',
+      expect.objectContaining({
+        params: expect.objectContaining({ desde: '2024-01-01', hasta: '2024-12-31' }),
+      }),
+    )
+  })
+
   it('muestra disponibilidad real de contacto devuelta por el backend', async () => {
     vi.mocked(http.get).mockResolvedValue({
       data: pagina([

@@ -2,7 +2,9 @@
 import { useConsulta } from '@/shared/composables/useConsulta'
 import { computed, onMounted, ref } from 'vue'
 import { XMarkIcon } from '@heroicons/vue/20/solid'
+import { fecha } from '@/shared/utils/formato'
 import { obtenerTiposPadron } from '../services/carteraService'
+import { rangoFechasInvalido } from '../rangoFechas'
 
 export interface CarteraFilters {
   search: string
@@ -11,6 +13,9 @@ export interface CarteraFilters {
   origen: string
   multa: string
   contacto: string
+  /** Rango de «deuda desde» (aaaa-mm-dd); vacío = sin límite. */
+  desde: string
+  hasta: string
   agruparPor: boolean
   ordenarPor: 'antiguedad' | 'importe' | 'nombre'
 }
@@ -40,7 +45,18 @@ async function cargarTiposPadron() {
 onMounted(cargarTiposPadron)
 
 // Filtros de la fila superior; agrupar y ordenar son opciones de la tabla y no cuentan.
-const CAMPOS_FILTRO = ['search', 'segmento', 'tipoPadron', 'origen', 'multa', 'contacto'] as const
+const CAMPOS_FILTRO = [
+  'search',
+  'segmento',
+  'tipoPadron',
+  'origen',
+  'multa',
+  'contacto',
+  'desde',
+  'hasta',
+] as const
+
+const errorFechas = computed(() => rangoFechasInvalido(filters.value))
 
 const filtrosActivos = computed(
   () => CAMPOS_FILTRO.filter((campo) => filters.value[campo].trim() !== '').length,
@@ -59,6 +75,8 @@ const NOMBRES: Record<CampoFiltro, string> = {
   origen: 'Origen',
   multa: 'Multa',
   contacto: 'Contacto',
+  desde: 'Deuda desde',
+  hasta: 'Deuda hasta',
 }
 
 const VALORES: Partial<Record<CampoFiltro, Record<string, string>>> = {
@@ -74,10 +92,16 @@ const etiquetasActivas = computed(() =>
     const valor = filters.value[campo].trim()
     return {
       campo,
-      texto: `${NOMBRES[campo]}: ${campo === 'search' ? `«${valor}»` : (VALORES[campo]?.[valor] ?? valor)}`,
+      texto: `${NOMBRES[campo]}: ${textoValor(campo, valor)}`,
     }
   }),
 )
+
+function textoValor(campo: CampoFiltro, valor: string) {
+  if (campo === 'search') return `«${valor}»`
+  if (campo === 'desde' || campo === 'hasta') return fecha(valor)
+  return VALORES[campo]?.[valor] ?? valor
+}
 
 function quitarFiltro(campo: CampoFiltro) {
   filters.value[campo] = ''
@@ -161,6 +185,28 @@ const opcionesOrden = [
         </select>
       </label>
 
+      <label class="campo">
+        <span class="etiqueta">Deuda desde</span>
+        <input
+          v-model="filters.desde"
+          type="date"
+          :max="filters.hasta || undefined"
+          :aria-invalid="errorFechas || undefined"
+          aria-describedby="ayuda-fechas"
+        />
+      </label>
+
+      <label class="campo">
+        <span class="etiqueta">Deuda hasta</span>
+        <input
+          v-model="filters.hasta"
+          type="date"
+          :min="filters.desde || undefined"
+          :aria-invalid="errorFechas || undefined"
+          aria-describedby="ayuda-fechas"
+        />
+      </label>
+
       <button
         type="button"
         class="limpiar"
@@ -175,6 +221,13 @@ const opcionesOrden = [
         Limpiar filtros<template v-if="filtrosActivos"> ({{ filtrosActivos }})</template>
       </button>
     </section>
+
+    <p v-if="errorFechas" id="ayuda-fechas" class="error-fechas" role="alert">
+      La fecha hasta debe ser igual o posterior a la fecha desde.
+    </p>
+    <p v-else id="ayuda-fechas" class="ayuda-fechas">
+      Las fechas filtran por el inicio de la deuda impaga más antigua de cada padrón.
+    </p>
 
     <ul v-if="etiquetasActivas.length" class="filtros-activos" aria-label="Filtros aplicados">
       <li v-for="etiqueta in etiquetasActivas" :key="etiqueta.campo">
@@ -242,7 +295,7 @@ const opcionesOrden = [
 
 .filters {
   display: grid;
-  grid-template-columns: 3fr repeat(5, minmax(0, 1fr)) auto;
+  grid-template-columns: 2.5fr repeat(7, minmax(0, 1fr)) auto;
   align-items: end;
   gap: var(--spacing-sm) var(--spacing-sm);
   padding: var(--spacing-xs) 0;
@@ -259,6 +312,20 @@ const opcionesOrden = [
   color: var(--color-text-secondary);
   font-size: var(--texto-sm);
   font-weight: 500;
+}
+
+.error-fechas,
+.ayuda-fechas {
+  margin: var(--spacing-xs) 0 0;
+  font-size: var(--texto-sm);
+}
+
+.error-fechas {
+  color: var(--color-tardia);
+}
+
+.ayuda-fechas {
+  color: var(--color-text-secondary);
 }
 
 .reintentar {
@@ -481,9 +548,9 @@ const opcionesOrden = [
   cursor: pointer;
 }
 
-@media (max-width: 1279px) {
+@media (max-width: 1439px) {
   .filters {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .search-box {
