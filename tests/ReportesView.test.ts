@@ -8,6 +8,7 @@ import type { ReporteCartera } from '../src/modules/reportes/services/reporteSer
 vi.mock('../src/modules/reportes/services/reporteService')
 enableAutoUnmount(afterEach)
 const reporte: ReporteCartera = {
+ evolucionMensual: [],
  generado:'2026-11-03T20:10:00',totales:{importe:700.30,contribuyentes:4,padrones:35,deudas:35},
  porSegmento:[{id:87,nombre:'Mora Tardía',orden:3,cantidad:35,importe:700.30}],
  porTipo:[{tipo:'CIU',cantidad:35,importe:700.30}],
@@ -110,6 +111,34 @@ it('con un solo origen muestra únicamente ese origen y su participación real',
  expect(filas).toHaveLength(1)
  expect(filas[0]!.text()).toContain('SUCIVE')
  expect(filas[0]!.text()).toContain('100 %')
+})
+
+it('distingue el saldo actual, un cierre de saldo cero y un origen sin cierre', async () => {
+ const intendencia = {
+  mes: '2026-11-01', origen: 'INTENDENCIA', enCurso: true, corte: null,
+  anioMinimo: null, saldoPendiente: 125.5, cantidadPagos: 1, importePagos: 30.12,
+ } as const
+ vi.mocked(api.obtenerReporte).mockResolvedValue({
+  ...reporte,
+  evolucionMensual: [
+   intendencia,
+   { ...intendencia, mes: '2026-10-01', enCurso: false, corte: '2026-10-31T22:10:00',
+     anioMinimo: 2013, saldoPendiente: 0, cantidadPagos: 0, importePagos: null },
+   { ...intendencia, mes: '2026-10-01', origen: 'SUCIVE', enCurso: false,
+     saldoPendiente: null, cantidadPagos: 1, importePagos: null },
+  ],
+ })
+ const w = montar(); await flushPromises()
+ const filas = w.findAll('section[aria-labelledby="evolucion-titulo"] tbody tr')
+ expect(filas).toHaveLength(3)
+ expect(filas[0]!.text()).toContain('En curso')
+ expect(filas[0]!.text()).toContain('30,12')
+ expect(filas[1]!.text()).toContain('31/10/2026 22:10')
+ expect(filas[1]!.text()).toContain('Deudas desde 2013')
+ expect(filas[1]!.text()).toContain('$ 0,00')
+ expect(filas[2]!.text()).toContain('Sin cierre')
+ expect(filas[2]!.text()).toContain('Importe sin informar')
+ expect(filas[2]!.text()).not.toContain('$ 0,00')
 })
 
 describe('permisos de exportación', () => {

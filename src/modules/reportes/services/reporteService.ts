@@ -4,8 +4,20 @@ export interface FiltrosReporte {
   tipoPadron: string
   segmento: number | ''
 }
+export interface EvolucionMensualCartera {
+  mes: string
+  origen: 'INTENDENCIA' | 'SUCIVE'
+  enCurso: boolean
+  corte: string | null
+  anioMinimo: number | null
+  saldoPendiente: number | null
+  cantidadPagos: number
+  importePagos: number | null
+}
+
 export interface ReporteCartera {
   generado: string
+  evolucionMensual: EvolucionMensualCartera[]
   totales: { importe: number; contribuyentes: number; padrones: number; deudas: number }
   porSegmento: {
     id: number | null

@@ -10,6 +10,7 @@ import {
   exportarReporte,
 } from '../services/reporteService'
 import PaginaLayout from '@/shared/layouts/PaginaLayout.vue'
+import EvolucionMensual from '../components/EvolucionMensual.vue'
 import { descargarArchivo } from '@/shared/utils/descarga'
 import {
   fechaHora,
@@ -400,17 +401,7 @@ function limpiar() {
         </p>
       </section>
     </template>
-    <section class="panel evolucion" aria-labelledby="evolucion-titulo">
-      <div>
-        <span class="proximamente">Próximamente</span>
-        <h2 id="evolucion-titulo">Evolución mensual y recaudación</h2>
-        <p>Comparación entre meses, deuda por vencimiento y seguimiento de lo cobrado.</p>
-        <p class="nota-evolucion">
-          Se incorporará cuando estén disponibles los cierres mensuales y el historial completo de
-          cobros.
-        </p>
-      </div>
-    </section>
+    <EvolucionMensual v-if="datos?.evolucionMensual?.length" :filas="datos.evolucionMensual" />
     <p class="pie">
       Los reportes consultan la base local. Para incorporar cambios de la Intendencia o SUCIVE,
       ejecutá la sincronización correspondiente.
@@ -606,31 +597,6 @@ i {
   font-size: var(--texto-xs);
 }
 
-/* Próxima etapa */
-.evolucion {
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
-  padding: 20px var(--pagina-margen);
-}
-.proximamente {
-  font-size: var(--texto-xs);
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: var(--color-text-secondary);
-}
-.evolucion h2 {
-  margin: 4px 0 6px;
-  font-size: var(--titulo-panel);
-  font-weight: 600;
-}
-.evolucion p {
-  font-size: var(--texto-sm);
-  color: var(--color-text-secondary);
-}
-.nota-evolucion {
-  margin-top: 6px;
-}
 .pie {
   font-size: var(--texto-xs);
   color: var(--color-text-secondary);
