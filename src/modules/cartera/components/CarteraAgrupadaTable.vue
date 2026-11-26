@@ -106,7 +106,7 @@ function alternar(clave: string) {
 <style scoped>
 .tabla-contenedor {
   width: 100%;
-  overflow: auto;
+  overflow-x: auto;
 }
 .tabla-agrupada {
   width: 100%;

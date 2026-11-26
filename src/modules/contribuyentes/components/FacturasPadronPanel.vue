@@ -254,7 +254,6 @@ button:focus-visible {
 .tabla-facturas {
   overflow-x: auto;
   margin-top: 12px;
-  max-height: 420px;
 }
 table {
   width: 100%;
@@ -273,8 +272,6 @@ th {
   background: var(--color-background);
   font-size: var(--texto-xs);
   color: var(--color-text-secondary);
-  position: sticky;
-  top: 0;
 }
 small {
   display: block;

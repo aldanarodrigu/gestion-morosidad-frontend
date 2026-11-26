@@ -151,8 +151,7 @@ h4 {
   margin-bottom: 10px;
 }
 .tabla {
-  overflow: auto;
-  max-height: 360px;
+  overflow-x: auto;
 }
 table {
   width: 100%;
@@ -168,8 +167,6 @@ td {
   border-bottom: 1px solid var(--color-border);
 }
 th {
-  position: sticky;
-  top: 0;
   background: var(--color-background);
   color: var(--color-text-secondary);
   font-weight: 500;

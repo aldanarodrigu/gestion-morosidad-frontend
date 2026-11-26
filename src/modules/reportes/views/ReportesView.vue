@@ -309,12 +309,7 @@ function limpiar() {
               <h2 id="tipo-titulo">Deuda por PadTipo</h2>
               <p>Tipos de padrón con mayor deuda en la selección</p>
             </header>
-            <div
-              class="series-tipos"
-              tabindex="0"
-              role="region"
-              aria-label="Tipos de padrón ordenados por deuda, lista desplazable"
-            >
+            <div class="series-tipos">
               <template v-if="!datos"
                 ><div v-for="n in 4" :key="n" class="fila-barra" aria-hidden="true">
                   <div class="rotulo">
@@ -339,10 +334,6 @@ function limpiar() {
                 </div>
               </div>
             </div>
-            <p v-if="porTipo.length > 4" class="nota-tipos">
-              Desplazá la lista para ver todos los PadTipo. El detalle completo también está en la
-              tabla inferior.
-            </p>
             <p class="nota-tipos">
               La clasificación urbana/rural por PadTipo queda pendiente de confirmar.
             </p>
@@ -503,7 +494,7 @@ a:focus-visible {
 .distribuciones {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  align-items: stretch;
+  align-items: start;
   gap: var(--spacing-md);
 }
 .columna-distribuciones,
@@ -536,18 +527,6 @@ a:focus-visible {
   grid-template-columns: minmax(0, 1fr);
   align-content: start;
   gap: 20px;
-}
-.series-tipos {
-  max-height: 300px;
-  overflow-y: auto;
-  overscroll-behavior-y: contain;
-  scrollbar-gutter: stable;
-  padding-right: 10px;
-}
-.series-tipos:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 5px;
-  border-radius: var(--radius-sm);
 }
 .fila-barra {
   min-width: 0;

@@ -196,7 +196,8 @@ function alternarAcciones(id: number) {
 <style scoped>
 .table-container {
   width: 100%;
-  overflow: auto;
+  /* Solo horizontal (pantallas chicas); hacia abajo se desplaza la página */
+  overflow-x: auto;
   background: var(--color-surface);
 }
 
@@ -217,9 +218,6 @@ function alternarAcciones(id: number) {
 
 /* Encabezado: más liviano que las celdas y con fondo gris para separarlo del cuerpo */
 .cartera-table th {
-  position: sticky;
-  top: 0;
-  z-index: 1;
   padding-block: 10px;
   font-size: var(--texto-sm);
   font-weight: 600;

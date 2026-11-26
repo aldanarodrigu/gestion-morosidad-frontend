@@ -150,15 +150,11 @@ async function exportarArchivo(formato: FormatoExportacion) {
 </template>
 
 <style scoped>
+/* Como el resto de las pantallas: baja toda la página, sin desplazamiento interno en la tabla */
 .cartera-view {
-  flex: 1;
-  min-height: 0;
+  flex: 1 0 auto;
   display: flex;
   flex-direction: column;
-}
-
-.tabla {
-  min-height: 0;
 }
 
 .mensaje {
