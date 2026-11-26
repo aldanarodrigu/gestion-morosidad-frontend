@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { vEnfocar } from '@/shared/directives/enfocar'
-import { computed, onScopeDispose, ref, watch, reactive } from 'vue'
-import { isAxiosError } from 'axios'
+import { computed, ref, watch, reactive } from 'vue'
+import { mensajeDeError, useConsulta } from '@/shared/composables/useConsulta'
 import AvisoCarga from '@/shared/components/esqueleto/AvisoCarga.vue'
 import SkeletonBloque from '@/shared/components/esqueleto/SkeletonBloque.vue'
 import { useEsqueleto } from '@/shared/composables/useEsqueleto'
@@ -19,11 +19,10 @@ const puedeEditar = computed(
   () => auth.tieneRol('ADMINISTRADOR') || auth.tieneRol('NOTIFICADOR') || auth.tieneRol('ANALISTA'),
 )
 const contactos = ref<Contacto[]>([])
-const cargando = ref(false)
+const { cargando, error: errorCarga, ejecutar, vigente, detener } = useConsulta<Contacto[]>()
 const errores = reactive<{ valor?: string; origen?: string }>({})
 const esqueleto = useEsqueleto(() => cargando.value)
 const guardando = ref(false)
-const errorCarga = ref('')
 const errorFormulario = ref('')
 const mensaje = ref('')
 const formulario = ref<ContactoRequest | null>(null)
@@ -41,38 +40,25 @@ const fuentes: Record<string, string> = {
   API_GEOPAT_PENDIENTES: 'GeoPat · Facturas pendientes',
   MANUAL: 'Carga manual',
 }
-let controller: AbortController | null = null
-function errorApi(e: unknown, defecto: string) {
-  return isAxiosError<{ mensaje?: string }>(e) ? (e.response?.data?.mensaje ?? defecto) : defecto
-}
+const errorApi = mensajeDeError
 async function cargar() {
-  controller?.abort()
-  const ctrl = new AbortController()
-  controller = ctrl
   contactos.value = []
   formulario.value = null
-  errorCarga.value = ''
   errorFormulario.value = ''
   mensaje.value = ''
-  if (!props.cm) {
-    cargando.value = false
-    return
-  }
-  cargando.value = true
-  try {
-    const datos =
+  // Sin CM no hay nada que consultar: se cancela lo pendiente y queda sin carga
+  if (!props.cm) return detener()
+  const cm = props.cm
+  const datos = await ejecutar(
+    (signal) =>
       props.origen === 'SUCIVE'
-        ? await obtenerContactos(props.cm, ctrl.signal, props.origen)
-        : await obtenerContactos(props.cm, ctrl.signal)
-    if (!ctrl.signal.aborted) contactos.value = datos
-  } catch (e) {
-    if (!ctrl.signal.aborted) errorCarga.value = errorApi(e, 'No se pudieron cargar los contactos.')
-  } finally {
-    if (controller === ctrl) cargando.value = false
-  }
+        ? obtenerContactos(cm, signal, props.origen)
+        : obtenerContactos(cm, signal),
+    (e) => errorApi(e, 'No se pudieron cargar los contactos.'),
+  )
+  if (datos) contactos.value = datos
 }
 watch(() => [props.cm, props.origen], cargar, { immediate: true })
-onScopeDispose(() => controller?.abort())
 function abrir(contacto?: Contacto) {
   errores.valor = errores.origen = undefined
   if (!puedeEditar.value) return
@@ -113,21 +99,22 @@ async function guardar() {
       : undefined
   if (errores.valor || errores.origen) return
   const cm = props.cm
-  const contexto = controller
+  // Si mientras tanto cambia el contribuyente o se sale de la pantalla, se descarta el resultado.
+  const contexto = vigente()
   guardando.value = true
   try {
     const contacto =
       props.origen === 'SUCIVE'
         ? await guardarContacto(cm, request, props.origen)
         : await guardarContacto(cm, request)
-    if (controller !== contexto || contexto?.signal.aborted) return
+    if (contexto.aborted) return
     const indice = contactos.value.findIndex((c) => c.id === contacto.id)
     if (indice < 0) contactos.value.push(contacto)
     else contactos.value[indice] = contacto
     cancelar()
     mensaje.value = 'Contacto guardado correctamente.'
   } catch (e) {
-    if (controller === contexto && !contexto?.signal.aborted)
+    if (!contexto.aborted)
       errorFormulario.value = errorApi(
         e,
         'No se pudo guardar el contacto. Revisá los datos antes de reintentar.',

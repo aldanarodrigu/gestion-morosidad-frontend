@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { vEnfocar } from '@/shared/directives/enfocar'
-import { computed, onScopeDispose, ref, watch } from 'vue'
-import { isAxiosError } from 'axios'
+import { computed, ref, watch } from 'vue'
+import { mensajeDeError, useConsulta } from '@/shared/composables/useConsulta'
 import AvisoCarga from '@/shared/components/esqueleto/AvisoCarga.vue'
 import SkeletonBloque from '@/shared/components/esqueleto/SkeletonBloque.vue'
 import { useEsqueleto } from '@/shared/composables/useEsqueleto'
@@ -36,11 +36,15 @@ const acciones = ref<DeudaApi['accionesSugeridas']>([])
 const accionId = ref<number | null>(null)
 const resultado = ref<ResultadoGestion | ''>('')
 const observacion = ref('')
-const cargando = ref(false)
+const {
+  cargando,
+  error: errorCarga,
+  ejecutar,
+  detener,
+} = useConsulta<[GestionResponse[], DeudaApi['accionesSugeridas']]>()
 const esqueleto = useEsqueleto(() => cargando.value)
 const guardando = ref(false)
 const formulario = ref(false)
-const errorCarga = ref('')
 const errorFormulario = ref('')
 // La validación compartida devuelve un mensaje; acá se ubica junto al campo que lo causó.
 const CAMPO_DEL_ERROR: Record<string, 'accion' | 'resultado' | 'observacion'> = {
@@ -51,10 +55,7 @@ const CAMPO_DEL_ERROR: Record<string, 'accion' | 'resultado' | 'observacion'> = 
 const campoConError = computed(() => CAMPO_DEL_ERROR[errorFormulario.value])
 const mensaje = ref('')
 const deudaSeleccionada = computed(() => props.deudas.find((d) => d.id === deudaId.value))
-let controller: AbortController | null = null
-function mensajeError(e: unknown, defecto: string): string {
-  return isAxiosError<{ mensaje?: string }>(e) ? (e.response?.data?.mensaje ?? defecto) : defecto
-}
+const mensajeError = mensajeDeError
 function limpiarFormulario() {
   accionId.value = null
   resultado.value = ''
@@ -63,32 +64,23 @@ function limpiarFormulario() {
   formulario.value = false
 }
 async function cargar() {
-  controller?.abort()
-  const ctrl = new AbortController()
-  controller = ctrl
   limpiarFormulario()
   gestiones.value = []
   acciones.value = []
-  errorCarga.value = ''
   mensaje.value = ''
   emit('cantidad', null)
-  if (!deudaId.value) return
-  cargando.value = true
-  try {
-    const [historial, disponibles] = await Promise.all([
-      obtenerGestiones(deudaId.value, ctrl.signal),
-      obtenerAccionesDisponibles(deudaId.value, ctrl.signal),
-    ])
-    if (ctrl.signal.aborted) return
-    gestiones.value = historial
-    emit('cantidad', historial.length)
-    acciones.value = disponibles
-  } catch (e) {
-    if (!ctrl.signal.aborted)
-      errorCarga.value = mensajeError(e, 'No se pudieron cargar las gestiones. Intentá nuevamente.')
-  } finally {
-    if (controller === ctrl) cargando.value = false
-  }
+  // Sin deuda elegida no hay historial que pedir
+  const id = deudaId.value
+  if (!id) return detener()
+  const respuesta = await ejecutar(
+    (signal) => Promise.all([obtenerGestiones(id, signal), obtenerAccionesDisponibles(id, signal)]),
+    (e) => mensajeError(e, 'No se pudieron cargar las gestiones. Intentá nuevamente.'),
+  )
+  if (!respuesta) return
+  const [historial, disponibles] = respuesta
+  gestiones.value = historial
+  emit('cantidad', historial.length)
+  acciones.value = disponibles
 }
 watch(
   () => [props.deudas.map((d) => d.id).join(','), props.deudaInicialId],
@@ -99,7 +91,6 @@ watch(
   { immediate: true },
 )
 watch(deudaId, cargar, { immediate: true })
-onScopeDispose(() => controller?.abort())
 function abrirFormulario() {
   if (!puedeRegistrar.value) return
   limpiarFormulario()

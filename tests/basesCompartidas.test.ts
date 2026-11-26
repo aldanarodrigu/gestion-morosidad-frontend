@@ -3,7 +3,7 @@ import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
 import { defineComponent, h, nextTick, reactive } from 'vue'
 import { fecha, fechaHora, importe, numero, origen, porcentaje } from '../src/shared/utils/formato'
 import { descargarArchivo } from '../src/shared/utils/descarga'
-import { mensajeDeError, useConsulta } from '../src/shared/composables/useConsulta'
+import { mensajeDeError, useAlSalir, useConsulta } from '../src/shared/composables/useConsulta'
 import { useFiltrosAutomaticos } from '../src/shared/composables/useFiltrosAutomaticos'
 import { vEnfocar } from '../src/shared/directives/enfocar'
 import DialogoConfirmacion from '../src/shared/components/DialogoConfirmacion.vue'
@@ -60,7 +60,9 @@ describe('descargarArchivo', () => {
 describe('useConsulta', () => {
   function montar() {
     let consulta!: ReturnType<typeof useConsulta<string>>
-    const w = mount(defineComponent({ setup: () => ((consulta = useConsulta<string>()), () => h('div')) }))
+    const w = mount(
+      defineComponent({ setup: () => ((consulta = useConsulta<string>()), () => h('div')) }),
+    )
     return { w, consulta: () => consulta }
   }
 
@@ -78,12 +80,45 @@ describe('useConsulta', () => {
 
   it('informa el error del backend o el mensaje por defecto', async () => {
     const { consulta } = montar()
-    await consulta().ejecutar(() => Promise.reject({ response: { data: { mensaje: 'Sin conexión' } } }), (e) =>
-      mensajeDeError(e, 'Falló'),
+    await consulta().ejecutar(
+      () => Promise.reject({ response: { data: { mensaje: 'Sin conexión' } } }),
+      (e) => mensajeDeError(e, 'Falló'),
     )
     expect(consulta().error.value).toBe('Sin conexión')
-    await consulta().ejecutar(() => Promise.reject(new Error('x')), (e) => mensajeDeError(e, 'Falló'))
+    await consulta().ejecutar(
+      () => Promise.reject(new Error('x')),
+      (e) => mensajeDeError(e, 'Falló'),
+    )
     expect(consulta().error.value).toBe('Falló')
+  })
+
+  it('vigente(): una acción iniciada se descarta si después empieza otra consulta', async () => {
+    const { consulta } = montar()
+    await consulta().ejecutar(async () => 'primera', 'error')
+    const antesDeGuardar = consulta().vigente()
+    expect(antesDeGuardar.aborted).toBe(false)
+    await consulta().ejecutar(async () => 'recarga', 'error')
+    expect(antesDeGuardar.aborted).toBe(true)
+    expect(consulta().vigente().aborted).toBe(false)
+  })
+
+  it('detener(): cancela lo pendiente y deja el estado sin carga ni error', async () => {
+    const { consulta } = montar()
+    let signal!: AbortSignal
+    void consulta().ejecutar((s) => ((signal = s), new Promise(() => {})), 'error')
+    expect(consulta().cargando.value).toBe(true)
+    consulta().detener()
+    expect(signal.aborted).toBe(true)
+    expect(consulta().cargando.value).toBe(false)
+    expect(consulta().error.value).toBe('')
+  })
+
+  it('useAlSalir(): la señal se cancela al salir de la pantalla', () => {
+    let salida!: AbortSignal
+    const w = mount(defineComponent({ setup: () => ((salida = useAlSalir()), () => h('div')) }))
+    expect(salida.aborted).toBe(false)
+    w.unmount()
+    expect(salida.aborted).toBe(true)
   })
 
   it('cancela lo pendiente al desmontar', async () => {
@@ -101,7 +136,11 @@ describe('useFiltrosAutomaticos', () => {
     const filtros = reactive({ texto: '', origen: '' })
     const aplicar = vi.fn()
     let api!: ReturnType<typeof useFiltrosAutomaticos>
-    mount(defineComponent({ setup: () => ((api = useFiltrosAutomaticos(filtros, ['texto'], aplicar)), () => h('div')) }))
+    mount(
+      defineComponent({
+        setup: () => ((api = useFiltrosAutomaticos(filtros, ['texto'], aplicar)), () => h('div')),
+      }),
+    )
     filtros.origen = 'SUCIVE'
     await nextTick()
     await vi.advanceTimersByTimeAsync(0)
@@ -161,7 +200,10 @@ describe('DialogoConfirmacion', () => {
 
 describe('EstadoConsulta', () => {
   const montar = (props: Record<string, unknown>) =>
-    mount(EstadoConsulta, { props: { cargando: false, ...props }, slots: { default: '<p class="datos">Datos</p>' } })
+    mount(EstadoConsulta, {
+      props: { cargando: false, ...props },
+      slots: { default: '<p class="datos">Datos</p>' },
+    })
 
   it('muestra error con reintentar, vacío o el contenido', async () => {
     const conError = montar({ error: 'Falló la consulta' })

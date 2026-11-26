@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onScopeDispose, ref } from 'vue'
 import SincronizacionProgreso from './SincronizacionProgreso.vue'
+import { mensajeDeError, useAlSalir } from '@/shared/composables/useConsulta'
 import AvisoCarga from '@/shared/components/esqueleto/AvisoCarga.vue'
 import SkeletonBloque from '@/shared/components/esqueleto/SkeletonBloque.vue'
 import SkeletonDetalle from '@/shared/components/esqueleto/SkeletonDetalle.vue'
@@ -42,13 +43,9 @@ const anioSeleccionado = computed(() =>
 let timer: ReturnType<typeof setTimeout> | undefined
 let revision = 0
 const esqueleto = useEsqueleto(() => cargando.value)
-const controller = new AbortController()
-function detalleError(e: unknown) {
-  return (
-    (e as { response?: { data?: { mensaje?: string } } })?.response?.data?.mensaje ||
-    'No se pudo completar la solicitud. Intentá nuevamente.'
-  )
-}
+const salida = useAlSalir()
+const detalleError = (e: unknown) =>
+  mensajeDeError(e, 'No se pudo completar la solicitud. Intentá nuevamente.')
 async function cargar() {
   if (!admin.value) {
     cargando.value = false
@@ -57,17 +54,14 @@ async function cargar() {
   error.value = ''
   cargando.value = true
   try {
-    const [p, e] = await Promise.all([
-      obtenerPeriodo(controller.signal),
-      obtenerEjecucion(controller.signal),
-    ])
-    if (controller.signal.aborted) return
+    const [p, e] = await Promise.all([obtenerPeriodo(salida), obtenerEjecucion(salida)])
+    if (salida.aborted) return
     anio.value = p.anioMinimo
     guardado.value = p.anioMinimo
     ejecucion.value = e
     programar()
   } catch (e) {
-    if (!controller.signal.aborted) error.value = detalleError(e)
+    if (!salida.aborted) error.value = detalleError(e)
   } finally {
     cargando.value = false
   }
@@ -76,7 +70,7 @@ function programar() {
   clearTimeout(timer)
   if (
     ['EN_CURSO', 'CANCELANDO'].includes(ejecucion.value?.estado || '') &&
-    !controller.signal.aborted &&
+    !salida.aborted &&
     !cancelando.value
   )
     timer = setTimeout(actualizar, 2000)
@@ -84,8 +78,8 @@ function programar() {
 async function actualizar() {
   const version = revision
   try {
-    const estado = await obtenerEjecucion(controller.signal)
-    if (controller.signal.aborted || version !== revision) return
+    const estado = await obtenerEjecucion(salida)
+    if (salida.aborted || version !== revision) return
     if (
       !cancelando.value &&
       !(ejecucion.value?.estado === 'CANCELANDO' && estado?.estado === 'EN_CURSO')
@@ -93,7 +87,7 @@ async function actualizar() {
       ejecucion.value = estado
     error.value = ''
   } catch {
-    if (!controller.signal.aborted)
+    if (!salida.aborted)
       error.value =
         'No se pudo actualizar el progreso. La sincronización puede seguir en segundo plano; se reintentará la consulta.'
   } finally {
@@ -106,11 +100,11 @@ async function guardar() {
   guardando.value = true
   try {
     const p = await guardarPeriodo(anioSeleccionado.value)
-    if (controller.signal.aborted) return
+    if (salida.aborted) return
     guardado.value = p.anioMinimo
     mensaje.value = 'Período guardado. Se aplicará en la próxima sincronización de cada origen.'
   } catch (e) {
-    if (!controller.signal.aborted) error.value = detalleError(e)
+    if (!salida.aborted) error.value = detalleError(e)
   } finally {
     guardando.value = false
   }
@@ -121,11 +115,11 @@ async function iniciar() {
   iniciando.value = true
   try {
     const e = await iniciarSincronizacion(origen.value)
-    if (controller.signal.aborted) return
+    if (salida.aborted) return
     ejecucion.value = e
     programar()
   } catch (e) {
-    if (!controller.signal.aborted) error.value = detalleError(e)
+    if (!salida.aborted) error.value = detalleError(e)
   } finally {
     iniciando.value = false
   }
@@ -138,20 +132,17 @@ async function cancelar() {
   clearTimeout(timer)
   try {
     const estado = await cancelarSincronizacion()
-    if (controller.signal.aborted) return
+    if (salida.aborted) return
     ejecucion.value = estado
   } catch (e) {
-    if (!controller.signal.aborted) error.value = detalleError(e)
+    if (!salida.aborted) error.value = detalleError(e)
   } finally {
     cancelando.value = false
     programar()
   }
 }
 onMounted(cargar)
-onScopeDispose(() => {
-  controller.abort()
-  clearTimeout(timer)
-})
+onScopeDispose(() => clearTimeout(timer))
 </script>
 <template>
   <section class="sincronizacion">

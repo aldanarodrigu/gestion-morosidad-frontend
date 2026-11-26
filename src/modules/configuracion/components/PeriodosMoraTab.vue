@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { vEnfocar } from '@/shared/directives/enfocar'
-import { computed, onMounted, onScopeDispose, ref, watch } from 'vue'
-import { isAxiosError } from 'axios'
+import { computed, onMounted, ref, watch } from 'vue'
+import { mensajeDeError, useConsulta } from '@/shared/composables/useConsulta'
 import AvisoCarga from '@/shared/components/esqueleto/AvisoCarga.vue'
 import SkeletonFilas from '@/shared/components/esqueleto/SkeletonFilas.vue'
 import { useEsqueleto } from '@/shared/composables/useEsqueleto'
@@ -28,56 +28,52 @@ const filas = computed(() =>
 const formulario = ref<{ segmentoId: number; nombre: string; hasta: number | null | '' }[] | null>(
   null,
 )
-const cargando = ref(true),
-  guardando = ref(false)
+const guardando = ref(false)
+const {
+  cargando,
+  error: errorCarga,
+  ejecutar,
+  vigente,
+} = useConsulta<[Awaited<ReturnType<typeof obtenerPeriodos>>, string[]]>()
+// Los períodos se piden al montar: arranca en carga para no mostrar la tabla vacía un instante
+cargando.value = true
 const esqueleto = useEsqueleto(() => cargando.value)
-const errorCarga = ref(''),
-  errorFormulario = ref(''),
+const errorFormulario = ref(''),
   mensaje = ref('')
-let controller: AbortController | null = null
-function errorApi(e: unknown, defecto: string) {
-  return isAxiosError<{ mensaje?: string }>(e) ? (e.response?.data?.mensaje ?? defecto) : defecto
-}
+const errorApi = mensajeDeError
 async function cargar() {
-  controller?.abort()
-  const ctrl = new AbortController()
-  controller = ctrl
-  cargando.value = true
-  errorCarga.value = ''
   formulario.value = null
   errorFormulario.value = ''
   mensaje.value = ''
-  try {
-    const [datos, catalogo] = await Promise.all([
-      obtenerPeriodos(ctrl.signal, tipoPadron.value ?? undefined),
-      obtenerTiposPadron(ctrl.signal),
-    ])
-    if (ctrl.signal.aborted) return
-    segmentos.value = [...datos.segmentos].sort((a, b) => a.orden - b.orden)
-    rangos.value = datos.rangos
-    tiposPadron.value = catalogo
-  } catch (e) {
-    if (!ctrl.signal.aborted)
-      errorCarga.value = errorApi(e, 'No se pudieron cargar los períodos de mora.')
-  } finally {
-    if (controller === ctrl) cargando.value = false
-  }
+  const resultado = await ejecutar(
+    (signal) =>
+      Promise.all([
+        obtenerPeriodos(signal, tipoPadron.value ?? undefined),
+        obtenerTiposPadron(signal),
+      ]),
+    (e) => errorApi(e, 'No se pudieron cargar los períodos de mora.'),
+  )
+  if (!resultado) return
+  const [datos, catalogo] = resultado
+  segmentos.value = [...datos.segmentos].sort((a, b) => a.orden - b.orden)
+  rangos.value = datos.rangos
+  tiposPadron.value = catalogo
 }
 onMounted(cargar)
 watch(tipoPadron, cargar)
-onScopeDispose(() => controller?.abort())
 async function restaurar() {
   if (!puedeEditar.value || tipoPadron.value === null || guardando.value) return
-  const contexto = controller
+  // Si mientras tanto se recarga o se sale de la pantalla, se descarta el resultado.
+  const contexto = vigente()
   guardando.value = true
   errorFormulario.value = ''
   try {
     await restaurarPeriodosBase(tipoPadron.value)
-    if (contexto?.signal.aborted) return
+    if (contexto.aborted) return
     await cargar()
     mensaje.value = 'Se restauraron los rangos base para este PadTipo.'
   } catch (e) {
-    if (!contexto?.signal.aborted)
+    if (!contexto.aborted)
       errorFormulario.value = errorApi(e, 'No se pudieron restaurar los rangos base.')
   } finally {
     guardando.value = false
@@ -124,16 +120,17 @@ async function guardar() {
     nuevos.push({ segmentoId: fila.segmentoId, diasDesde: inicio, diasHasta: hasta })
     if (hasta !== null) inicio = hasta + 1
   }
-  const contexto = controller
+  // Si mientras tanto se recarga o se sale de la pantalla, se descarta el resultado.
+  const contexto = vigente()
   guardando.value = true
   try {
     const guardados = await guardarPeriodos(nuevos, tipoPadron.value ?? undefined)
-    if (contexto?.signal.aborted) return
+    if (contexto.aborted) return
     rangos.value = guardados
     cancelar()
     mensaje.value = 'Períodos guardados y segmentos de las deudas actualizados.'
   } catch (e) {
-    if (!contexto?.signal.aborted)
+    if (!contexto.aborted)
       errorFormulario.value = errorApi(e, 'No se pudieron guardar los períodos.')
   } finally {
     guardando.value = false

@@ -4,7 +4,8 @@ import type { LocationQuery, LocationQueryValue } from 'vue-router'
 import { obtenerCartera, obtenerCarteraAgrupada } from '../services/carteraService'
 import type { FiltrosCarteraApi } from '../services/carteraService'
 import type { CarteraFilters } from '../components/MorosidadFilters.vue'
-import type { CarteraItem, CarteraGrupo } from '../types/cartera'
+import type { CarteraItem, CarteraGrupo, PaginaResponse } from '../types/cartera'
+import { useConsulta } from '@/shared/composables/useConsulta'
 
 const ORDENES = ['antiguedad', 'importe', 'nombre'] as const
 const SEGMENTOS = ['temprana', 'inicial', 'tardia']
@@ -71,8 +72,9 @@ export function useCartera(tamanio = 20) {
 
   const cartera = ref<CarteraItem[]>([])
   const grupos = ref<CarteraGrupo[]>([])
-  const cargando = ref(false)
-  const error = ref('')
+  const { cargando, error, ejecutar } = useConsulta<
+    PaginaResponse<CarteraItem> | PaginaResponse<CarteraGrupo>
+  >()
   const pagina = ref(paginaDesdeUrl(route.query))
   const tamanioPagina = ref(tamanioDesdeUrl(route.query, tamanio))
   const totalElementos = ref(0)
@@ -80,7 +82,6 @@ export function useCartera(tamanio = 20) {
 
   const filtros = ref<CarteraFilters>(filtrosDesdeUrl(route.query))
 
-  let controller: AbortController | null = null
   let timer: ReturnType<typeof setTimeout> | undefined
 
   // La URL guarda solo lo que se sale del default
@@ -104,41 +105,31 @@ export function useCartera(tamanio = 20) {
     router.replace({ query })
   }
 
-  async function cargar() {
+  async function cargar(): Promise<void> {
     clearTimeout(timer)
-    controller?.abort()
-    const ctrl = new AbortController()
-    controller = ctrl
-
     sincronizarUrl()
-    cargando.value = true
-    error.value = ''
 
-    try {
-      const filtrosApi = filtrosApiDesde(filtros.value)
-      const agrupada = filtros.value.agruparPor
-      const r = agrupada
-        ? await obtenerCarteraAgrupada(pagina.value, tamanioPagina.value, filtrosApi, ctrl.signal)
-        : await obtenerCartera(pagina.value, tamanioPagina.value, filtrosApi, ctrl.signal)
-      if (ctrl.signal.aborted) return
+    const filtrosApi = filtrosApiDesde(filtros.value)
+    const agrupada = filtros.value.agruparPor
+    // Cada consulta cancela la anterior; solo la última actualiza la tabla
+    const r = await ejecutar(
+      (signal) =>
+        agrupada
+          ? obtenerCarteraAgrupada(pagina.value, tamanioPagina.value, filtrosApi, signal)
+          : obtenerCartera(pagina.value, tamanioPagina.value, filtrosApi, signal),
+      'No se pudo cargar la cartera. Intentá nuevamente.',
+    )
+    if (!r) return
 
-      grupos.value = agrupada ? (r.contenido as CarteraGrupo[]) : []
-      cartera.value = agrupada ? [] : (r.contenido as CarteraItem[])
-      totalElementos.value = r.totalElementos
-      totalPaginas.value = r.totalPaginas
+    grupos.value = agrupada ? (r.contenido as CarteraGrupo[]) : []
+    cartera.value = agrupada ? [] : (r.contenido as CarteraItem[])
+    totalElementos.value = r.totalElementos
+    totalPaginas.value = r.totalPaginas
 
-      // URL con una página que ya no existe (por ejemplo ?pagina=99): ir a la última
-      if (pagina.value > 0 && pagina.value >= r.totalPaginas) {
-        pagina.value = Math.max(r.totalPaginas - 1, 0)
-        return cargar()
-      }
-    } catch (e) {
-      if (ctrl.signal.aborted) return // request cancelado a propósito, no es un error
-      console.error('Error al cargar la cartera:', e)
-      error.value = 'No se pudo cargar la cartera. Intentá nuevamente.'
-    } finally {
-      // si ya hay un request más nuevo, ese es el que apaga el loading
-      if (controller === ctrl) cargando.value = false
+    // URL con una página que ya no existe (por ejemplo ?pagina=99): ir a la última
+    if (pagina.value > 0 && pagina.value >= r.totalPaginas) {
+      pagina.value = Math.max(r.totalPaginas - 1, 0)
+      return cargar()
     }
   }
 
@@ -180,10 +171,7 @@ export function useCartera(tamanio = 20) {
     () => programarCarga(0),
   )
 
-  onScopeDispose(() => {
-    clearTimeout(timer)
-    controller?.abort()
-  })
+  onScopeDispose(() => clearTimeout(timer))
 
   cargar() // única carga inicial: ya arranca con lo que diga la URL
 

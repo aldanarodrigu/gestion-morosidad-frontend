@@ -4,7 +4,7 @@ import PaginacionTabla from '@/shared/components/PaginacionTabla.vue'
 import { origen as nombreOrigen } from '@/shared/utils/formato'
 import { vEnfocar } from '@/shared/directives/enfocar'
 import { computed, onMounted, onScopeDispose, reactive, ref, watch } from 'vue'
-import { isAxiosError } from 'axios'
+import { mensajeDeError, useConsulta } from '@/shared/composables/useConsulta'
 import AvisoCarga from '@/shared/components/esqueleto/AvisoCarga.vue'
 import SkeletonBloque from '@/shared/components/esqueleto/SkeletonBloque.vue'
 import SkeletonFilas from '@/shared/components/esqueleto/SkeletonFilas.vue'
@@ -28,14 +28,21 @@ const pendienteEliminar = ref<Tributo | null>(null)
 const errorEliminar = ref('')
 const errores = reactive<{ codigo?: string; descripcion?: string }>({})
 const tributos = ref<Tributo[]>([])
-const cargando = ref(true)
+const {
+  cargando,
+  error: errorCarga,
+  ejecutar,
+  vigente,
+  cancelar: cancelarConsulta,
+} = useConsulta<Awaited<ReturnType<typeof obtenerTributosPaginados>>>()
+// La lista se pide al montar: arranca en carga para no mostrar «No hay tributos» un instante
+cargando.value = true
 const esqueleto = useEsqueleto(() => cargando.value)
 // Hasta la primera respuesta no hay total que mostrar
 const primeraCarga = ref(true)
 watch(cargando, (activo) => {
   if (!activo) primeraCarga.value = false
 })
-const errorCarga = ref('')
 const busqueda = ref('')
 const origen = ref('')
 const pagina = ref(0)
@@ -53,41 +60,31 @@ function limpiarFiltros() {
 }
 function programarCarga(demora: number) {
   clearTimeout(timer)
-  controller?.abort()
+  cancelarConsulta()
   pagina.value = 0
   timer = setTimeout(cargar, demora)
 }
 watch(busqueda, () => programarCarga(300))
 watch(origen, () => programarCarga(0))
-let controller: AbortController | null = null
-async function cargar() {
-  controller?.abort()
-  const ctrl = new AbortController()
-  controller = ctrl
-  cargando.value = true
-  errorCarga.value = ''
-  try {
-    const datos = await obtenerTributosPaginados(
-      pagina.value,
-      { busqueda: busqueda.value, origen: origen.value },
-      ctrl.signal,
-    )
-    if (ctrl.signal.aborted) return
-    totalElementos.value = datos.totalElementos
-    totalPaginas.value = datos.totalPaginas
-    if (pagina.value > 0 && pagina.value >= datos.totalPaginas) {
-      pagina.value = Math.max(0, datos.totalPaginas - 1)
-      return cargar()
-    }
-    tributos.value = datos.contenido
-  } catch (e) {
-    if (!ctrl.signal.aborted)
-      errorCarga.value = isAxiosError<{ mensaje?: string }>(e)
-        ? (e.response?.data?.mensaje ?? 'No se pudieron cargar los tributos.')
-        : 'No se pudieron cargar los tributos.'
-  } finally {
-    if (controller === ctrl) cargando.value = false
+async function cargar(): Promise<void> {
+  const datos = await ejecutar(
+    (signal) =>
+      obtenerTributosPaginados(
+        pagina.value,
+        { busqueda: busqueda.value, origen: origen.value },
+        signal,
+      ),
+    (e) => mensajeDeError(e, 'No se pudieron cargar los tributos.'),
+  )
+  if (!datos) return
+  totalElementos.value = datos.totalElementos
+  totalPaginas.value = datos.totalPaginas
+  // Si la página pedida ya no existe (por ejemplo, tras eliminar su única fila), ir a la última
+  if (pagina.value > 0 && pagina.value >= datos.totalPaginas) {
+    pagina.value = Math.max(0, datos.totalPaginas - 1)
+    return cargar()
   }
+  tributos.value = datos.contenido
 }
 function agregar() {
   editar({ id: 0, codigo: '', descripcion: '' })
@@ -106,19 +103,18 @@ async function confirmarEliminar() {
   if (!pendienteEliminar.value || guardando.value || !puedeEditar.value) return
   const tributo = pendienteEliminar.value
   clearTimeout(timer)
-  const contexto = controller
+  // Si mientras tanto se recarga la lista o se sale de la pantalla, se descarta el resultado.
+  const contexto = vigente()
   guardando.value = true
   try {
     await eliminarTributo(tributo.id)
-    if (contexto?.signal.aborted) return
+    if (contexto.aborted) return
     pendienteEliminar.value = null
     mensaje.value = 'Tributo eliminado correctamente.'
     await cargar()
   } catch (e) {
-    if (!contexto?.signal.aborted)
-      errorEliminar.value = isAxiosError<{ mensaje?: string }>(e)
-        ? (e.response?.data?.mensaje ?? 'No se pudo eliminar el tributo.')
-        : 'No se pudo eliminar el tributo.'
+    if (!contexto.aborted)
+      errorEliminar.value = mensajeDeError(e, 'No se pudo eliminar el tributo.')
   } finally {
     guardando.value = false
   }
@@ -147,29 +143,25 @@ async function guardar() {
       : undefined
   if (errores.codigo || errores.descripcion) return
   clearTimeout(timer)
-  const contexto = controller
+  // Si mientras tanto se recarga la lista o se sale de la pantalla, se descarta el resultado.
+  const contexto = vigente()
   guardando.value = true
   try {
     if (formulario.value.id) await actualizarTributo(formulario.value.id, descripcion)
     else await crearTributo(codigo, descripcion)
-    if (contexto?.signal.aborted) return
+    if (contexto.aborted) return
     cancelar()
     mensaje.value = 'Tributo guardado correctamente.'
     await cargar()
   } catch (e) {
-    if (!contexto?.signal.aborted)
-      errorFormulario.value = isAxiosError<{ mensaje?: string }>(e)
-        ? (e.response?.data?.mensaje ?? 'No se pudo guardar la descripción.')
-        : 'No se pudo guardar la descripción.'
+    if (!contexto.aborted)
+      errorFormulario.value = mensajeDeError(e, 'No se pudo guardar la descripción.')
   } finally {
     guardando.value = false
   }
 }
 onMounted(cargar)
-onScopeDispose(() => {
-  clearTimeout(timer)
-  controller?.abort()
-})
+onScopeDispose(() => clearTimeout(timer))
 </script>
 
 <template>

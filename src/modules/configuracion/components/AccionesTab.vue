@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { vEnfocar } from '@/shared/directives/enfocar'
-import { computed, onMounted, onScopeDispose, ref, reactive } from 'vue'
+import { computed, onMounted, ref, reactive } from 'vue'
 import { useAuthStore } from '@/modules/autenticacion/stores/auth.store'
-import { isAxiosError } from 'axios'
+import { mensajeDeError, useConsulta } from '@/shared/composables/useConsulta'
 import AvisoCarga from '@/shared/components/esqueleto/AvisoCarga.vue'
 import SkeletonBloque from '@/shared/components/esqueleto/SkeletonBloque.vue'
 import { useEsqueleto } from '@/shared/composables/useEsqueleto'
@@ -20,72 +20,58 @@ const puedeAdministrar = computed(() => auth.tieneRol('ADMINISTRADOR'))
 const guardando = ref(new Set<number>())
 const erroresEstado = ref<Record<number, string>>({})
 const acciones = ref<Accion[]>([])
-const cargando = ref(true)
+const { cargando, error, ejecutar, vigente } = useConsulta<Accion[]>()
+// La lista se pide al montar: arranca en carga para no mostrar «No hay acciones» un instante
+cargando.value = true
 const errores = reactive<{ nombre?: string; segmento?: string }>({})
 const esqueleto = useEsqueleto(() => cargando.value)
-const error = ref('')
 const formulario = ref(false)
 const nombreNuevo = ref('')
 const segmentoId = ref<number | null>(null)
 const segmentos = ref<SegmentoMora[]>([])
-const cargandoSegmentos = ref(false)
+const {
+  cargando: cargandoSegmentos,
+  error: errorSegmentos,
+  ejecutar: consultarSegmentos,
+  detener: detenerSegmentos,
+} = useConsulta<SegmentoMora[]>()
 const creando = ref(false)
 const errorFormulario = ref('')
-const errorSegmentos = ref('')
 const mensaje = ref('')
-let segmentosController: AbortController | null = null
-let controller: AbortController | null = null
 async function cargar() {
-  controller?.abort()
-  const ctrl = new AbortController()
-  controller = ctrl
-  cargando.value = true
-  error.value = ''
-  try {
-    const datos = await obtenerAcciones(ctrl.signal)
-    if (!ctrl.signal.aborted) acciones.value = datos
-  } catch (e) {
-    if (!ctrl.signal.aborted)
-      error.value = isAxiosError<{ mensaje?: string }>(e)
-        ? (e.response?.data?.mensaje ?? 'No se pudieron cargar las acciones.')
-        : 'No se pudieron cargar las acciones.'
-  } finally {
-    if (controller === ctrl) cargando.value = false
-  }
+  const datos = await ejecutar(
+    (signal) => obtenerAcciones(signal),
+    (e) => mensajeDeError(e, 'No se pudieron cargar las acciones.'),
+  )
+  if (datos) acciones.value = datos
 }
 async function cambiarEstado(accion: Accion) {
   if (!puedeAdministrar.value || guardando.value.has(accion.id)) return
-  const contexto = controller
+  // Si mientras tanto se recarga la lista o se sale de la pantalla, se descarta el resultado.
+  const contexto = vigente()
   guardando.value.add(accion.id)
   delete erroresEstado.value[accion.id]
   try {
     const actualizada = await cambiarEstadoAccion(accion.id, !accion.activo)
-    if (controller !== contexto || contexto?.signal.aborted) return
+    if (contexto.aborted) return
     const indice = acciones.value.findIndex((a) => a.id === accion.id)
     if (indice >= 0) acciones.value[indice] = actualizada
   } catch (e) {
-    if (controller === contexto && !contexto?.signal.aborted)
-      erroresEstado.value[accion.id] = isAxiosError<{ mensaje?: string }>(e)
-        ? (e.response?.data?.mensaje ?? 'No se pudo cambiar el estado. Intentá nuevamente.')
-        : 'No se pudo cambiar el estado. Intentá nuevamente.'
+    if (!contexto.aborted)
+      erroresEstado.value[accion.id] = mensajeDeError(
+        e,
+        'No se pudo cambiar el estado. Intentá nuevamente.',
+      )
   } finally {
     guardando.value.delete(accion.id)
   }
 }
 async function cargarSegmentos() {
-  segmentosController?.abort()
-  const ctrl = new AbortController()
-  segmentosController = ctrl
-  cargandoSegmentos.value = true
-  errorSegmentos.value = ''
-  try {
-    const datos = await obtenerSegmentosAccion(ctrl.signal)
-    if (!ctrl.signal.aborted) segmentos.value = datos
-  } catch (e) {
-    if (!ctrl.signal.aborted) errorSegmentos.value = 'No se pudieron cargar los segmentos de mora.'
-  } finally {
-    if (segmentosController === ctrl) cargandoSegmentos.value = false
-  }
+  const datos = await consultarSegmentos(
+    (signal) => obtenerSegmentosAccion(signal),
+    'No se pudieron cargar los segmentos de mora.',
+  )
+  if (datos) segmentos.value = datos
 }
 function abrirFormulario() {
   if (!puedeAdministrar.value || creando.value) return
@@ -99,7 +85,7 @@ function abrirFormulario() {
 }
 function cancelarCreacion() {
   if (creando.value) return
-  segmentosController?.abort()
+  detenerSegmentos()
   formulario.value = false
   nombreNuevo.value = ''
   segmentoId.value = null
@@ -115,30 +101,23 @@ async function guardarNueva() {
     ? 'Elegí un segmento de mora.'
     : undefined
   if (errores.nombre || errores.segmento) return
-  const contexto = controller
+  const contexto = vigente()
   creando.value = true
   try {
     const nueva = await crearAccion(nombre, segmentoId.value!)
-    if (contexto?.signal.aborted) return
+    if (contexto.aborted) return
     acciones.value.push(nueva)
     formulario.value = false
     nombreNuevo.value = ''
     segmentoId.value = null
     mensaje.value = 'Acción creada correctamente.'
   } catch (e) {
-    if (!contexto?.signal.aborted)
-      errorFormulario.value = isAxiosError<{ mensaje?: string }>(e)
-        ? (e.response?.data?.mensaje ?? 'No se pudo crear la acción.')
-        : 'No se pudo crear la acción.'
+    if (!contexto.aborted) errorFormulario.value = mensajeDeError(e, 'No se pudo crear la acción.')
   } finally {
     creando.value = false
   }
 }
 onMounted(cargar)
-onScopeDispose(() => {
-  controller?.abort()
-  segmentosController?.abort()
-})
 </script>
 
 <template>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useFiltrosAutomaticos } from '@/shared/composables/useFiltrosAutomaticos'
-import { useConsulta } from '@/shared/composables/useConsulta'
-import { onMounted, onScopeDispose, reactive, ref } from 'vue'
+import { useAlSalir, useConsulta } from '@/shared/composables/useConsulta'
+import { onMounted, reactive, ref } from 'vue'
 import { useAuthStore } from '@/modules/autenticacion/stores/auth.store'
 import FacturasPadronPanel from '@/modules/contribuyentes/components/FacturasPadronPanel.vue'
 import PaginaLayout from '@/shared/layouts/PaginaLayout.vue'
@@ -34,7 +34,7 @@ const auth = useAuthStore()
 const panelExportacion = ref(false)
 const exportando = ref(false)
 const errorExportacion = ref('')
-const descarga = new AbortController()
+const salida = useAlSalir()
 
 const filtros = reactive<FiltrosCancelacion>({ ...filtrosCancelacionesVacios })
 let aplicados = { ...filtrosCancelacionesVacios }
@@ -94,20 +94,18 @@ async function exportar(
   exportando.value = true
   errorExportacion.value = ''
   try {
-    const archivo = await exportarCancelaciones(filtrosExportacion, formato, descarga.signal)
-    if (descarga.signal.aborted) return
+    const archivo = await exportarCancelaciones(filtrosExportacion, formato, salida)
+    if (salida.aborted) return
     descargarArchivo(archivo, `cancelaciones.${formato}`)
     cerrarExportacion()
   } catch {
-    if (!descarga.signal.aborted)
-      errorExportacion.value = 'No se pudo exportar. Intentá nuevamente.'
+    if (!salida.aborted) errorExportacion.value = 'No se pudo exportar. Intentá nuevamente.'
   } finally {
     exportando.value = false
   }
 }
 
 onMounted(() => cargar())
-onScopeDispose(() => descarga.abort())
 </script>
 
 <template>

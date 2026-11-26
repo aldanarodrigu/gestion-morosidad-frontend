@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { fechaHora } from '@/shared/utils/formato'
 import { vEnfocar } from '@/shared/directives/enfocar'
-import { computed, onScopeDispose, ref } from 'vue'
-import { isAxiosError } from 'axios'
+import { computed, ref } from 'vue'
+import { mensajeDeError, useAlSalir } from '@/shared/composables/useConsulta'
 import { restablecerPassword } from '../services/usuarioService'
 import type { Usuario } from '../services/usuarioService'
 
@@ -13,24 +13,21 @@ const password = ref('')
 const venceEn = ref('')
 const copiado = ref('')
 const error = ref('')
-const controller = new AbortController()
-onScopeDispose(() => controller.abort())
+const salida = useAlSalir()
 
 async function generar() {
   if (cargando.value || password.value) return
   cargando.value = true
   error.value = ''
   try {
-    const resultado = await restablecerPassword(props.usuario.id, controller.signal)
-    if (!controller.signal.aborted) {
+    const resultado = await restablecerPassword(props.usuario.id, salida)
+    if (!salida.aborted) {
       password.value = resultado.passwordTemporal
       venceEn.value = resultado.venceEn
     }
   } catch (e) {
-    if (!controller.signal.aborted) {
-      error.value = isAxiosError<{ mensaje?: string }>(e)
-        ? (e.response?.data?.mensaje ?? 'No se pudo restablecer la contraseña.')
-        : 'No se pudo restablecer la contraseña.'
+    if (!salida.aborted) {
+      error.value = mensajeDeError(e, 'No se pudo restablecer la contraseña.')
     }
   } finally {
     cargando.value = false

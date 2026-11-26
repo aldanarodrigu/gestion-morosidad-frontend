@@ -9,19 +9,24 @@ import { onScopeDispose, ref, shallowRef } from 'vue'
  *
  * `ejecutar` devuelve el resultado (o undefined si falló o quedó cancelada) para que la pantalla
  * pueda completar su propio estado.
+ *
+ * `vigente()` devuelve la señal de la consulta actual. Sirve para acciones que dependen de ella
+ * (por ejemplo, guardar y recargar): si mientras tanto empezó otra consulta o se salió de la
+ * pantalla, la señal queda cancelada y el resultado de la acción se descarta.
  */
 export function useConsulta<T>() {
   const datos = shallowRef<T>()
   const cargando = ref(false)
   const error = ref('')
-  let controller: AbortController | undefined
+  // Arranca con un control propio para que `vigente()` siempre tenga una señal válida.
+  let controller = new AbortController()
 
   async function ejecutar(
     consulta: (signal: AbortSignal) => Promise<T>,
     mensajeError: string | ((e: unknown) => string),
     opciones: { limpiar?: boolean } = {},
   ): Promise<T | undefined> {
-    controller?.abort()
+    controller.abort()
     const actual = new AbortController()
     controller = actual
     cargando.value = true
@@ -41,13 +46,35 @@ export function useConsulta<T>() {
     }
   }
 
+  function vigente(): AbortSignal {
+    return controller.signal
+  }
+
+  /** Cancela la consulta en curso y deja el estado sin carga (cuando no hay nada que pedir). */
+  function detener() {
+    controller.abort()
+    controller = new AbortController()
+    cargando.value = false
+    error.value = ''
+  }
+
   function cancelar() {
-    controller?.abort()
+    controller.abort()
   }
 
   onScopeDispose(cancelar)
 
-  return { datos, cargando, error, ejecutar, cancelar }
+  return { datos, cargando, error, ejecutar, vigente, detener, cancelar }
+}
+
+/**
+ * Señal que se cancela al salir de la pantalla. Para acciones sueltas (descargas, guardados,
+ * consultas periódicas) que no deben seguir ni mostrar resultados después de salir.
+ */
+export function useAlSalir(): AbortSignal {
+  const controller = new AbortController()
+  onScopeDispose(() => controller.abort())
+  return controller.signal
 }
 
 /** Mensaje de error que manda el backend (campo `mensaje`), o el texto por defecto. */

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { vEnfocar } from '@/shared/directives/enfocar'
-import { computed, onMounted, onScopeDispose, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import { mensajeDeError, useConsulta } from '@/shared/composables/useConsulta'
 import { useRoute } from 'vue-router'
 import {
   listarCapturas,
@@ -40,30 +41,30 @@ const capturaPosterior = ref<CapturaDetalle>()
 const origen = ref<OrigenCaptura | ''>('')
 const cm = ref('')
 const soloCambios = ref(false)
-const cargando = ref(false)
-const cargandoComparacion = ref(false)
+const { cargando, error, ejecutar: consultarLista } = useConsulta<CapturaResumen[]>()
+const {
+  cargando: cargandoComparacion,
+  error: errorComparacion,
+  ejecutar: consultarComparacion,
+  detener: detenerComparacion,
+} = useConsulta<[CapturaDetalle, CapturaDetalle]>()
+const {
+  cargando: validandoCuenta,
+  error: errorCuenta,
+  ejecutar: consultarCuenta,
+  detener: detenerValidacion,
+} = useConsulta<true>()
 const esqueletoLista = useEsqueleto(() => cargando.value)
 const esqueletoComparacion = useEsqueleto(() => cargandoComparacion.value)
 const guardando = ref(false)
-const error = ref('')
-const errorComparacion = ref('')
 const errorCaptura = ref('')
-const errorCuenta = ref('')
-const validandoCuenta = ref(false)
-let validacion: AbortController | undefined
 const creando = ref(false)
 const seleccion = ref<CuentaCaptura[]>([])
 const nombreCaptura = ref('')
 const nuevoCm = ref('')
 const nuevoOrigen = ref<OrigenCaptura>('INTENDENCIA')
 const mensajeCaptura = ref('')
-let lectura: AbortController | undefined
-const listado = new AbortController()
-function mensaje(e: unknown, fallback: string) {
-  return isAxiosError(e) && typeof e.response?.data?.mensaje === 'string'
-    ? e.response.data.mensaje
-    : fallback
-}
+const mensaje = mensajeDeError
 watch(
   () => [route.query.cm, route.query.origen],
   () => {
@@ -75,58 +76,35 @@ watch(
   { immediate: true },
 )
 async function cargarLista() {
-  cargando.value = true
-  error.value = ''
-  try {
-    const datos = await listarCapturas(listado.signal)
-    if (listado.signal.aborted) return
-    capturas.value = datos
-    if (!datos.some((c) => c.id === posterior.value)) posterior.value = datos[0]?.id
-    if (!datos.some((c) => c.id === anterior.value)) anterior.value = datos[1]?.id
-  } catch (e) {
-    if (!listado.signal.aborted) error.value = mensaje(e, 'No se pudieron cargar las capturas.')
-  } finally {
-    cargando.value = false
-  }
+  const datos = await consultarLista(
+    (signal) => listarCapturas(signal),
+    (e) => mensaje(e, 'No se pudieron cargar las capturas.'),
+  )
+  if (!datos) return
+  capturas.value = datos
+  if (!datos.some((c) => c.id === posterior.value)) posterior.value = datos[0]?.id
+  if (!datos.some((c) => c.id === anterior.value)) anterior.value = datos[1]?.id
 }
 async function cargarComparacion() {
-  lectura?.abort()
-  const actual = new AbortController()
-  lectura = actual
   capturaAnterior.value = undefined
   capturaPosterior.value = undefined
-  errorComparacion.value = ''
-  cargandoComparacion.value = false
-  if (!anterior.value || !posterior.value) return
-  cargandoComparacion.value = true
-  try {
-    const [a, b] = await Promise.all([
-      obtenerCaptura(anterior.value, actual.signal),
-      obtenerCaptura(posterior.value, actual.signal),
-    ])
-    if (!actual.signal.aborted) {
-      capturaAnterior.value = a
-      capturaPosterior.value = b
-    }
-  } catch (e) {
-    if (!actual.signal.aborted)
-      errorComparacion.value = mensaje(e, 'No se pudieron consultar las capturas seleccionadas.')
-  } finally {
-    if (lectura === actual) cargandoComparacion.value = false
-  }
+  const idAnterior = anterior.value
+  const idPosterior = posterior.value
+  // Sin las dos capturas elegidas no hay nada que comparar
+  if (!idAnterior || !idPosterior) return detenerComparacion()
+  const elegidas = await consultarComparacion(
+    (signal) =>
+      Promise.all([obtenerCaptura(idAnterior, signal), obtenerCaptura(idPosterior, signal)]),
+    (e) => mensaje(e, 'No se pudieron consultar las capturas seleccionadas.'),
+  )
+  if (!elegidas) return
+  capturaAnterior.value = elegidas[0]
+  capturaPosterior.value = elegidas[1]
 }
 watch([anterior, posterior], cargarComparacion)
 onMounted(cargarLista)
-onScopeDispose(() => {
-  listado.abort()
-  lectura?.abort()
-  validacion?.abort()
-})
-watch([nuevoCm, nuevoOrigen, creando], () => {
-  validacion?.abort()
-  validandoCuenta.value = false
-  errorCuenta.value = ''
-})
+// Al cambiar el CM, el origen o cerrar el formulario, la validación en curso deja de importar
+watch([nuevoCm, nuevoOrigen, creando], detenerValidacion)
 function nuevaCaptura() {
   nombreCaptura.value = ''
   seleccion.value = []
@@ -145,23 +123,19 @@ async function agregarCuenta() {
     errorCuenta.value = 'Ese CM ya está agregado para el origen seleccionado.'
     return
   }
-  const actual = new AbortController()
-  validacion = actual
-  validandoCuenta.value = true
-  try {
-    await validarCuenta(c, actual.signal)
-    if (actual.signal.aborted || !creando.value) return
-    seleccion.value.push(c)
-    nuevoCm.value = ''
-  } catch (e) {
-    if (actual.signal.aborted) return
-    errorCuenta.value =
+  const valida = await consultarCuenta(
+    async (signal) => {
+      await validarCuenta(c, signal)
+      return true as const
+    },
+    (e) =>
       isAxiosError(e) && e.response?.status === 404
         ? `No existe el CM ${c.cm} en ${nombreOrigen(c.origen)}.`
-        : mensaje(e, 'No se pudo validar el CM. Intentá nuevamente.')
-  } finally {
-    if (validacion === actual) validandoCuenta.value = false
-  }
+        : mensaje(e, 'No se pudo validar el CM. Intentá nuevamente.'),
+  )
+  if (!valida || !creando.value) return
+  seleccion.value.push(c)
+  nuevoCm.value = ''
 }
 async function guardar() {
   if (

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { vEnfocar } from '@/shared/directives/enfocar'
-import { computed, onMounted, onScopeDispose, ref, reactive } from 'vue'
+import { computed, onMounted, ref, reactive } from 'vue'
+import { mensajeDeError, useConsulta } from '@/shared/composables/useConsulta'
 import { isAxiosError } from 'axios'
 import AvisoCarga from '@/shared/components/esqueleto/AvisoCarga.vue'
 import SkeletonFilas from '@/shared/components/esqueleto/SkeletonFilas.vue'
@@ -22,9 +23,8 @@ import type { Usuario, Rol } from '../services/usuarioService'
 const auth = useAuthStore()
 const puedeAdministrar = computed(() => auth.tieneRol('ADMINISTRADOR'))
 const usuarios = ref<Usuario[]>([])
-const cargando = ref(false)
+const { cargando, error: errorCarga, ejecutar, vigente } = useConsulta<Usuario[]>()
 const esqueleto = useEsqueleto(() => cargando.value)
-const errorCarga = ref('')
 const guardando = ref(false)
 const errorFormulario = ref('')
 const errorPassword = ref('')
@@ -38,27 +38,15 @@ const formulario = ref<{
   roles: Rol[]
   activo: boolean
 } | null>(null)
-function errorApi(e: unknown, defecto: string) {
-  return isAxiosError<{ mensaje?: string }>(e) ? (e.response?.data?.mensaje ?? defecto) : defecto
-}
-let controller: AbortController | null = null
+const errorApi = mensajeDeError
 async function cargar() {
   if (!puedeAdministrar.value) return
-  controller?.abort()
-  const ctrl = new AbortController()
-  controller = ctrl
-  cargando.value = true
-  errorCarga.value = ''
-  try {
-    const datos = await obtenerUsuarios(ctrl.signal)
-    if (!ctrl.signal.aborted) usuarios.value = datos
-  } catch (e) {
-    if (!ctrl.signal.aborted) errorCarga.value = errorApi(e, 'No se pudieron cargar los usuarios.')
-  } finally {
-    if (controller === ctrl) cargando.value = false
-  }
+  const datos = await ejecutar(
+    (signal) => obtenerUsuarios(signal),
+    (e) => errorApi(e, 'No se pudieron cargar los usuarios.'),
+  )
+  if (datos) usuarios.value = datos
 }
-onScopeDispose(() => controller?.abort())
 onMounted(cargar)
 function abrir(usuario?: Usuario) {
   errores.username = errores.roles = undefined
@@ -90,13 +78,14 @@ async function guardar() {
       return
     }
   }
-  const contexto = controller
+  // Si mientras se guarda se recarga la lista o se sale de la pantalla, se descarta el resultado.
+  const contexto = vigente()
   guardando.value = true
   try {
     const usuario = datos.id
       ? await actualizarUsuario(datos.id, { username, roles: datos.roles, activo: datos.activo })
       : await crearUsuario({ username, password: datos.password, roles: datos.roles })
-    if (contexto?.signal.aborted) return
+    if (contexto.aborted) return
     const indice = usuarios.value.findIndex((u) => u.id === usuario.id)
     if (indice < 0) usuarios.value.push(usuario)
     else usuarios.value[indice] = usuario
@@ -111,7 +100,7 @@ async function guardar() {
       }
     }
   } catch (e) {
-    if (!contexto?.signal.aborted) {
+    if (!contexto.aborted) {
       const errorCampo = isAxiosError<{ errores?: Record<string, string> }>(e)
         ? e.response?.data?.errores?.password
         : undefined

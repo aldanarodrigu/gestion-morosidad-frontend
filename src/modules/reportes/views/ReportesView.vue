@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { useConsulta } from '@/shared/composables/useConsulta'
-import { computed, onMounted, onScopeDispose, reactive, ref, watch } from 'vue'
+import { useAlSalir, useConsulta } from '@/shared/composables/useConsulta'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useAuthStore } from '@/modules/autenticacion/stores/auth.store'
 const auth = useAuthStore()
@@ -36,7 +36,7 @@ const errorCatalogos = computed(() => !!errorCargaCatalogos.value)
 const exportando = ref(false)
 const errorExportacion = ref('')
 const esqueleto = useEsqueleto(() => cargando.value)
-const exportController = new AbortController()
+const salida = useAlSalir()
 function cargar() {
   return ejecutar(
     (signal) => obtenerReporte({ ...filtros }, signal),
@@ -59,11 +59,11 @@ async function descargar() {
   exportando.value = true
   errorExportacion.value = ''
   try {
-    const archivo = await exportarReporte({ ...filtros }, exportController.signal)
-    if (exportController.signal.aborted) return
+    const archivo = await exportarReporte({ ...filtros }, salida)
+    if (salida.aborted) return
     descargarArchivo(archivo, 'reporte-cartera.xlsx')
   } catch {
-    if (!exportController.signal.aborted)
+    if (!salida.aborted)
       errorExportacion.value = 'No se pudo exportar el reporte. Intentá nuevamente.'
   } finally {
     exportando.value = false
@@ -74,7 +74,6 @@ onMounted(() => {
   cargar()
   cargarCatalogos()
 })
-onScopeDispose(() => exportController.abort())
 const total = computed(() => Number(datos.value?.totales.importe ?? 0))
 const personas = computed(() => datos.value?.totales.contribuyentes ?? 0)
 const padrones = computed(() => datos.value?.totales.padrones ?? 0)
