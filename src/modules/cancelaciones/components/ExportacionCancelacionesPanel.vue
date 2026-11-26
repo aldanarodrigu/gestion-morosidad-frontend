@@ -148,8 +148,6 @@ label {
   gap: 8px;
   font-size: var(--texto-base);
 }
-input,
-select,
 button {
   font: inherit;
   color: var(--color-text);
@@ -188,14 +186,9 @@ fieldset:disabled {
 button:disabled {
   cursor: not-allowed;
 }
-button:focus-visible,
-input:focus-visible,
-select:focus-visible {
+button:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
-}
-.error {
-  color: var(--color-tardia);
 }
 @media (max-width: 599px) {
   .campos-exportacion {

@@ -356,8 +356,6 @@ label {
   font-size: var(--texto-sm);
   color: var(--color-text-secondary);
 }
-input,
-select,
 button {
   padding: 9px 12px;
   border: 1px solid var(--color-border);
@@ -414,8 +412,6 @@ dd {
   margin: 4px 0 0;
   font-weight: 600;
 }
-input:focus-visible,
-select:focus-visible,
 button:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;

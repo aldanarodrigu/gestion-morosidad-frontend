@@ -348,19 +348,11 @@ label {
 select,
 textarea {
   width: 100%;
-  padding: 10px 12px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface);
-  color: var(--color-text);
-  font-size: var(--texto-base);
 }
 textarea {
   resize: vertical;
   min-height: 95px;
 }
-select:focus-visible,
-textarea:focus-visible,
 button:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;

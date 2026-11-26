@@ -22,6 +22,8 @@
 
   /* Bordes */
   --color-border: #e4e7ec;
+  /* Borde de campos y selectores: contraste 3:1 con el fondo (WCAG 1.4.11) */
+  --color-borde-control: #868fa1;
 
   /* Esqueletos de carga */
   --color-esqueleto: #e6e9ee;
@@ -99,10 +101,7 @@ body {
   line-height: 1.5;
 }
 
-button,
-input,
-select,
-textarea {
+:where(button, input, select, textarea) {
   font: inherit;
 }
 
@@ -318,32 +317,9 @@ p {
 }
 
 .campo-form > input:not([type='checkbox']):not([type='radio']),
-.campo-form > select,
-.control {
+.campo-form > select {
   width: 100%;
-  height: var(--control-alto);
-  padding: 0 10px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface);
-  color: var(--color-text);
-  font-size: var(--texto-base);
   font-weight: 400;
-  transition: border-color 0.15s ease;
-}
-
-.campo-form > input:not([type='checkbox']):not([type='radio']):focus,
-.campo-form > select:focus,
-.control:focus {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
-.campo-form > input:disabled,
-.campo-form > select:disabled,
-.control:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
 }
 
 /* Grilla de filtros y formularios: tantas columnas como entren; una sola en móvil */
@@ -479,6 +455,11 @@ p {
   font-size: var(--texto-xs);
 }
 
+/* Mensaje de error (las pantallas solo agregan márgenes si los necesitan) */
+.error {
+  color: var(--color-tardia);
+}
+
 /* Error debajo del campo que lo causó */
 .error-campo {
   margin-top: 4px;
@@ -508,4 +489,49 @@ p {
   .ocultar-bajo-tablet {
     display: none;
   }
+}
+
+/* =========================
+   CAMPOS: estilo único para inputs, selects y textareas
+   (:where deja la especificidad en 0, así cada pantalla puede ajustar ancho o alto)
+   ========================= */
+
+:where(
+  input:not([type='checkbox'], [type='radio'], [type='range'], [type='color'], [type='file']),
+  select,
+  textarea
+) {
+  min-height: var(--control-alto);
+  padding: 0 10px;
+  border: 1px solid var(--color-borde-control);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--texto-base);
+  transition: border-color 0.15s ease;
+}
+
+:where(textarea) {
+  min-height: 95px;
+  padding: 10px;
+  resize: vertical;
+}
+
+/* Foco: el borde pasa a azul (sin halo), igual en todo el sistema */
+:where(input, select, textarea):focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+:where(input, textarea)::placeholder {
+  color: var(--color-text-secondary);
+}
+
+:where(input, select, textarea):disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+:where(input[type='checkbox'], input[type='radio']) {
+  accent-color: var(--color-primary);
 }

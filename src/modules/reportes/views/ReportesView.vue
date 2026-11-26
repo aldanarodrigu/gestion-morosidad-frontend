@@ -4,7 +4,6 @@ import { computed, onMounted, onScopeDispose, reactive, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useAuthStore } from '@/modules/autenticacion/stores/auth.store'
 const auth = useAuthStore()
-import { ChartBarIcon, BanknotesIcon, UsersIcon, HomeModernIcon } from '@heroicons/vue/24/outline'
 import {
   obtenerReporte,
   obtenerCatalogosReporte,
@@ -131,19 +130,16 @@ const indicadores = computed(() => [
     titulo: 'Deuda pendiente',
     valor: importe(total.value),
     nota: 'Importe de los padrones incluidos',
-    icono: BanknotesIcon,
   },
   {
     titulo: 'Contribuyentes',
     valor: formatoNumero(personas.value),
     nota: 'Personas distintas por documento; sin documento, por ID',
-    icono: UsersIcon,
   },
   {
     titulo: 'Padrones con deuda',
     valor: formatoNumero(padrones.value),
     nota: 'Padrones incluidos en el reporte',
-    icono: HomeModernIcon,
   },
 ])
 const fechaGeneracion = computed(() => (datos.value ? fechaHora(datos.value.generado) : ''))
@@ -189,9 +185,7 @@ function limpiar() {
       <p class="ayuda ayuda-texto">
         Deuda pendiente de la base local: todas las deudas no canceladas con saldo positivo. Los
         filtros se combinan entre sí y se aplican a toda la cartera.
-        <RouterLink to="/cartera" class="enlace-cartera"
-          >Ir a cartera <span aria-hidden="true"></span
-        ></RouterLink>
+        <RouterLink to="/cartera" class="enlace-cartera">Ir a cartera</RouterLink>
       </p>
       <p v-if="errorCatalogos" role="alert" class="ayuda ayuda-texto">
         No se pudieron cargar los filtros.
@@ -226,8 +220,7 @@ function limpiar() {
       <div class="indicadores" aria-live="polite" aria-atomic="true">
         <article v-for="indicador in indicadores" :key="indicador.titulo" class="panel indicador">
           <div class="encabezado-indicador">
-            <span>{{ indicador.titulo }}</span
-            ><component :is="indicador.icono" aria-hidden="true" />
+            <span>{{ indicador.titulo }}</span>
           </div>
           <strong
             ><template v-if="datos">{{ indicador.valor }}</template
@@ -418,7 +411,6 @@ function limpiar() {
       </section>
     </template>
     <section class="panel evolucion" aria-labelledby="evolucion-titulo">
-      <div class="icono-evolucion"><ChartBarIcon aria-hidden="true" /></div>
       <div>
         <span class="proximamente">Próximamente</span>
         <h2 id="evolucion-titulo">Evolución mensual y recaudación</h2>
@@ -493,11 +485,6 @@ a:focus-visible {
   gap: 12px;
   font-size: var(--texto-base);
   color: var(--color-text-secondary);
-}
-.encabezado-indicador svg {
-  width: 20px;
-  height: 20px;
-  color: var(--color-primary);
 }
 .indicador > strong {
   display: block;
@@ -647,17 +634,6 @@ i {
   align-items: flex-start;
   gap: 16px;
   padding: 20px var(--pagina-margen);
-}
-.icono-evolucion {
-  padding: 12px;
-  background: var(--color-background);
-  border-radius: var(--radius-md);
-  color: var(--color-primary);
-}
-.icono-evolucion svg {
-  width: 24px;
-  height: 24px;
-  display: block;
 }
 .proximamente {
   font-size: var(--texto-xs);

@@ -147,7 +147,6 @@ label {
   display: grid;
   gap: var(--spacing-xs);
 }
-input,
 button {
   padding: 9px 12px;
   border: 1px solid var(--color-border);
@@ -161,8 +160,5 @@ button {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-}
-.error {
-  color: var(--color-tardia);
 }
 </style>

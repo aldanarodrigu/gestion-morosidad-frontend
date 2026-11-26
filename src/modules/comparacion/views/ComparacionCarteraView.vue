@@ -675,23 +675,15 @@ label {
   font-size: var(--texto-sm);
   font-weight: 500;
 }
-select,
-input[type='search'],
 .formulario-captura input:not([type='checkbox']) {
   width: 100%;
-  height: var(--control-alto);
-  padding: 0 10px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface);
-  color: var(--color-text);
-  font-size: var(--texto-base);
   font-weight: 400;
 }
-select:focus,
-input:focus {
-  outline: none;
-  border-color: var(--color-primary);
+select,
+input[type='search'] {
+  width: 100%;
+  height: var(--control-alto);
+  font-weight: 400;
 }
 button {
   height: var(--boton-alto);

@@ -115,7 +115,6 @@ label {
   display: grid;
   gap: 4px;
 }
-input,
 button {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
@@ -128,9 +127,6 @@ input {
   width: fit-content;
   max-width: 100%;
   font-family: monospace;
-}
-.error {
-  color: var(--color-tardia);
 }
 .fila-copiar {
   display: flex;

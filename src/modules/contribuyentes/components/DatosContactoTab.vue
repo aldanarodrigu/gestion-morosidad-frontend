@@ -415,15 +415,11 @@ label {
   font-size: var(--texto-sm);
   margin-bottom: 6px;
 }
-input:not([type='checkbox']),
+input:not([type='checkbox']) {
+  width: 100%;
+}
 select {
   width: 100%;
-  padding: 10px 12px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface);
-  color: var(--color-text);
-  font-size: var(--texto-base);
 }
 .propietario {
   display: flex;
@@ -438,16 +434,11 @@ select {
   margin-top: var(--spacing-lg);
 }
 .botones button,
-.error {
-  color: var(--color-tardia);
-}
 .confirmacion {
   color: var(--color-temprana);
   margin: 0;
 }
-button:focus-visible,
-input:focus-visible,
-select:focus-visible {
+button:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }

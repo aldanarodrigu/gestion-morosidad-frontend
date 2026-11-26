@@ -138,6 +138,13 @@ button {
   font-size: var(--texto-base);
 }
 
+/* Campos compactos: mismo borde y foco que el resto, con menos alto */
+select,
+input {
+  min-height: 0;
+  border-color: var(--color-borde-control);
+}
+
 select {
   padding: 0 6px;
 }
@@ -168,8 +175,12 @@ input:disabled {
   opacity: 0.5;
 }
 
-select:focus-visible,
-input:focus-visible,
+select:focus,
+input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
 button:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;

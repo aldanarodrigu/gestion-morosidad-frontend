@@ -305,37 +305,10 @@ const opcionesOrden = [
 .filters select {
   width: 100%;
   height: var(--control-alto);
-  padding: 0 var(--spacing-sm);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background-color: var(--color-surface);
-  color: var(--color-text);
   font-family: inherit;
-  font-size: var(--texto-base);
 }
 
-.filters input::placeholder {
-  color: var(--color-text-secondary);
-}
-
-/* Foco: solo el borde pasa a azul, sin contorno ni halo */
-.filters input:focus,
-.filters select:focus {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
-.filters input,
-.filters select {
-  transition: border-color 0.15s ease;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .filters input,
-  .filters select {
-    transition: none;
-  }
-}
+/* Foco, borde y transición: estilo común de campos (main.css) */
 
 .table-options {
   display: flex;

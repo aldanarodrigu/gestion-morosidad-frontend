@@ -182,9 +182,6 @@ small {
   padding: 16px 0;
   font-size: var(--texto-sm);
 }
-.error {
-  color: var(--color-tardia);
-}
 button {
   padding: 8px 10px;
   border: 1px solid var(--color-border);

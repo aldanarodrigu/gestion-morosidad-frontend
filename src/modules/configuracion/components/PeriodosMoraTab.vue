@@ -375,24 +375,12 @@ label,
 }
 select {
   width: 100%;
-  padding: 10px 12px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface);
-  color: var(--color-text);
-  font-size: var(--texto-base);
 }
 .restaurar {
   align-self: flex-start;
 }
 input {
   width: 100%;
-  padding: 10px 12px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface);
-  color: var(--color-text);
-  font-size: var(--texto-base);
 }
 .botones {
   display: flex;
@@ -400,16 +388,11 @@ input {
   gap: 10px;
   margin-top: 20px;
 }
-.error {
-  color: var(--color-tardia);
-}
 .confirmacion {
   margin: 0;
   color: var(--color-temprana);
 }
-button:focus-visible,
-input:focus-visible,
-select:focus-visible {
+button:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }

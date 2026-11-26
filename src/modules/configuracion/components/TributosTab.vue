@@ -380,12 +380,6 @@ onScopeDispose(() => {
 }
 .filtros-catalogo select {
   width: 100%;
-  padding: 10px 12px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface);
-  color: var(--color-text);
-  font: inherit;
 }
 .descripcion-tributo {
   display: -webkit-box;
@@ -449,9 +443,6 @@ td {
 .sin-descripcion {
   color: var(--color-text-secondary);
 }
-.error {
-  color: var(--color-tardia);
-}
 .enlace {
   padding: 0;
   border: 0;
@@ -478,12 +469,6 @@ label {
 }
 input {
   width: 100%;
-  padding: 10px 12px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface);
-  color: var(--color-text);
-  font-size: var(--texto-base);
 }
 .botones {
   display: flex;
@@ -495,9 +480,7 @@ input {
   margin: 0;
   color: var(--color-temprana);
 }
-button:focus-visible,
-input:focus-visible,
-select:focus-visible {
+button:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }

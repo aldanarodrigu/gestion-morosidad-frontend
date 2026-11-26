@@ -203,7 +203,7 @@ async function onSubmit() {
   padding: 10px 12px;
   color: var(--color-text);
   background-color: var(--color-surface);
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-borde-control);
   border-radius: var(--radius-sm);
   transition:
     border-color 0.15s,

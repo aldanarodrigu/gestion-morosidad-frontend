@@ -381,12 +381,6 @@ label {
 }
 input:not([type='checkbox']) {
   width: 100%;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  padding: 10px 12px;
-  background: var(--color-surface);
-  color: var(--color-text);
-  font-size: var(--texto-base);
 }
 input[readonly] {
   background: var(--color-background);
@@ -421,9 +415,6 @@ legend {
   border: 0;
   color: var(--color-primary);
   background: none;
-}
-.error {
-  color: var(--color-tardia);
 }
 .ayuda-campo {
   margin: 4px 0 0;

@@ -101,7 +101,6 @@ label {
   gap: 8px;
   font-size: var(--texto-base);
 }
-select,
 button {
   font: inherit;
   color: var(--color-text);
@@ -144,13 +143,11 @@ select {
 button {
   cursor: pointer;
 }
-button:disabled,
-select:disabled {
+button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
-button:focus-visible,
-select:focus-visible {
+button:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }

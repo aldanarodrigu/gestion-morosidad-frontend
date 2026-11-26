@@ -234,7 +234,6 @@ label {
   color: var(--color-text-secondary);
   font-size: var(--texto-sm);
 }
-select,
 button {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
@@ -248,11 +247,6 @@ button {
   align-items: center;
   padding-bottom: 8px;
 }
-input {
-  accent-color: var(--color-primary);
-}
-select:focus-visible,
-input:focus-visible,
 button:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
