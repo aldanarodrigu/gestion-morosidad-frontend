@@ -8,14 +8,31 @@ http.interceptors.request.use((config) => {
   return config
 })
 
+/**
+ * Qué hacer cuando el backend rechaza la sesión (401) de alguien que estaba ingresado.
+ * Dentro del sistema, el layout registra un manejador que pide volver a ingresar sin salir de la
+ * pantalla (así no se pierde lo que se estaba escribiendo). Sin manejador —por ejemplo, al abrir
+ * la aplicación con un token vencido— se va directo a la pantalla de ingreso.
+ */
+let manejarSesionVencida: (() => void) | null = null
+
+export function alVencerSesion(manejador: (() => void) | null) {
+  manejarSesionVencida = manejador
+}
+
 http.interceptors.response.use(
   (res) => res,
   (error) => {
     const esLogin = error.config?.url?.includes('/auth/login')
-    if (error.response?.status === 401 && !esLogin) {
-      localStorage.removeItem('token')
-      localStorage.removeItem('user')
-      window.location.href = '/login' // token vencido o inválido
+    const habiaSesion = !!localStorage.getItem('token')
+    if (error.response?.status === 401 && !esLogin && habiaSesion) {
+      if (manejarSesionVencida) {
+        manejarSesionVencida()
+      } else {
+        localStorage.removeItem('token')
+        localStorage.removeItem('user')
+        window.location.href = '/login'
+      }
     }
     return Promise.reject(error)
   },

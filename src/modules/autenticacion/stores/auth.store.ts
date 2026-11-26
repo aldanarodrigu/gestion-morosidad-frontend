@@ -25,6 +25,8 @@ export const useAuthStore = defineStore('auth', () => {
       : null,
   )
   const requiereCambioPassword = computed(() => user.value?.requiereCambioPassword === true)
+  // El backend rechazó la sesión mientras se usaba el sistema: hay que volver a ingresar
+  const sesionVencida = ref(false)
 
   function tieneRol(rol: string) {
     return !requiereCambioPassword.value && (user.value?.roles.includes(rol) ?? false)
@@ -52,9 +54,11 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = datos
     localStorage.setItem('token', t)
     localStorage.setItem('user', JSON.stringify(datos))
+    sesionVencida.value = false
   }
 
   function logout() {
+    sesionVencida.value = false
     token.value = null
     user.value = null
     localStorage.removeItem('token')
@@ -64,6 +68,7 @@ export const useAuthStore = defineStore('auth', () => {
   return {
     token,
     user,
+    sesionVencida,
     isAuthenticated,
     login,
     logout,

@@ -1,5 +1,16 @@
 <script setup lang="ts">
+import { onScopeDispose } from 'vue'
 import NavBar from '../components/NavBar.vue'
+import DialogoSesionVencida from '@/modules/autenticacion/components/DialogoSesionVencida.vue'
+import { useAuthStore } from '@/modules/autenticacion/stores/auth.store'
+import { alVencerSesion } from '@/shared/api/http'
+
+// Dentro del sistema, si la sesión vence se pide volver a ingresar sin salir de la pantalla
+const auth = useAuthStore()
+alVencerSesion(() => {
+  auth.sesionVencida = true
+})
+onScopeDispose(() => alVencerSesion(null))
 
 // Lleva el foco al contenido sin cambiar la URL (el router usa el historial, no el hash).
 function saltarAlContenido(evento: MouseEvent) {
@@ -18,6 +29,8 @@ function saltarAlContenido(evento: MouseEvent) {
     <main id="contenido-principal" class="main-content" tabindex="-1">
       <RouterView />
     </main>
+
+    <DialogoSesionVencida />
   </div>
 </template>
 
