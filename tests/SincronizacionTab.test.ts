@@ -94,6 +94,31 @@ it('deshabilita cancelar al comenzar a guardar',async()=>{
  const w=mount(Tab);await flushPromises();expect(w.get('button.cancelar').attributes('disabled')).toBeDefined();expect(w.text()).toContain('la cancelación está deshabilitada')
 })
 
+it('rechaza un año decimal o fuera de rango y permite corregirlo', async () => {
+  vi.mocked(api.guardarPeriodo).mockResolvedValue({ anioMinimo: 2014 })
+  const w = mount(Tab)
+  await flushPromises()
+  const campo = w.get('input')
+  const guardar = w.get('button[type=submit]')
+
+  for (const valor of ['2013.75', '1899', String(new Date().getFullYear() + 1)]) {
+    await campo.setValue(valor)
+    expect(campo.attributes('aria-invalid')).toBe('true')
+    expect(guardar.attributes('disabled')).toBeDefined()
+    expect(w.get('[role=alert]').text()).toContain('Ingresá un año entero')
+    await w.get('form').trigger('submit')
+  }
+  expect(api.guardarPeriodo).not.toHaveBeenCalled()
+
+  await campo.setValue('2014')
+  expect(campo.attributes('aria-invalid')).toBeUndefined()
+  expect(guardar.attributes('disabled')).toBeUndefined()
+  expect(w.find('[role=alert]').exists()).toBe(false)
+  await w.get('form').trigger('submit')
+  await flushPromises()
+  expect(api.guardarPeriodo).toHaveBeenCalledExactlyOnceWith(2014)
+})
+
 it('permite vaciar el año, guardarlo y volver a abrir sin límite',async()=>{
  vi.mocked(api.guardarPeriodo).mockResolvedValue({anioMinimo:null})
  const w=mount(Tab);await flushPromises();await w.get('input').setValue('');await w.get('form').trigger('submit');await flushPromises()

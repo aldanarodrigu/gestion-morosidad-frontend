@@ -38,10 +38,15 @@ const puedeCancelar = computed(
     !['GUARDANDO', 'FINALIZADA'].includes(ejecucion.value.progreso?.etapa || '') &&
     !cancelando.value,
 )
+const minAnio = 1900
 const maxAnio = new Date().getFullYear()
 const anioSeleccionado = computed(() =>
   anio.value === '' || anio.value == null ? null : Number(anio.value),
 )
+const anioValido = computed(() => {
+  const valor = anioSeleccionado.value
+  return valor === null || (Number.isInteger(valor) && valor >= minAnio && valor <= maxAnio)
+})
 let timer: ReturnType<typeof setTimeout> | undefined
 let revision = 0
 const esqueleto = useEsqueleto(() => cargando.value)
@@ -101,6 +106,7 @@ async function actualizar() {
   }
 }
 async function guardar() {
+  if (!anioValido.value) return
   error.value = ''
   mensaje.value = ''
   guardando.value = true
@@ -194,17 +200,22 @@ onScopeDispose(() => clearTimeout(timer))
               >Año mínimo (opcional)<input
                 v-model.number="anio"
                 type="number"
-                min="1900"
+                :min="minAnio"
                 :max="maxAnio"
                 step="1"
                 placeholder="Sin límite"
+                :aria-invalid="!anioValido || undefined"
+                :aria-describedby="!anioValido ? 'anio-minimo-error' : undefined"
                 :disabled="ocupada || guardando" /></label
             ><button
               type="submit"
-              :disabled="ocupada || guardando || anioSeleccionado === guardado"
+              :disabled="ocupada || guardando || !anioValido || anioSeleccionado === guardado"
             >
               {{ guardando ? 'Guardando…' : 'Guardar período' }}
             </button>
+          </div>
+          <div v-if="!anioValido" id="anio-minimo-error" role="alert" class="error">
+            Ingresá un año entero entre {{ minAnio }} y {{ maxAnio }}, o dejá el campo vacío.
           </div>
           <p>
             Se utiliza en las sincronizaciones manuales y automáticas de ambos orígenes. Los
