@@ -3,7 +3,12 @@ import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
 import { defineComponent, h, nextTick, reactive } from 'vue'
 import { fecha, fechaHora, importe, numero, origen, porcentaje } from '../src/shared/utils/formato'
 import { descargarArchivo } from '../src/shared/utils/descarga'
-import { mensajeDeError, useAlSalir, useConsulta } from '../src/shared/composables/useConsulta'
+import {
+  MENSAJE_SESION_VENCIDA,
+  mensajeDeError,
+  useAlSalir,
+  useConsulta,
+} from '../src/shared/composables/useConsulta'
 import { useFiltrosAutomaticos } from '../src/shared/composables/useFiltrosAutomaticos'
 import { vEnfocar } from '../src/shared/directives/enfocar'
 import DialogoConfirmacion from '../src/shared/components/DialogoConfirmacion.vue'
@@ -90,6 +95,15 @@ describe('useConsulta', () => {
       (e) => mensajeDeError(e, 'Falló'),
     )
     expect(consulta().error.value).toBe('Falló')
+  })
+
+  it('mensajeDeError explica que venció la sesión ante un 401, no un problema de conexión', () => {
+    expect(mensajeDeError({ response: { status: 401, data: {} } }, 'Se perdió la conexión')).toBe(
+      MENSAJE_SESION_VENCIDA,
+    )
+    expect(mensajeDeError({ response: { status: 500 } }, 'Se perdió la conexión')).toBe(
+      'Se perdió la conexión',
+    )
   })
 
   it('vigente(): una acción iniciada se descarta si después empieza otra consulta', async () => {

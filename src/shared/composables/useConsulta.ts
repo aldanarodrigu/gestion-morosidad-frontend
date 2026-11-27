@@ -77,8 +77,15 @@ export function useAlSalir(): AbortSignal {
   return controller.signal
 }
 
+export const MENSAJE_SESION_VENCIDA =
+  'Tu sesión venció y no se completó la operación. Volvé a ingresar e intentá de nuevo.'
+
 /** Mensaje de error que manda el backend (campo `mensaje`), o el texto por defecto. */
 export function mensajeDeError(e: unknown, defecto: string): string {
+  // 401: vencio la sesion, no es la conexion
+  if ((e as { response?: { status?: unknown } } | null)?.response?.status === 401) {
+    return MENSAJE_SESION_VENCIDA
+  }
   const mensaje = (e as { response?: { data?: { mensaje?: unknown } } } | null)?.response?.data
     ?.mensaje
   return typeof mensaje === 'string' && mensaje ? mensaje : defecto
