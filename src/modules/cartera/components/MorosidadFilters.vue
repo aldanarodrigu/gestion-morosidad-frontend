@@ -154,7 +154,7 @@ const opcionesOrden = [
           <option v-for="tipo in tiposPadron" :key="tipo" :value="tipo">{{ tipo }}</option>
         </select>
         <button v-if="errorTipos" type="button" class="reintentar" @click="cargarTiposPadron">
-          No se pudieron cargar los PadTipo. Reintentar
+          {{ errorCargaTipos }} Reintentar
         </button>
       </div>
 

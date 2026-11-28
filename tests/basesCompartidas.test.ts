@@ -106,6 +106,23 @@ describe('useConsulta', () => {
     )
   })
 
+  it('da prioridad al aviso de sesión vencida en consultas con mensaje fijo o personalizado', async () => {
+    const { consulta } = montar()
+    const sinSesion = () => Promise.reject({ response: { status: 401 } })
+
+    await consulta().ejecutar(sinSesion, 'No se pudo cargar la consulta')
+    expect(consulta().error.value).toBe(MENSAJE_SESION_VENCIDA)
+
+    await consulta().ejecutar(sinSesion, () => 'Error personalizado')
+    expect(consulta().error.value).toBe(MENSAJE_SESION_VENCIDA)
+
+    await consulta().ejecutar(
+      () => Promise.reject({ response: { status: 502, data: { mensaje: 'Error del proveedor' } } }),
+      'No se pudo cargar la consulta',
+    )
+    expect(consulta().error.value).toBe('No se pudo cargar la consulta')
+  })
+
   it('vigente(): una acción iniciada se descarta si después empieza otra consulta', async () => {
     const { consulta } = montar()
     await consulta().ejecutar(async () => 'primera', 'error')

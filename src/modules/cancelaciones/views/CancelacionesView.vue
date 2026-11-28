@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useFiltrosAutomaticos } from '@/shared/composables/useFiltrosAutomaticos'
-import { useAlSalir, useConsulta } from '@/shared/composables/useConsulta'
+import { mensajeDeError, useAlSalir, useConsulta } from '@/shared/composables/useConsulta'
 import { onMounted, reactive, ref } from 'vue'
 import { useAuthStore } from '@/modules/autenticacion/stores/auth.store'
 import FacturasPadronPanel from '@/modules/contribuyentes/components/FacturasPadronPanel.vue'
@@ -98,8 +98,9 @@ async function exportar(
     if (salida.aborted) return
     descargarArchivo(archivo, `cancelaciones.${formato}`)
     cerrarExportacion()
-  } catch {
-    if (!salida.aborted) errorExportacion.value = 'No se pudo exportar. Intentá nuevamente.'
+  } catch (e) {
+    if (!salida.aborted)
+      errorExportacion.value = mensajeDeError(e, 'No se pudo exportar. Intentá nuevamente.')
   } finally {
     exportando.value = false
   }

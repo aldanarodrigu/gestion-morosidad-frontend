@@ -38,8 +38,10 @@ export function useConsulta<T>() {
       datos.value = resultado
       return resultado
     } catch (e) {
-      if (!actual.signal.aborted)
-        error.value = typeof mensajeError === 'function' ? mensajeError(e) : mensajeError
+      if (!actual.signal.aborted) {
+        if (esSesionVencida(e)) error.value = MENSAJE_SESION_VENCIDA
+        else error.value = typeof mensajeError === 'function' ? mensajeError(e) : mensajeError
+      }
       return undefined
     } finally {
       if (controller === actual) cargando.value = false
@@ -80,12 +82,13 @@ export function useAlSalir(): AbortSignal {
 export const MENSAJE_SESION_VENCIDA =
   'Tu sesión venció y no se completó la operación. Volvé a ingresar e intentá de nuevo.'
 
+function esSesionVencida(e: unknown): boolean {
+  return (e as { response?: { status?: unknown } } | null)?.response?.status === 401
+}
+
 /** Mensaje de error que manda el backend (campo `mensaje`), o el texto por defecto. */
 export function mensajeDeError(e: unknown, defecto: string): string {
-  // 401: vencio la sesion, no es la conexion
-  if ((e as { response?: { status?: unknown } } | null)?.response?.status === 401) {
-    return MENSAJE_SESION_VENCIDA
-  }
+  if (esSesionVencida(e)) return MENSAJE_SESION_VENCIDA
   const mensaje = (e as { response?: { data?: { mensaje?: unknown } } } | null)?.response?.data
     ?.mensaje
   return typeof mensaje === 'string' && mensaje ? mensaje : defecto

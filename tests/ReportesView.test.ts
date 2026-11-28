@@ -78,6 +78,13 @@ describe('reportes de la base real',()=>{
   await vi.advanceTimersByTimeAsync(1000)
   expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:reporte')
  })
+ it('avisa que venció la sesión si falla la carga de los filtros', async () => {
+  vi.mocked(api.obtenerCatalogosReporte).mockRejectedValueOnce({ response: { status: 401 } })
+  const w = montar()
+  await flushPromises()
+  expect(w.get('[role="alert"]').text()).toContain('Tu sesión venció')
+  expect(w.get('.indicadores').text()).toContain('700,30')
+ })
  it('si falla el catálogo sigue mostrando el reporte y permite reintentar filtros',async()=>{
   vi.mocked(api.obtenerCatalogosReporte).mockRejectedValueOnce(new Error('error'))
   const w=montar();await flushPromises()

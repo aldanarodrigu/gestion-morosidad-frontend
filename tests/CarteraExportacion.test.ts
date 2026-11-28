@@ -82,6 +82,26 @@ describe('exportación de cartera', () => {
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:archivo')
     w.unmount()
   })
+  it('avisa que la sesión venció al exportar y deja el panel listo para volver a intentar', async () => {
+    vi.mocked(exportarCartera)
+      .mockRejectedValueOnce({ response: { status: 401 } })
+      .mockResolvedValueOnce(new Blob(['excel']))
+    const w = montar()
+    await w.get('button').trigger('click')
+    await flushPromises()
+
+    await w.get('form.exportacion-panel').trigger('submit')
+    await flushPromises()
+    expect(w.get('[role="alert"]').text()).toContain('Tu sesión venció')
+    expect(w.get('button[type="submit"]').attributes('disabled')).toBeUndefined()
+    expect(URL.createObjectURL).not.toHaveBeenCalled()
+
+    await w.get('form.exportacion-panel').trigger('submit')
+    await flushPromises()
+    expect(URL.createObjectURL).toHaveBeenCalledTimes(1)
+    expect(w.find('form.exportacion-panel').exists()).toBe(false)
+    w.unmount()
+  })
   it('ante error informa y permite reintentar sin descargar un archivo inválido', async () => {
     vi.mocked(exportarCartera).mockRejectedValue(new Error('fallo'))
     const w = montar()

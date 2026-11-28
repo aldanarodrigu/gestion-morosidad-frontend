@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useAlSalir, useConsulta } from '@/shared/composables/useConsulta'
+import { mensajeDeError, useAlSalir, useConsulta } from '@/shared/composables/useConsulta'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useAuthStore } from '@/modules/autenticacion/stores/auth.store'
@@ -63,9 +63,9 @@ async function descargar() {
     const archivo = await exportarReporte({ ...filtros }, salida)
     if (salida.aborted) return
     descargarArchivo(archivo, 'reporte-cartera.xlsx')
-  } catch {
+  } catch (e) {
     if (!salida.aborted)
-      errorExportacion.value = 'No se pudo exportar el reporte. Intentá nuevamente.'
+      errorExportacion.value = mensajeDeError(e, 'No se pudo exportar el reporte. Intentá nuevamente.')
   } finally {
     exportando.value = false
   }
@@ -188,7 +188,7 @@ function limpiar() {
         <RouterLink to="/cartera" class="enlace-cartera">Ir a cartera</RouterLink>
       </p>
       <p v-if="errorCatalogos" role="alert" class="ayuda ayuda-texto">
-        No se pudieron cargar los filtros.
+        {{ errorCargaCatalogos }}
         <button type="button" class="boton" @click="cargarCatalogos">Reintentar filtros</button>
       </p>
     </template>

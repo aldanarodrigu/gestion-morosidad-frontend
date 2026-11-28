@@ -4,6 +4,7 @@ import { useAuthStore } from '@/modules/autenticacion/stores/auth.store'
 const auth = useAuthStore()
 import FechaSincronizacion from '@/shared/components/FechaSincronizacion.vue'
 import { formatoNumero } from '@/shared/utils/formato'
+import { mensajeDeError } from '@/shared/composables/useConsulta'
 import { descargarArchivo } from '@/shared/utils/descarga'
 import AvisoCarga from '@/shared/components/esqueleto/AvisoCarga.vue'
 import SkeletonBloque from '@/shared/components/esqueleto/SkeletonBloque.vue'
@@ -63,8 +64,8 @@ async function exportarArchivo(formato: FormatoExportacion) {
     const archivo = await exportarCartera(filtrosApiDesde(f), f.agruparPor, formato)
     descargarArchivo(archivo, `cartera-morosidad.${formato}`)
     panelExportacion.value = false
-  } catch {
-    errorExportacion.value = 'No se pudo exportar la cartera. Intentá nuevamente.'
+  } catch (e) {
+    errorExportacion.value = mensajeDeError(e, 'No se pudo exportar la cartera. Intentá nuevamente.')
   } finally {
     exportando.value = false
   }

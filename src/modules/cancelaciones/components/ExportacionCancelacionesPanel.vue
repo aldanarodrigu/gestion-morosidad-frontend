@@ -102,7 +102,7 @@ function confirmar() {
     </fieldset>
 
     <p v-if="errorMotivos" class="error" role="alert">
-      No se pudieron cargar los motivos.
+      {{ errorCargaMotivos }}
       <button type="button" :disabled="exportando" @click="cargarMotivos">Reintentar</button>
     </p>
     <p v-if="errorFechas" class="error" role="alert">{{ errorFechas }}</p>
