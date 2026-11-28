@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   obtenerDeudasPorContribuyenteId,
@@ -17,6 +17,7 @@ import PaginaLayout from '@/shared/layouts/PaginaLayout.vue'
 import PestanasPagina from '@/shared/components/PestanasPagina.vue'
 import AvisoCarga from '@/shared/components/esqueleto/AvisoCarga.vue'
 import SkeletonBloque from '@/shared/components/esqueleto/SkeletonBloque.vue'
+import { useConsulta } from '@/shared/composables/useConsulta'
 import { useEsqueleto } from '@/shared/composables/useEsqueleto'
 
 const route = useRoute()
@@ -35,8 +36,7 @@ const deudas = ref<DeudaApi[]>([])
 const padronContacto = computed(
   () => (deudas.value.find((d) => d.id === deudaSeleccionadaId.value) ?? deudas.value[0])?.padron,
 )
-const cargando = ref(false)
-const error = ref<string | null>(null)
+const { cargando, error, ejecutar, detener } = useConsulta<DeudaApi[]>()
 const pestanaActiva = ref('gestiones')
 const esqueleto = useEsqueleto(() => cargando.value)
 
@@ -76,29 +76,24 @@ function gestionRegistrada(deudaId: number) {
 }
 const cantidadGestiones = ref<number | null>(null)
 
-const cargarDatos = async () => {
-  if (!Number.isInteger(contribuyenteId.value) || contribuyenteId.value <= 0) {
+async function cargarDatos() {
+  deudas.value = []
+  cantidadGestiones.value = null
+  const id = contribuyenteId.value
+  if (!Number.isSafeInteger(id) || id <= 0) {
+    detener()
     error.value = 'No se especificó un ID válido del contribuyente.'
     return
   }
 
-  cargando.value = true
-  error.value = null
-
-  try {
-    deudas.value = await obtenerDeudasPorContribuyenteId(contribuyenteId.value)
-  } catch {
-    error.value = 'No se pudieron cargar los datos. Intentá nuevamente.'
-  } finally {
-    cargando.value = false
-  }
+  const respuesta = await ejecutar(
+    (signal) => obtenerDeudasPorContribuyenteId(id, signal),
+    'No se pudieron cargar los datos. Intentá nuevamente.',
+  )
+  if (respuesta) deudas.value = respuesta
 }
 
-onMounted(cargarDatos)
-
-watch(contribuyenteId, () => {
-  cargarDatos()
-})
+watch(contribuyenteId, cargarDatos, { immediate: true })
 </script>
 
 <template>

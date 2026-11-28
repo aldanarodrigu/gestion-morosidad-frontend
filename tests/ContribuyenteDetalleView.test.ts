@@ -48,6 +48,7 @@ beforeEach(() => {
     'user',
     JSON.stringify({ id: 1, username: 'operador', roles: ['NOTIFICADOR'] }),
   )
+  route.params.contribuyenteId = '405'
   route.query = { deuda: '20' }
   vi.mocked(contribuyentes.obtenerDeudasPorContribuyenteId).mockResolvedValue(
     deudas.map((d) => ({ ...d })),
@@ -57,6 +58,43 @@ beforeEach(() => {
     { id: 1, nombre: 'Llamada', activo: true },
   ])
 })
+describe('carga del contribuyente al cambiar de ficha', () => {
+  it.each(['respuesta', 'error'] as const)(
+    'descarta %s de la ficha anterior aunque llegue después de abrir otra',
+    async (caso) => {
+      let responder!: (deudas: DeudaApi[]) => void
+      let rechazar!: (error: Error) => void
+      const pendiente = new Promise<DeudaApi[]>((resolve, reject) => {
+        responder = resolve
+        rechazar = reject
+      })
+      const nuevaDeuda: DeudaApi = {
+        ...deuda(40, '00000999'),
+        contribuyenteId: 406,
+        contribuyente: { cm: '40', nombre: 'Segundo contribuyente', documento: '00000999' },
+      }
+      const consultar = vi.mocked(contribuyentes.obtenerDeudasPorContribuyenteId)
+      consultar.mockReturnValueOnce(pendiente).mockResolvedValueOnce([nuevaDeuda])
+
+      const w = montar()
+      await flushPromises()
+      route.params.contribuyenteId = '406'
+      await flushPromises()
+
+      expect(w.get('.resumen').text()).toContain('Segundo contribuyente')
+      if (caso === 'respuesta') responder(deudas)
+      else rechazar(new Error('Falló la consulta anterior'))
+      await flushPromises()
+
+      expect(w.get('.resumen').text()).toContain('Segundo contribuyente')
+      expect(w.get('.resumen').text()).toContain('00000999')
+      expect(w.text()).not.toContain('No se pudieron cargar los datos')
+      expect(consultar).toHaveBeenNthCalledWith(2, 406, expect.any(AbortSignal))
+      expect(consultar.mock.calls[0]?.[1]?.aborted).toBe(true)
+    },
+  )
+})
+
 describe('CM de la deuda seleccionada en el detalle', () => {
   it('la cabecera y Gestiones usan la deuda de cartera aunque no sea la primera, conservando el total del contribuyente', async () => {
     const w = montar()

@@ -18,9 +18,11 @@ export interface ContribuyenteResumenResponse {
 
 export async function obtenerDeudasPorContribuyenteId(
   contribuyenteId: number | string,
+  signal?: AbortSignal,
 ): Promise<DeudaApi[]> {
   const { data } = await http.get<DeudaApi[]>(
     `/contribuyentes/id/${encodeURIComponent(contribuyenteId)}/deudas`,
+    { signal },
   )
 
   return data

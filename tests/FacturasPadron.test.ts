@@ -4,6 +4,7 @@ import DeudasTab from '../src/modules/contribuyentes/components/DeudasTab.vue'
 import FacturasPanel from '../src/modules/contribuyentes/components/FacturasPadronPanel.vue'
 import { obtenerFacturas } from '../src/modules/contribuyentes/services/facturaService'
 import { deuda } from './carteraFixtures'
+vi.mock('vue-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('../src/modules/contribuyentes/services/facturaService', () => ({ obtenerFacturas: vi.fn() }))
 enableAutoUnmount(afterEach)
 const factura = {
@@ -47,6 +48,10 @@ describe('detalle de facturas bajo demanda', () => {
     expect(item.matricula).toBe('SAA0123')
     const table = mount(CarteraTable,{props:{cartera:[item]},global:{stubs:{RouterLink:RouterLinkStub}}})
     expect(table.text()).toContain('Matrícula: SAA0123')
+    expect(table.getComponent(RouterLinkStub).props('to')).toEqual({
+      path: '/contribuyentes/110',
+      query: { deuda: '10' },
+    })
   })
   it('muestra contadores distintos y años no consecutivos sin inferir valores faltantes', async () => {
     const d={...deuda(10),cantidadFacturasVencidas:5,cantidadFacturasConDeuda:3,anioDesde:2021,anioHasta:2026,cantidadAniosDeuda:2,aniosDeuda:'2021, 2026'}

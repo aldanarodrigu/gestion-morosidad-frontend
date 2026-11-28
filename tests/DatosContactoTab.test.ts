@@ -37,9 +37,15 @@ describe('datos de contacto', () => {
   it('distingue contactos del mismo CM al cambiar de origen y guarda en SUCIVE', async () => {
     const w = montar()
     await flushPromises()
+    expect(w.text()).toContain('ana@example.test')
+    vi.mocked(api.obtenerContactos).mockResolvedValueOnce([
+      { ...contacto, id: 9, valor: 'sucive@example.test', origen: 'API_GEOPAT_PERSONAS' },
+    ])
     await w.setProps({ origen: 'SUCIVE' })
     await flushPromises()
     expect(api.obtenerContactos).toHaveBeenLastCalledWith('123', expect.any(AbortSignal), 'SUCIVE')
+    expect(w.text()).toContain('sucive@example.test')
+    expect(w.text()).not.toContain('ana@example.test')
     await nuevo(w)
     await w.get('form').trigger('submit')
     await flushPromises()
@@ -195,6 +201,33 @@ describe('datos de contacto', () => {
     await flushPromises()
     expect(w.text()).not.toContain('ana@example.test')
     expect(w.text()).toContain('No hay contactos registrados')
+    w.unmount()
+  })
+  it('no agrega un contacto guardado tarde a la lista del otro origen con el mismo CM', async () => {
+    let responder!: (contacto: Contacto) => void
+    vi.mocked(api.guardarContacto).mockReturnValueOnce(new Promise((resolve) => {
+      responder = resolve
+    }))
+    const w = montar()
+    await flushPromises()
+    await nuevo(w)
+    await w.get('form').trigger('submit')
+    expect(api.guardarContacto).toHaveBeenCalledWith('123', expect.objectContaining({
+      tipoContacto: 'TELEFONO', valor: '099123456', origen: 'Llamada',
+    }))
+
+    vi.mocked(api.obtenerContactos).mockResolvedValueOnce([
+      { ...contacto, id: 9, valor: 'sucive@example.test', origen: 'API_GEOPAT_PERSONAS' },
+    ])
+    await w.setProps({ origen: 'SUCIVE' })
+    await flushPromises()
+    responder({ ...contacto, id: 8, tipoContacto: 'TELEFONO', valor: '099123456' })
+    await flushPromises()
+
+    expect(w.text()).toContain('sucive@example.test')
+    expect(w.text()).not.toContain('099123456')
+    expect(w.text()).not.toContain('Contacto guardado correctamente.')
+    expect(w.findAll('.contacto')).toHaveLength(1)
     w.unmount()
   })
   it('Administrador consulta, agrega y edita contactos indicando su origen', async () => {
